@@ -4522,3 +4522,139 @@ initDb();
   renderSupervisor();
 })();
 </script>
+
+<!-- ===== Base compartida en vivo (Supabase) — módulo independiente rl_ ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Sincroniza el estado del panel con Supabase para que TODO el equipo
+   vea los mismos datos en vivo. Si Supabase no está disponible, el panel
+   sigue funcionando solo con guardado local (degradación segura). */
+(function(){
+  const SB_URL = 'https://mbbmpemzheqbvvganphs.supabase.co';
+  const SB_KEY = 'sb_publishable_2vtaLy9LCX--PVCeU-4QfQ_YcHQ_VZf';
+  const ROW_ID = 'panel';
+
+  if (typeof window.supabase === 'undefined' || !window.supabase.createClient){
+    setBadge('local','No se pudo cargar la base compartida · datos locales');
+    return;
+  }
+  let sb;
+  try { sb = window.supabase.createClient(SB_URL, SB_KEY, { realtime:{ params:{ eventsPerSecond:3 } } }); }
+  catch(e){ setBadge('local','Sin base compartida · datos locales'); return; }
+
+  const clientId = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let booted = false;         // no empujar hasta reconciliar con el servidor
+  let remoteApplying = false;  // evita bucle al aplicar cambios remotos
+  let pushTimer = null;
+
+  function snap(){
+    return {
+      gestores: state.gestores,
+      daily: Array.from(state.daily.entries()),
+      uploads: state.uploads,
+      config: state.config
+    };
+  }
+  function apply(obj){
+    if (!obj || typeof obj !== 'object') return false;
+    try{
+      if (obj.gestores && typeof obj.gestores==='object') state.gestores = obj.gestores;
+      if (Array.isArray(obj.daily)) state.daily = new Map(obj.daily);
+      if (Array.isArray(obj.uploads)) state.uploads = obj.uploads;
+      if (obj.config && typeof obj.config==='object') state.config = {...DEFAULT_CONFIG, ...obj.config};
+      return true;
+    }catch(e){ return false; }
+  }
+  function hasData(o){ return o && typeof o==='object' && Object.keys(o).length>0; }
+
+  function setBadge(mode, txt){
+    const el = document.getElementById('liveBadge');
+    if(!el) return;
+    const map = {
+      vivo: ['var(--good-wash)','var(--good)','● Base compartida · en vivo'],
+      sync: ['var(--warn-wash)','var(--warn)','● Sincronizando…'],
+      local:['var(--warn-wash)','var(--warn)','● Datos locales (sin conexión)']
+    };
+    const m = map[mode] || map.vivo;
+    el.style.background = m[0]; el.style.color = m[1];
+    el.textContent = txt || m[2];
+  }
+
+  async function pushNow(){
+    try{
+      setBadge('sync');
+      const { error } = await sb.from('rl_estado').upsert(
+        { id: ROW_ID, data: snap(), updated_at: new Date().toISOString(), updated_by: clientId },
+        { onConflict: 'id' }
+      );
+      setBadge(error ? 'local' : 'vivo', error ? 'Sin conexión · datos locales' : null);
+    }catch(e){ setBadge('local','Sin conexión · datos locales'); }
+  }
+  function schedulePush(){
+    if(!booted || remoteApplying) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushNow, 700);
+  }
+
+  async function fetchAndApply(){
+    try{
+      const { data, error } = await sb.from('rl_estado')
+        .select('data,updated_by').eq('id', ROW_ID).maybeSingle();
+      if (error || !data) return false;
+      if (data.updated_by === clientId) return false;     // es nuestro propio eco
+      if (!hasData(data.data)) return false;
+      remoteApplying = true;
+      apply(data.data);
+      window.renderAll();
+      remoteApplying = false;
+      setBadge('vivo');
+      return true;
+    }catch(e){ remoteApplying=false; return false; }
+  }
+
+  // Enganchar al ciclo de render para empujar cambios locales al servidor.
+  const _ra = window.renderAll;
+  window.renderAll = function(){
+    _ra.apply(this, arguments);
+    schedulePush();
+  };
+
+  async function boot(){
+    try{
+      const { data, error } = await sb.from('rl_estado')
+        .select('data,updated_at,updated_by').eq('id', ROW_ID).maybeSingle();
+      if (error){ setBadge('local','Sin conexión · datos locales'); booted=true; return; }
+      if (data && hasData(data.data)){
+        // El servidor manda: aplicamos lo compartido.
+        remoteApplying = true;
+        apply(data.data);
+        window.renderAll();
+        remoteApplying = false;
+        setBadge('vivo');
+      } else {
+        // Servidor vacío: sembramos con lo que haya en este navegador.
+        booted = true;
+        await pushNow();
+      }
+      booted = true;
+      subscribe();
+    }catch(e){ setBadge('local','Sin conexión · datos locales'); booted=true; }
+  }
+
+  function subscribe(){
+    try{
+      sb.channel('rl_estado_panel')
+        .on('postgres_changes',
+            { event:'*', schema:'public', table:'rl_estado', filter:'id=eq.'+ROW_ID },
+            (payload)=>{
+              const by = payload && payload.new && payload.new.updated_by;
+              if (by === clientId) return;   // ignorar nuestro propio cambio
+              fetchAndApply();
+            })
+        .subscribe();
+    }catch(e){ /* realtime opcional */ }
+  }
+
+  boot();
+})();
+</script>
