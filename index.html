@@ -264,6 +264,13 @@ button{font-family:inherit;}
 .bestcontact-card .bc-name{font-family:var(--font-display); font-weight:800; font-size:22px; color:var(--ink); line-height:1.15; margin-top:2px;}
 .bestcontact-card .bc-sub{font-size:13px; color:var(--ink-soft); margin-top:3px;}
 .bestcontact-card .bc-sub b{font-family:var(--font-mono); color:var(--good);}
+.defase-legend{display:flex; flex-wrap:wrap; gap:16px; margin-top:12px; font-size:12px; color:var(--ink-soft);}
+.defase-legend .dl-item{display:inline-flex; align-items:center; gap:6px;}
+.defase-legend .dl-line{width:20px; border-top:2.6px solid var(--good);}
+.defase-legend .dl-line.dashed{border-top:2px dashed var(--ink-mute);}
+.defase-legend .dl-dot{width:9px; height:9px; border-radius:50%;}
+.defase-legend .dl-dot.crit{background:var(--crit);} .defase-legend .dl-dot.good{background:var(--good);}
+.defase-legend .dl-area{width:16px; height:11px; border-radius:3px; background:var(--crit); opacity:.18;}
 
 /* Trend chart */
 .trend-svg{display:block; width:100%; height:200px; overflow:visible;}
@@ -1242,6 +1249,19 @@ body.capture-mode .capture-view{display:flex;}
   </div>
 
   <div class="section-title">
+    <h2>Defase vs meta diaria — faltante y acumulado</h2>
+    <span class="hint">cada día contra su meta (toques) y el faltante que se va <b>acumulando</b> · un gestor si lo seleccionas arriba, si no todo el alcance filtrado · sin fines de semana</span>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h2 id="defaseTitle">Faltante acumulado vs meta</h2>
+      <span class="hint" id="defaseHead"></span>
+    </div>
+    <svg class="trend-svg" id="defaseSvg" viewBox="0 0 900 300" preserveAspectRatio="none" style="height:300px;"></svg>
+    <div class="defase-legend" id="defaseLegend"></div>
+  </div>
+
+  <div class="section-title">
     <h2>Contactabilidad por gestor y día</h2>
     <span class="hint">Fecha · Gestor · Contactabilidad — <button class="toggle-detail" id="toggleDetail">ver contestadas / totales</button></span>
   </div>
@@ -2060,6 +2080,73 @@ function renderTop3(){
   renderCol('imparables', impEl);
 }
 
+function renderDefase(){
+  const svg = $('#defaseSvg'); if(!svg) return;
+  const headEl = $('#defaseHead'), legEl = $('#defaseLegend'), titleEl = $('#defaseTitle');
+  const single = !!state.filterGestor;
+  const scopeLabel = single ? gName(state.filterGestor) : (state.filterTeam ? (TEAMS[state.filterTeam]||state.filterTeam) : 'todo el equipo');
+  if (titleEl) titleEl.textContent = `Faltante acumulado vs meta — ${scopeLabel}`;
+  const [min,max] = currentRangeBounds();
+  if(!min){ svg.innerHTML=''; if(headEl) headEl.textContent=''; if(legEl) legEl.innerHTML=''; return; }
+
+  const exts = single ? [state.filterGestor] : visibleExts();
+  const days=[]; { let d=toUTC(min); const end=toUTC(max);
+    while(d<=end){ const ds=dateFmtUTC.format(d); if(!isWeekend(ds)) days.push(ds); d.setUTCDate(d.getUTCDate()+1); } }
+
+  let cumG=0, cumA=0; const pts=[];
+  days.forEach(ds=>{
+    let actual=0, workers=0;
+    exts.forEach(ext=>{ const r=getRec(ext+'_'+ds); if(r && (r.total||0)>0){ actual+=r.total; workers++; } });
+    if(!workers) return;
+    const goal = goalForDate(ds) * (single ? 1 : workers);
+    cumG += goal; cumA += actual;
+    pts.push({ds, actual, goal, cumG, cumA, deficit: goal-actual});
+  });
+
+  if(!pts.length){ svg.innerHTML = `<text x="12" y="150" class="trend-axis">Sin días trabajados en este período.</text>`; if(headEl) headEl.textContent=''; if(legEl) legEl.innerHTML=''; return; }
+
+  const finalDef = cumG - cumA;                 // >0 = faltante acumulado ; <0 = adelanto
+  const daysBelow = pts.filter(p=>p.deficit>0).length;
+  if(headEl){
+    headEl.innerHTML = finalDef>0
+      ? `faltante acumulado: <b style="color:var(--crit)">${fmtInt(finalDef)} llamadas</b> · ${daysBelow} de ${pts.length} días bajo meta`
+      : `al día: <b style="color:var(--good)">+${fmtInt(-finalDef)} sobre la meta</b> · ${daysBelow} de ${pts.length} días bajo meta`;
+  }
+
+  const W=900,H=300,padL=48,padR=18,padT=26,padB=40;
+  const innerW=W-padL-padR, innerH=H-padT-padB, n=pts.length;
+  const maxY=Math.max(cumG, cumA, 1);
+  const X=i=> n<=1 ? padL+innerW/2 : padL + innerW*i/(n-1);
+  const Y=v=> padT + innerH - (v/maxY)*innerH;
+
+  let area='';
+  for(let i=0;i<n-1;i++){
+    const behind = (pts[i].cumA<pts[i].cumG) || (pts[i+1].cumA<pts[i+1].cumG);
+    area += `<polygon points="${X(i).toFixed(1)},${Y(pts[i].cumG).toFixed(1)} ${X(i+1).toFixed(1)},${Y(pts[i+1].cumG).toFixed(1)} ${X(i+1).toFixed(1)},${Y(pts[i+1].cumA).toFixed(1)} ${X(i).toFixed(1)},${Y(pts[i].cumA).toFixed(1)}" fill="${behind?'var(--crit)':'var(--good)'}" opacity=".18"/>`;
+  }
+  const metaLine = `<polyline points="${pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.cumG).toFixed(1)}`).join(' ')}" fill="none" stroke="var(--ink-mute)" stroke-width="2" stroke-dasharray="6 5"/>`;
+  const actLine  = `<polyline points="${pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.cumA).toFixed(1)}`).join(' ')}" fill="none" stroke="${finalDef>0?'var(--crit)':'var(--good)'}" stroke-width="2.6"/>`;
+  const dots = pts.map((p,i)=>{
+    const acc = p.cumG-p.cumA;
+    const accTxt = acc>0 ? `faltan ${fmtInt(acc)}` : `+${fmtInt(-acc)}`;
+    return `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.cumA).toFixed(1)}" r="3.4" fill="${p.deficit>0?'var(--crit)':'var(--good)'}" stroke="var(--surface)" stroke-width="1.4"><title>${dateFmtHuman.format(toUTC(p.ds))}: ${fmtInt(p.actual)} de ${fmtInt(Math.round(p.goal))} meta · ${p.deficit>0?`faltaron ${fmtInt(p.deficit)}`:`+${fmtInt(-p.deficit)}`} ese día · acumulado: ${accTxt}</title></circle>`;
+  }).join('');
+  const step = Math.max(1, Math.ceil(n/14));
+  const xlabels = pts.map((p,i)=> (i%step===0 || i===n-1) ? `<text class="trend-axis" x="${X(i).toFixed(1)}" y="${H-14}" text-anchor="middle">${p.ds.slice(8)}</text>` : '').join('');
+  const grid = `<line class="trend-grid" x1="${padL}" x2="${W-padR}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>
+    <text class="trend-axis" x="6" y="${(Y(maxY)+4).toFixed(1)}">${fmtInt(maxY)}</text>
+    <text class="trend-axis" x="6" y="${(Y(0)).toFixed(1)}">0</text>`;
+  svg.innerHTML = grid + area + metaLine + actLine + dots + xlabels;
+
+  if(legEl){
+    legEl.innerHTML = `<span class="dl-item"><span class="dl-line dashed"></span>meta acumulada</span>`+
+      `<span class="dl-item"><span class="dl-line"></span>llamadas acumuladas</span>`+
+      `<span class="dl-item"><span class="dl-dot crit"></span>día bajo meta</span>`+
+      `<span class="dl-item"><span class="dl-dot good"></span>día cumplido</span>`+
+      `<span class="dl-item"><span class="dl-area"></span>el hueco entre líneas = defase acumulado</span>`;
+  }
+}
+
 function renderGoalRanking(){
   const el = $('#goalRankList');
   const [min,max] = currentRangeBounds();
@@ -2775,6 +2862,7 @@ function renderAll(){
   renderWeeklyChart();
   renderGoalRanking();
   renderTop3();
+  renderDefase();
   renderGestorBarChart();
   renderMarkets();
   renderContactability();
