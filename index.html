@@ -687,6 +687,20 @@ body.tv-mode .tv-view{display:flex;}
 .tv-dots{position:relative; z-index:2; display:flex; justify-content:center; gap:10px; padding-top:18px;}
 .tv-dot{width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,.18); transition:background .2s ease, transform .2s ease;}
 .tv-dot.active{background:var(--tv-accent); transform:scale(1.3); box-shadow:0 0 10px var(--tv-accent);}
+.tv-dot{cursor:pointer;}
+.tv-dot:hover{background:rgba(255,255,255,.45);}
+.tv-nav{
+  position:absolute; top:50%; transform:translateY(-50%); z-index:5;
+  width:52px; height:52px; border-radius:50%;
+  border:1px solid var(--tv-card-border); background:var(--tv-card); color:var(--tv-ink);
+  cursor:pointer; opacity:.3; transition:opacity .2s ease, background .2s ease, transform .12s ease;
+  display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px);
+}
+.tv-nav:hover{opacity:1; background:rgba(255,255,255,.14);}
+.tv-nav:active{transform:translateY(-50%) scale(.9);}
+.tv-nav svg{width:24px; height:24px;}
+.tv-nav.prev{left:22px;} .tv-nav.next{right:22px;}
+@media (max-width:640px){ .tv-nav{width:42px; height:42px;} .tv-nav.prev{left:10px;} .tv-nav.next{right:10px;} }
 .tv-confetti-layer{position:absolute; inset:0; z-index:4; pointer-events:none; overflow:hidden;}
 .tv-confetti-piece{position:absolute; top:-24px; border-radius:2px; animation-name:tvConfettiFall; animation-timing-function:cubic-bezier(.35,0,.65,1); animation-fill-mode:forwards;}
 @keyframes tvConfettiFall{ 0%{transform:translateY(0) rotate(0deg); opacity:1;} 100%{transform:translateY(112vh) rotate(640deg); opacity:.15;} }
@@ -891,6 +905,12 @@ body.capture-mode .capture-view{display:flex;}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
   </button>
   <button class="tv-exit" id="tvExit" title="Salir del modo TV" aria-label="Salir del modo TV">✕</button>
+  <button class="tv-nav prev" id="tvPrev" title="Slide anterior (←)" aria-label="Slide anterior">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button class="tv-nav next" id="tvNext" title="Slide siguiente (→)" aria-label="Slide siguiente">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
   <div class="tv-head">
     <span class="tv-logo">pdc.</span>
     <span class="tv-headline">Reporte de llamadas en vivo</span>
@@ -3612,7 +3632,7 @@ function renderTVScreen(){
   el.innerHTML = TV_SCREENS[state.tvScreenIdx % TV_SCREENS.length]();
   tvMountAnimations(el);
   const dotsEl = $('#tvDots');
-  if (dotsEl) dotsEl.innerHTML = TV_SCREENS.map((_,i)=>`<span class="tv-dot ${i===state.tvScreenIdx?'active':''}"></span>`).join('');
+  if (dotsEl) dotsEl.innerHTML = TV_SCREENS.map((_,i)=>`<span class="tv-dot ${i===state.tvScreenIdx?'active':''}" data-i="${i}" role="button" title="Ir a la slide ${i+1}"></span>`).join('');
   const clockEl = $('#tvClock');
   if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('es-GT', {hour:'2-digit', minute:'2-digit'});
   // Confeti cuando la meta está cumplida o superada — una sola vez por
@@ -3627,6 +3647,38 @@ function tvAdvance(){
   state.tvScreenIdx = (state.tvScreenIdx+1) % TV_SCREENS.length;
   tvConfettiArmed = true;
   renderTVScreen();
+}
+
+// ---- Navegación manual (además de la rotación automática) ----
+function tvResetTimer(){
+  if (tvTimer) clearInterval(tvTimer);
+  if (state.tvMode) tvTimer = setInterval(tvAdvance, TV_ROTATE_MS);
+}
+function tvGoTo(idx){
+  const n = TV_SCREENS.length;
+  state.tvScreenIdx = ((idx % n) + n) % n;
+  tvConfettiArmed = true;
+  renderTVScreen();
+  tvResetTimer();   // al elegir manualmente, reinicia el conteo para no saltar de inmediato
+}
+function tvNext(){ tvGoTo(state.tvScreenIdx + 1); }
+function tvPrev(){ tvGoTo(state.tvScreenIdx - 1); }
+
+let tvNavWired = false;
+function tvWireNav(){
+  if (tvNavWired) return; tvNavWired = true;
+  const p = $('#tvPrev'), nx = $('#tvNext'), dots = $('#tvDots');
+  if (p)  p.addEventListener('click', tvPrev);
+  if (nx) nx.addEventListener('click', tvNext);
+  if (dots) dots.addEventListener('click', (e)=>{
+    const d = e.target.closest('.tv-dot');
+    if (d && d.dataset.i != null) tvGoTo(parseInt(d.dataset.i, 10));
+  });
+  document.addEventListener('keydown', (e)=>{
+    if (!state.tvMode) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown'){ e.preventDefault(); tvNext(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); tvPrev(); }
+  });
 }
 
 // Paleta decorativa según la hora del día — solo cambia el "clima" visual de
@@ -3657,6 +3709,7 @@ function startTvMode(){
   if (view) view.hidden = false;
   tvApplyTimeTheme();
   renderTVScreen();
+  tvWireNav();
   if (tvTimer) clearInterval(tvTimer);
   tvTimer = setInterval(tvAdvance, TV_ROTATE_MS);
   if (tvClockTimer) clearInterval(tvClockTimer);
