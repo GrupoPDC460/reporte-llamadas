@@ -257,6 +257,13 @@ button{font-family:inherit;}
 .rank-bar-fill.top{background:linear-gradient(90deg, var(--accent), var(--seq-600));}
 .rank-val{font-family:var(--font-mono); font-weight:600; font-size:13px; min-width:26px; text-align:right; font-variant-numeric:tabular-nums;}
 .rank-empty{color:var(--ink-mute); font-size:13px; padding:20px 0; text-align:center;}
+.bestcontact-card{display:flex; align-items:center; gap:16px; margin-bottom:16px; padding:16px 20px;
+  border-radius:16px; border:1px solid var(--good); background:var(--good-wash);}
+.bestcontact-card .bc-crown{font-size:34px; line-height:1; flex:none;}
+.bestcontact-card .bc-label{font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--good);}
+.bestcontact-card .bc-name{font-family:var(--font-display); font-weight:800; font-size:22px; color:var(--ink); line-height:1.15; margin-top:2px;}
+.bestcontact-card .bc-sub{font-size:13px; color:var(--ink-soft); margin-top:3px;}
+.bestcontact-card .bc-sub b{font-family:var(--font-mono); color:var(--good);}
 
 /* Trend chart */
 .trend-svg{display:block; width:100%; height:200px; overflow:visible;}
@@ -1092,6 +1099,22 @@ body.capture-mode .capture-view{display:flex;}
   </div>
 
   <div class="section-title">
+    <h2>Top 3 por equipo — mejor contacto</h2>
+    <span class="hint">por llamadas <b>contestadas</b> en el período seleccionado · sin fines de semana · clic en un nombre para ver su detalle</span>
+  </div>
+  <div id="bestContactBanner"></div>
+  <div class="grid-2" id="top3Grid">
+    <div class="card">
+      <div class="card-head"><h2><span class="team-dot a"></span>Team Chevere</h2><span class="hint">top 3 por contestadas</span></div>
+      <div id="top3Chevere"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2><span class="team-dot b"></span>Team Imparables</h2><span class="hint">top 3 por contestadas</span></div>
+      <div id="top3Imparables"></div>
+    </div>
+  </div>
+
+  <div class="section-title">
     <h2 id="gestorBarTitle">Llamadas por gestor</h2>
     <span class="hint" id="gestorBarHint">volumen total — todo el período</span>
   </div>
@@ -1893,7 +1916,7 @@ function renderWeeklyChart(){
         <rect x="${(cx-badgeW/2).toFixed(1)}" y="${(badgeCy-9).toFixed(1)}" width="${badgeW.toFixed(1)}" height="18" rx="9" fill="var(--${st}-wash)"/>
         <text x="${cx.toFixed(1)}" y="${(badgeCy+3.5).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-weight="700" font-size="9.5" fill="var(--${st})">${badgeText}</text>
       ` : ''}
-      <text class="trend-axis" x="${cx.toFixed(1)}" y="${dayLabelY}" text-anchor="middle" ${isSelected?'style="fill:var(--ink); font-weight:700;"':''}>${it.label}</text>
+      <text class="trend-axis" x="${cx.toFixed(1)}" y="${dayLabelY}" text-anchor="middle" ${isSelected?'style="fill:var(--ink); font-weight:700;"':''}>${byDay ? String(toUTC(allDays[i]).getUTCDate()).padStart(2,'0') : it.label}</text>
     </g>`;
   }).join('');
 
@@ -1993,6 +2016,50 @@ function renderWeeklyChart(){
 }
 
 // ---------- Render: Ranking por cumplimiento de meta diaria ----------
+function renderTop3(){
+  const cheEl = $('#top3Chevere'), impEl = $('#top3Imparables'), bannerEl = $('#bestContactBanner');
+  if (!cheEl || !impEl) return;
+  const recs = filteredRecords();
+  const byAns = {};
+  recs.forEach(r=>{ byAns[r.ext] = (byAns[r.ext]||0) + (r.answered||0); });
+  const rows = visibleExts().map(ext=>({ext, name:gName(ext), team:gTeam(ext), ans:byAns[ext]||0})).filter(r=>r.ans>0);
+
+  // Mejor gestor POR CONTACTO = el de más llamadas contestadas (answered).
+  if (bannerEl){
+    if (rows.length){
+      const best = rows.slice().sort((a,b)=>b.ans-a.ans)[0];
+      const teamName = best.team ? (TEAMS[best.team]||best.team) : 'Sin equipo';
+      bannerEl.innerHTML = `<div class="bestcontact-card">
+        <span class="bc-crown">🏆</span>
+        <div class="bc-body">
+          <div class="bc-label">Mejor gestor por contacto (contestadas)</div>
+          <div class="bc-name">${escapeHtml(best.name)}</div>
+          <div class="bc-sub"><b>${fmtInt(best.ans)}</b> llamadas contestadas · ${escapeHtml(teamName)}</div>
+        </div>
+      </div>`;
+    } else bannerEl.innerHTML = '';
+  }
+
+  const medals = ['🥇','🥈','🥉'];
+  const renderCol = (team, el)=>{
+    const list = rows.filter(r=>r.team===team).sort((a,b)=>b.ans-a.ans).slice(0,3);
+    if (!list.length){ el.innerHTML = '<div class="rank-empty">Sin contestadas en este período.</div>'; return; }
+    const mx = Math.max(...list.map(r=>r.ans), 1);
+    el.innerHTML = list.map((r,i)=>`<div class="rank-row">
+        <span class="rank-num">${medals[i]||(i+1)}</span>
+        <span class="rank-name" title="${escapeHtml(r.name)}" data-ext="${r.ext}">${escapeHtml(r.name)}</span>
+        <div class="rank-bar-track"><div class="rank-bar-fill ${i===0?'top':''}" style="width:${Math.max((r.ans/mx)*100,4).toFixed(1)}%"></div></div>
+        <span class="rank-val">${fmtInt(r.ans)}</span>
+      </div>`).join('');
+    el.querySelectorAll('.rank-name[data-ext]').forEach(nameEl=>{
+      nameEl.style.cursor='pointer';
+      nameEl.addEventListener('click', ()=>{ state.filterGestor = nameEl.dataset.ext; const p=$('#pickGestor'); if(p) p.value=state.filterGestor; renderAll(); });
+    });
+  };
+  renderCol('chevere', cheEl);
+  renderCol('imparables', impEl);
+}
+
 function renderGoalRanking(){
   const el = $('#goalRankList');
   const [min,max] = currentRangeBounds();
@@ -2707,6 +2774,7 @@ function renderAll(){
   renderTrend();
   renderWeeklyChart();
   renderGoalRanking();
+  renderTop3();
   renderGestorBarChart();
   renderMarkets();
   renderContactability();
