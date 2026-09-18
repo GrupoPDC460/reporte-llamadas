@@ -4565,7 +4565,7 @@ initDb();
       return true;
     }catch(e){ return false; }
   }
-  function hasData(o){ return o && typeof o==='object' && Object.keys(o).length>0; }
+  function hasReal(o){ return o && typeof o==='object' && ((Array.isArray(o.daily)&&o.daily.length>0)||(Array.isArray(o.uploads)&&o.uploads.length>0)); }
 
   function setBadge(mode, txt){
     const el = document.getElementById('liveBadge');
@@ -4581,6 +4581,7 @@ initDb();
   }
 
   async function pushNow(){
+    if(!hasReal(snap())){ setBadge('vivo'); return; }  // nunca sobrescribir la base compartida con datos vacíos
     try{
       setBadge('sync');
       const { error } = await sb.from('rl_estado').upsert(
@@ -4602,7 +4603,7 @@ initDb();
         .select('data,updated_by').eq('id', ROW_ID).maybeSingle();
       if (error || !data) return false;
       if (data.updated_by === clientId) return false;     // es nuestro propio eco
-      if (!hasData(data.data)) return false;
+      if (!hasReal(data.data)) return false;
       remoteApplying = true;
       apply(data.data);
       window.renderAll();
@@ -4622,21 +4623,20 @@ initDb();
   async function boot(){
     try{
       const { data, error } = await sb.from('rl_estado')
-        .select('data,updated_at,updated_by').eq('id', ROW_ID).maybeSingle();
-      if (error){ setBadge('local','Sin conexión · datos locales'); booted=true; return; }
-      if (data && hasData(data.data)){
-        // El servidor manda: aplicamos lo compartido.
+        .select('data,updated_by').eq('id', ROW_ID).maybeSingle();
+      const remoteReal = !error && data && hasReal(data.data);
+      if (remoteReal){
+        // El servidor tiene datos reales: mandan ellos.
         remoteApplying = true;
         apply(data.data);
         window.renderAll();
         remoteApplying = false;
-        setBadge('vivo');
-      } else {
-        // Servidor vacío: sembramos con lo que haya en este navegador.
-        booted = true;
-        await pushNow();
       }
       booted = true;
+      if (error){ setBadge('local','Sin conexión · datos locales'); return; }
+      setBadge('vivo');
+      // Si el servidor no tiene datos reales pero este navegador sí, lo sembramos.
+      if (!remoteReal) await pushNow();
       subscribe();
     }catch(e){ setBadge('local','Sin conexión · datos locales'); booted=true; }
   }
