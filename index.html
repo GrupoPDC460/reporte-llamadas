@@ -235,7 +235,9 @@ button{font-family:inherit;}
 .filter-tag:hover{filter:brightness(0.95);}
 
 /* Card */
-.grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; align-items:start;}
+.grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; align-items:stretch;}
+.grid-2 > .card{display:flex; flex-direction:column;}
+.col-stack{display:flex; flex-direction:column; gap:16px;}
 .card{
   background:var(--surface); border:1px solid var(--border-soft);
   border-radius:var(--radius-l); box-shadow:var(--shadow-1);
@@ -263,6 +265,31 @@ button{font-family:inherit;}
 .gestor-bar-svg{height:300px;}
 .gestor-bar{transition:opacity .15s ease;}
 .gestor-bar:hover{opacity:.82;}
+.week-bar{transition:opacity .15s ease;}
+.week-bar-click{cursor:pointer;}
+.week-bar-click:hover{opacity:.8;}
+
+/* Weekly chart insights strip - fills the card below the SVG */
+.week-insights{display:flex; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);}
+.week-insight{flex:1; min-width:0; background:var(--surface-2); border-radius:var(--radius-m); padding:10px 12px;}
+.week-insight .wi-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-mute); font-weight:600; display:block; margin-bottom:4px;}
+.week-insight .wi-value{font-family:var(--font-display); font-size:17px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;}
+.week-insight .wi-sub{font-size:11px; color:var(--ink-soft); display:block; margin-top:2px;}
+.week-insight .wi-trend{font-family:var(--font-mono); font-weight:700; font-size:11.5px;}
+.week-insight .wi-trend.up{color:var(--good);}
+.week-insight .wi-trend.down{color:var(--crit);}
+
+/* Team comparison strip - segunda franja, debajo de los insights */
+.week-teamcompare{margin-top:14px;}
+.week-teamcompare .wtc-title{font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-mute); font-weight:600; margin-bottom:8px; display:block;}
+.wtc-row{display:grid; grid-template-columns:138px 1fr auto; align-items:center; gap:10px; padding:6px 0;}
+.wtc-name{font-size:12.5px; font-weight:600; color:var(--ink); display:flex; align-items:center; white-space:nowrap;}
+.wtc-track{position:relative; height:16px; background:var(--surface-2); border-radius:6px; overflow:hidden;}
+.wtc-fill{position:absolute; inset:0 auto 0 0; border-radius:6px; transition:width .4s ease; background:var(--ink-mute);}
+.wtc-fill.a{background:linear-gradient(90deg, var(--team-a), color-mix(in srgb, var(--team-a) 60%, transparent));}
+.wtc-fill.b{background:linear-gradient(90deg, var(--team-b), color-mix(in srgb, var(--team-b) 60%, transparent));}
+.wtc-val{font-family:var(--font-mono); font-weight:700; font-size:12.5px; text-align:right; min-width:88px; font-variant-numeric:tabular-nums;}
+.wtc-val .wtc-pct{color:var(--ink-mute); font-weight:500;}
 .legend-chip{display:inline-flex; align-items:center; font-size:11px; color:var(--ink-mute); font-weight:600;}
 
 /* Contactabilidad y duración */
@@ -369,6 +396,9 @@ table.summary thead th{
   font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-mute); font-weight:600; text-align:right;
 }
 table.summary thead th:first-child{text-align:left;}
+table.summary thead th.sortable{cursor:pointer; user-select:none;}
+table.summary thead th.sortable:hover{color:var(--ink);}
+table.summary thead th .arrow{font-size:9px; margin-left:3px; opacity:.6;}
 table.summary tbody td{text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
 table.summary tbody th{text-align:left; font-weight:500;}
 table.summary tbody tr:not(.team-row){border-bottom:1px solid var(--border-soft);}
@@ -420,6 +450,21 @@ table.summary td.eff-col{color:var(--accent); font-weight:700;}
 .drawer .close{position:absolute; top:16px; right:16px;}
 .drawer-section{margin-top:22px; padding-top:18px; border-top:1px solid var(--border-soft);}
 .drawer-section h4{font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); margin-bottom:10px;}
+
+/* Selector de gestor al subir un registro de celular (sin nombre adentro) */
+.phone-picker{
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(.96);
+  width:380px; max-width:90vw; background:var(--surface); border-radius:var(--radius-l);
+  box-shadow:var(--shadow-2); padding:22px; z-index:51; opacity:0; pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+}
+.phone-picker.show{opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1);}
+.phone-picker h3{font-size:16px; margin-bottom:6px;}
+.phone-picker select{
+  width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border);
+  background:var(--surface-2); color:var(--ink); font-family:inherit; font-size:13.5px;
+}
+.phone-picker-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
 .field{margin-bottom:12px;}
 .field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; color:var(--ink-soft);}
 .field input[type=number], .field input[type=date]{
@@ -561,8 +606,224 @@ body.lay-edit .lay-hint{display:block;}
   .kpis{grid-template-columns:repeat(2,1fr);}
   .grid-2{grid-template-columns:1fr;}
 }
-</style>
 
+/* ============================= MODO TV ============================= */
+/* Pantalla completa para un monitor/TV de oficina — se activa con el botón
+   "Modo TV" de la barra superior. Es su propio mundo visual a propósito:
+   fondo tipo "aurora" en movimiento (que cambia de paleta según la hora del
+   día — mañana, tarde o noche, para no ver siempre lo mismo), tarjetas de
+   vidrio, números que suben animados, barras que se llenan con brillo,
+   confeti cuando se supera la meta — pensado para verse llamativo e
+   inspirar al equipo desde lejos, sin depender del tema claro/oscuro de
+   quien lo mire. Usa los mismos datos en vivo del resto del panel (misma
+   base de datos, nada que sincronizar a mano), y rota sola entre varias
+   vistas. */
+body.tv-mode .topbar, body.tv-mode .wrap{display:none;}
+body.tv-mode .tv-view{display:flex;}
+.tv-view{
+  position:fixed; inset:0; z-index:9999; display:none; flex-direction:column;
+  padding:36px 56px 28px; box-sizing:border-box; overflow:hidden;
+  --tv-ink:#f5f6ff; --tv-ink-soft:#c9cdef; --tv-ink-mute:#8b90bd;
+  --tv-card:rgba(255,255,255,.055); --tv-card-border:rgba(255,255,255,.11);
+  --tv-good:#38e07f; --tv-warn:#ffce4d; --tv-crit:#ff6f6f;
+  --tv-team-a:#26e0a4; --tv-team-b:#ff9257; --tv-gold:#ffd166; --tv-silver:#d7dbe6; --tv-bronze:#e0954f;
+  /* Paleta decorativa por franja horaria — noche es la base; mañana/tarde la
+     sobrescriben abajo. Los colores semánticos (equipos, meta, medallas)
+     nunca cambian con la hora, solo el "clima" de fondo. */
+  --tv-accent:#6db3ff;
+  --tv-bg-1:#0a0d1c; --tv-bg-2:#120f28; --tv-bg-3:#0a1420;
+  --tv-blob-1:#3f5bff; --tv-blob-2:#ff5fa8; --tv-blob-3:#26d9c8;
+  --tv-glow-1:rgba(93,122,255,.16); --tv-glow-2:rgba(255,110,180,.13);
+  background:
+    radial-gradient(circle at 15% 8%, var(--tv-glow-1), transparent 45%),
+    radial-gradient(circle at 88% 82%, var(--tv-glow-2), transparent 45%),
+    linear-gradient(160deg, var(--tv-bg-1) 0%, var(--tv-bg-2) 45%, var(--tv-bg-3) 100%);
+  color:var(--tv-ink);
+  transition:background 2.5s ease;
+}
+/* Mañana (≈05:00–11:59): amanecer — azul cielo, durazno y oro, más luminoso. */
+.tv-view[data-tv-theme="morning"]{
+  --tv-accent:#3fb6ff;
+  --tv-bg-1:#0d1a2e; --tv-bg-2:#152238; --tv-bg-3:#1c1430;
+  --tv-blob-1:#3fb6ff; --tv-blob-2:#ffb454; --tv-blob-3:#ff8fb0;
+  --tv-glow-1:rgba(63,182,255,.18); --tv-glow-2:rgba(255,180,84,.14);
+}
+/* Tarde (≈12:00–17:59): energía cálida — magenta, naranja y ámbar. */
+.tv-view[data-tv-theme="afternoon"]{
+  --tv-accent:#ffb020;
+  --tv-bg-1:#1a0d24; --tv-bg-2:#26102c; --tv-bg-3:#180a1c;
+  --tv-blob-1:#ff5fa8; --tv-blob-2:#ffb020; --tv-blob-3:#a259ff;
+  --tv-glow-1:rgba(255,95,168,.17); --tv-glow-2:rgba(255,176,32,.15);
+}
+.tv-aurora{position:absolute; border-radius:50%; filter:blur(80px); pointer-events:none; z-index:0; opacity:.55; will-change:transform; transition:background 2.5s ease;}
+.tv-aurora-1{width:620px; height:620px; left:-180px; top:-160px; background:var(--tv-blob-1); animation:tvAurora1 24s ease-in-out infinite;}
+.tv-aurora-2{width:560px; height:560px; right:-160px; bottom:-140px; background:var(--tv-blob-2); animation:tvAurora2 30s ease-in-out infinite;}
+.tv-aurora-3{width:480px; height:480px; right:12%; top:-220px; background:var(--tv-blob-3); animation:tvAurora3 34s ease-in-out infinite; opacity:.35;}
+.tv-view[data-tv-theme="morning"] .tv-aurora{animation-duration:18s; opacity:.62;}
+.tv-view[data-tv-theme="afternoon"] .tv-aurora{animation-duration:20s; opacity:.6;}
+@keyframes tvAurora1{ 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(90px,60px) scale(1.15);} }
+@keyframes tvAurora2{ 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-70px,-50px) scale(1.1);} }
+@keyframes tvAurora3{ 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-60px,80px) scale(1.2);} }
+.tv-exit{
+  position:absolute; top:18px; right:18px; width:34px; height:34px; border-radius:50%; z-index:5;
+  border:1px solid var(--tv-card-border); background:var(--tv-card); color:var(--tv-ink-mute);
+  font-size:14px; cursor:pointer; opacity:.4; transition:opacity .2s ease, background .2s ease; backdrop-filter:blur(6px);
+}
+.tv-exit:hover{opacity:1; background:rgba(255,255,255,.12);}
+.tv-exit svg{width:16px; height:16px;}
+.tv-fullscreen-btn{right:60px;}
+.tv-head{position:relative; z-index:2; display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
+.tv-logo{font-family:var(--font-display); font-weight:800; font-size:28px; color:var(--tv-accent); letter-spacing:-.02em; transition:color 2.5s ease;}
+.tv-headline{font-family:var(--font-display); font-weight:800; font-size:26px; color:var(--tv-ink);}
+.tv-live{display:inline-flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:12.5px; font-weight:700;
+  letter-spacing:.09em; color:var(--tv-good); background:rgba(56,224,127,.12); border:1px solid rgba(56,224,127,.35);
+  padding:5px 12px 5px 9px; border-radius:20px;}
+.tv-live-dot{width:8px; height:8px; border-radius:50%; background:var(--tv-good); animation:tvPulseDot 1.8s ease-in-out infinite;}
+@keyframes tvPulseDot{ 0%{box-shadow:0 0 0 0 rgba(56,224,127,.55);} 70%{box-shadow:0 0 0 11px rgba(56,224,127,0);} 100%{box-shadow:0 0 0 0 rgba(56,224,127,0);} }
+.tv-clock{margin-left:auto; font-family:var(--font-mono); font-size:20px; color:var(--tv-ink-mute); font-variant-numeric:tabular-nums;}
+.tv-screen{position:relative; z-index:2; flex:1; display:flex; flex-direction:column; min-height:0; margin-top:18px; overflow:hidden;}
+.tv-screen-inner{display:flex; flex-direction:column; flex:1; min-height:0; animation:tvFadeIn .65s cubic-bezier(.22,1,.36,1);}
+@keyframes tvFadeIn{ from{opacity:0; transform:translateY(16px) scale(.985);} to{opacity:1; transform:none;} }
+.tv-dots{position:relative; z-index:2; display:flex; justify-content:center; gap:10px; padding-top:18px;}
+.tv-dot{width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,.18); transition:background .2s ease, transform .2s ease;}
+.tv-dot.active{background:var(--tv-accent); transform:scale(1.3); box-shadow:0 0 10px var(--tv-accent);}
+.tv-confetti-layer{position:absolute; inset:0; z-index:4; pointer-events:none; overflow:hidden;}
+.tv-confetti-piece{position:absolute; top:-24px; border-radius:2px; animation-name:tvConfettiFall; animation-timing-function:cubic-bezier(.35,0,.65,1); animation-fill-mode:forwards;}
+@keyframes tvConfettiFall{ 0%{transform:translateY(0) rotate(0deg); opacity:1;} 100%{transform:translateY(112vh) rotate(640deg); opacity:.15;} }
+
+.tv-screen-title{font-family:var(--font-display); font-weight:800; font-size:34px; color:var(--tv-ink); margin-bottom:4px;}
+.tv-screen-sub{font-size:17px; color:var(--tv-ink-mute); margin-bottom:20px;}
+
+/* Ranking: la lista completa existe desde el inicio (nada aparece tarjeta
+   por tarjeta) — lo que se anima es la "cámara" (transform-origin + scale)
+   recorriéndola, controlada desde JS en tvRunCameraTour(). */
+/* La tabla muestra a los 18 gestores (o el equipo filtrado) completa, así
+   que las tarjetas son más compactas que antes; el ancho se deja por
+   debajo del 100% (con la lista centrada) para que la tarjeta en foco
+   tenga margen de sobra al agrandarse y no se corte contra el borde de
+   la pantalla. */
+.tv-rank-list{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; justify-content:center; will-change:transform; transform-origin:50% 0%;}
+.tv-rank-row{display:grid; grid-template-columns:44px 50px 1fr auto; align-items:center; gap:18px;
+  width:92%; background:var(--tv-card); border:1px solid var(--tv-card-border); border-radius:12px; padding:4px 22px;
+  backdrop-filter:blur(8px); position:relative; transform-origin:50% 50%;
+  transition:transform .6s cubic-bezier(.34,1.2,.4,1), opacity .5s ease, box-shadow .6s ease, filter .5s ease;}
+.tv-rank-row.gold{background:linear-gradient(90deg, rgba(255,209,102,.16), rgba(255,209,102,.04)); border-color:rgba(255,209,102,.4); box-shadow:0 0 20px rgba(255,209,102,.16);}
+.tv-rank-row.silver{background:linear-gradient(90deg, rgba(216,220,232,.14), rgba(216,220,232,.03)); border-color:rgba(216,220,232,.35); box-shadow:0 0 16px rgba(216,220,232,.12);}
+.tv-rank-row.bronze{background:linear-gradient(90deg, rgba(224,149,79,.16), rgba(224,149,79,.04)); border-color:rgba(224,149,79,.4); box-shadow:0 0 16px rgba(224,149,79,.14);}
+/* La "cámara" del ranking anima cada tarjeta como su propia unidad — la
+   fila en foco se agranda y brilla, las demás se atenúan — en vez de
+   escalar toda la lista como una sola imagen. La lista solo se desliza
+   (translateY, más un ajuste de escala para que las 18 filas quepan) para
+   llevar cada fila al centro antes de acercarse. */
+.tv-rank-row.tv-focus{transform:scale(1.14); z-index:3; box-shadow:0 16px 34px rgba(0,0,0,.45), 0 0 0 2px var(--tv-accent);}
+.tv-rank-row.gold.tv-focus{box-shadow:0 16px 34px rgba(0,0,0,.45), 0 0 0 2px var(--tv-gold);}
+.tv-rank-row.silver.tv-focus{box-shadow:0 16px 34px rgba(0,0,0,.45), 0 0 0 2px var(--tv-silver);}
+.tv-rank-row.bronze.tv-focus{box-shadow:0 16px 34px rgba(0,0,0,.45), 0 0 0 2px var(--tv-bronze);}
+.tv-rank-row.tv-dim{opacity:.34; filter:saturate(.55); transform:scale(.97);}
+.tv-rank-pos{font-family:var(--font-mono); font-size:21px; font-weight:800; color:var(--tv-ink-mute); text-align:center;}
+.tv-rank-pos.medal{font-size:28px; display:inline-block; animation:tvCrownBounce 1.7s ease-in-out infinite;}
+@keyframes tvCrownBounce{ 0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-5px) rotate(-6deg);} }
+.tv-rank-avatar{width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:15px; color:#fff; box-shadow:0 2px 10px rgba(0,0,0,.35);}
+.tv-rank-body{min-width:0;}
+.tv-rank-name{font-size:25px; font-weight:700; color:var(--tv-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.tv-rank-track{height:7px; background:rgba(255,255,255,.08); border-radius:4px; overflow:hidden; margin-top:5px;}
+.tv-rank-fill{position:relative; overflow:hidden; height:100%; border-radius:4px; width:0; background:linear-gradient(90deg, var(--tv-accent), #3a7ee0); transition:width 1.1s cubic-bezier(.16,.84,.44,1), background 2.5s ease;}
+.tv-rank-fill.gold{background:linear-gradient(90deg, var(--tv-gold), #c47f17);}
+.tv-rank-fill.silver{background:linear-gradient(90deg, var(--tv-silver), #8b90a0);}
+.tv-rank-fill.bronze{background:linear-gradient(90deg, var(--tv-bronze), #a85f22);}
+.tv-rank-fill::after{content:''; position:absolute; inset:0; width:40%; background:linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); animation:tvShimmer 2.6s ease-in-out infinite;}
+@keyframes tvShimmer{ 0%{transform:translateX(-140%);} 100%{transform:translateX(240%);} }
+.tv-rank-val{font-family:var(--font-mono); font-size:27px; font-weight:800; color:var(--tv-ink); text-align:right; min-width:64px; font-variant-numeric:tabular-nums;}
+
+.tv-calls-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;}
+.tv-calls-hero{font-family:var(--font-mono); font-weight:800; font-size:190px; line-height:1; color:var(--tv-accent); text-shadow:0 0 50px var(--tv-glow-1); animation:tvPopIn .65s cubic-bezier(.34,1.56,.64,1); font-variant-numeric:tabular-nums; transition:color 2.5s ease, text-shadow 2.5s ease;}
+.tv-calls-label{font-size:24px; font-weight:700; color:var(--tv-ink-soft); text-transform:uppercase; letter-spacing:.07em;}
+.tv-calls-sub{font-size:19px; color:var(--tv-ink-mute);}
+
+.tv-goal-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;}
+.tv-goal-pct{font-family:var(--font-display); font-weight:800; font-size:150px; line-height:1; letter-spacing:-.02em; animation:tvPopIn .65s cubic-bezier(.34,1.56,.64,1);}
+@keyframes tvPopIn{ from{opacity:0; transform:scale(.72);} to{opacity:1; transform:scale(1);} }
+.tv-goal-pct.good{color:var(--tv-good); text-shadow:0 0 44px rgba(56,224,127,.45);}
+.tv-goal-pct.warn{color:var(--tv-warn); text-shadow:0 0 44px rgba(255,206,77,.4);}
+.tv-goal-pct.crit{color:var(--tv-crit); text-shadow:0 0 44px rgba(255,111,111,.4);}
+.tv-goal-nums{font-family:var(--font-mono); font-size:30px; color:var(--tv-ink); font-variant-numeric:tabular-nums;}
+.tv-goal-track{width:100%; max-width:900px; height:34px; background:rgba(255,255,255,.08); border-radius:17px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--tv-card-border);}
+.tv-goal-fill{position:relative; overflow:hidden; height:100%; border-radius:17px; width:0; transition:width 1.3s cubic-bezier(.16,.84,.44,1);}
+.tv-goal-fill::after{content:''; position:absolute; inset:0; width:35%; background:linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent); animation:tvShimmer 2.8s ease-in-out infinite;}
+.tv-goal-fill.good{background:linear-gradient(90deg, var(--tv-good), color-mix(in srgb, var(--tv-good) 55%, transparent));}
+.tv-goal-fill.warn{background:linear-gradient(90deg, var(--tv-warn), color-mix(in srgb, var(--tv-warn) 55%, transparent));}
+.tv-goal-fill.crit{background:linear-gradient(90deg, var(--tv-crit), color-mix(in srgb, var(--tv-crit) 55%, transparent));}
+.tv-goal-msg{font-size:20px; font-weight:600; color:var(--tv-ink-soft);}
+.tv-goal-msg.celebrate{color:var(--tv-gold); font-weight:800;}
+
+.tv-teams-wrap{position:relative; z-index:2; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px;}
+.tv-teams-cols{display:flex; align-items:center; justify-content:center; gap:0; width:100%;}
+.tv-team-col{flex:1; position:relative; display:flex; flex-direction:column; align-items:center; gap:14px; padding:38px 40px 18px; border-radius:26px; transition:background .4s ease;}
+.tv-team-col.leading{background:radial-gradient(circle at 50% 22%, rgba(255,209,102,.14), transparent 68%);}
+.tv-team-col.leading::before{content:'🏆'; position:absolute; top:-4px; left:50%; transform:translateX(-50%); font-size:30px; animation:tvCrownBounce 1.9s ease-in-out infinite;}
+.tv-team-name{font-family:var(--font-display); font-weight:800; font-size:30px;}
+.tv-team-name.a{color:var(--tv-team-a);}
+.tv-team-name.b{color:var(--tv-team-b);}
+.tv-team-val{font-family:var(--font-mono); font-weight:800; font-size:96px; line-height:1; color:var(--tv-ink);}
+.tv-team-pct{font-size:20px; color:var(--tv-ink-mute);}
+.tv-team-top{font-size:16px; color:var(--tv-ink-soft); text-align:center;}
+.tv-vs{font-family:var(--font-display); font-weight:800; font-size:34px; color:var(--tv-ink-mute); padding:0 24px; animation:tvVsPulse 2.6s ease-in-out infinite;}
+@keyframes tvVsPulse{ 0%,100%{transform:scale(1); opacity:.85;} 50%{transform:scale(1.14); opacity:1;} }
+.tv-teams-bar{display:flex; width:100%; max-width:900px; height:20px; border-radius:10px; overflow:hidden; background:rgba(255,255,255,.08); border:1px solid var(--tv-card-border);}
+.tv-teams-bar-a{height:100%; width:0; background:linear-gradient(90deg, color-mix(in srgb, var(--tv-team-a) 55%, transparent), var(--tv-team-a)); transition:width 1.2s cubic-bezier(.16,.84,.44,1);}
+.tv-teams-bar-b{height:100%; width:0; background:linear-gradient(90deg, var(--tv-team-b), color-mix(in srgb, var(--tv-team-b) 55%, transparent)); transition:width 1.2s cubic-bezier(.16,.84,.44,1);}
+
+@media (prefers-reduced-motion: reduce){
+  .tv-aurora{animation:none !important;}
+  .tv-screen-inner{animation:none !important;}
+  .tv-rank-pos.medal, .tv-team-col.leading::before, .tv-vs, .tv-live-dot{animation:none !important;}
+  .tv-rank-fill::after, .tv-goal-fill::after{animation:none !important; display:none;}
+  .tv-goal-pct, .tv-calls-hero{animation:none !important;}
+  .tv-confetti-piece{display:none !important;}
+  .tv-rank-row, .tv-rank-row.tv-focus, .tv-rank-row.tv-dim{transition:none !important; transform:none !important; opacity:1 !important; filter:none !important;}
+  /* No forzamos transform:none aquí: el recorrido de cámara sí se cancela
+     (ver tvReducedMotion() en JS), pero el ajuste estático de tamaño
+     (fitScale) que permite ver la tabla completa de 18 gestores debe
+     seguir aplicándose incluso con animaciones reducidas. */
+  .tv-rank-list{transition:none !important;}
+}
+
+/* ---------- Vista para capturar: pantalla completa, estática (sin rotar), con
+   TODOS los gestores en una tabla horizontal compacta — pensada para que quepa
+   entera de un vistazo y se pueda tomar una sola captura de pantalla sin recortar
+   ni desplazarse. Usa el tema claro/oscuro normal del panel (no el look de TV). */
+body.capture-mode .topbar, body.capture-mode .wrap{display:none;}
+body.capture-mode .capture-view{display:flex;}
+.capture-view{
+  position:fixed; inset:0; z-index:9999; display:none; flex-direction:column;
+  padding:32px 48px; box-sizing:border-box; overflow:auto;
+  background:var(--surface-2); color:var(--ink);
+}
+.capture-exit{
+  position:absolute; top:18px; right:18px; width:34px; height:34px; border-radius:50%; z-index:5;
+  border:1px solid var(--border); background:var(--surface); color:var(--ink-mute);
+  font-size:14px; cursor:pointer; opacity:.55; transition:opacity .2s ease, background .2s ease;
+}
+.capture-exit:hover{opacity:1;}
+.capture-inner{flex:1; display:flex; flex-direction:column; min-height:0; transform-origin:50% 0%;}
+.capture-head{display:flex; align-items:baseline; gap:16px; margin-bottom:18px; flex-wrap:wrap;}
+.capture-logo{font-family:var(--font-display); font-weight:800; font-size:24px; color:var(--accent); letter-spacing:-.02em;}
+.capture-head-text{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;}
+.capture-head-text h2{margin:0; font-family:var(--font-display); font-size:22px; font-weight:800;}
+.capture-sub{color:var(--ink-mute); font-size:14px;}
+.capture-table{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
+.capture-table th, .capture-table td{padding:10px 16px; text-align:right; border-bottom:1px solid var(--border-soft); font-size:15px;}
+.capture-table th{text-align:right; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); font-weight:700; background:var(--surface-2); padding-top:12px; padding-bottom:12px;}
+.capture-table th:first-child, .capture-table td:first-child{text-align:left;}
+.capture-table th:nth-child(2), .capture-table td:nth-child(2){text-align:left;}
+.capture-table td:first-child{font-weight:700;}
+.capture-table td.cell-num, .capture-table th.cell-num{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+.capture-table tbody tr:last-child td{border-bottom:none;}
+.capture-table tbody tr:nth-child(even){background:var(--surface-2);}
+.capture-table tfoot td{border-top:2px solid var(--border); font-weight:800; background:var(--surface-2);}
+.capture-rank{display:inline-block; width:22px; color:var(--ink-mute); font-family:var(--font-mono);}
+.capture-eff{color:var(--accent); font-weight:700;}
+</style>
 <div class="topbar">
   <div class="topbar-inner">
     <div class="brand">
@@ -575,9 +836,14 @@ body.lay-edit .lay-hint{display:block;}
     <span class="badge-count" id="liveBadge" style="font-size:12px; padding:5px 11px;">Panel en vivo · datos en este navegador</span>
     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden style="display:none;">
     <input type="file" id="baseInput" accept=".json,application/json" hidden style="display:none;">
+    <input type="file" id="phoneFileInput" accept=".txt,text/plain" hidden style="display:none;">
     <button class="btn primary" id="btnUpload">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M12 4l-5 5M12 4l5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
       Subir reporte semanal
+    </button>
+    <button class="btn" id="btnUploadPhone" title="Subir un registro de llamadas exportado de un celular (.txt) para un gestor específico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/><path d="M12 14V7M12 7l-2.5 2.5M12 7l2.5 2.5"/></svg>
+      Subir registro (celular)
     </button>
     <button class="btn" id="btnExport">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity="0"/><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 19h16"/></svg>
@@ -587,6 +853,10 @@ body.lay-edit .lay-hint{display:block;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
       Descargar base
     </button>
+    <button class="btn" id="btnDownloadHtml" title="Descargar este panel como un HTML independiente, con los datos actualizados a este momento">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M12 12v6"/><path d="M9.5 15.5L12 18l2.5-2.5"/></svg>
+      Descargar HTML
+    </button>
     <button class="btn" id="btnLoadBase" title="Cargar una base guardada (.json) — reemplaza los datos actuales">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
       Cargar base
@@ -595,9 +865,54 @@ body.lay-edit .lay-hint{display:block;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16"/><path d="M4 12h10"/><path d="M4 19h16"/><path d="M18 9l3 3-3 3"/></svg>
       <span id="editLayoutLabel">Editar diseño</span>
     </button>
+    <button class="btn ghost" id="btnTvMode" title="Abrir modo TV a pantalla completa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg>
+      Modo TV
+    </button>
+    <button class="btn ghost" id="btnCaptureView" title="Vista fija de todos los gestores, lista para capturar en una sola imagen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      Vista para capturar
+    </button>
+    <button class="btn ghost" id="btnThemeToggle" title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconSun" hidden><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconMoon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
     <button class="btn ghost" id="btnSettings" title="Configuración" aria-label="Configuración">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>
     </button>
+  </div>
+</div>
+
+<div id="tvView" class="tv-view" hidden>
+  <div class="tv-aurora tv-aurora-1"></div>
+  <div class="tv-aurora tv-aurora-2"></div>
+  <div class="tv-aurora tv-aurora-3"></div>
+  <button class="tv-exit tv-fullscreen-btn" id="tvFullscreenBtn" title="Pantalla completa" aria-label="Pantalla completa">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+  </button>
+  <button class="tv-exit" id="tvExit" title="Salir del modo TV" aria-label="Salir del modo TV">✕</button>
+  <div class="tv-head">
+    <span class="tv-logo">pdc.</span>
+    <span class="tv-headline">Reporte de llamadas en vivo</span>
+    <span class="tv-live"><span class="tv-live-dot"></span>EN VIVO</span>
+    <span class="tv-clock" id="tvClock">–</span>
+  </div>
+  <div class="tv-confetti-layer" id="tvConfetti"></div>
+  <div class="tv-screen" id="tvScreen"></div>
+  <div class="tv-dots" id="tvDots"></div>
+</div>
+
+<div id="captureView" class="capture-view" hidden>
+  <button class="capture-exit" id="captureExit" title="Cerrar vista para capturar" aria-label="Cerrar vista para capturar">✕</button>
+  <div class="capture-inner" id="captureInner">
+    <div class="capture-head">
+      <span class="capture-logo">pdc.</span>
+      <div class="capture-head-text">
+        <h2>Todos los gestores</h2>
+        <span class="capture-sub" id="captureSub"></span>
+      </div>
+    </div>
+    <table class="capture-table" id="captureTable"></table>
   </div>
 </div>
 
@@ -617,7 +932,7 @@ body.lay-edit .lay-hint{display:block;}
     <div class="kpi">
       <span class="label" id="kpiLabel3">Promedio por gestor / día</span>
       <span class="value mono" id="kpiAvg">–</span>
-      <span class="sub" id="kpiAvgSub">contactabilidad</span>
+      <span class="sub" id="kpiAvgSub">llamadas con contactabilidad, en promedio (no es %)</span>
     </div>
     <div class="kpi">
       <span class="label" id="kpiLabel4">Mejor gestor</span>
@@ -744,6 +1059,8 @@ body.lay-edit .lay-hint{display:block;}
         <span class="hint" id="weeklyChartHint">todas las llamadas</span>
       </div>
       <svg class="trend-svg" id="weeklySvg" viewBox="0 0 460 190" preserveAspectRatio="none"></svg>
+      <div class="week-insights" id="weeklyInsights"></div>
+      <div class="week-teamcompare" id="weeklyTeamCompare"></div>
     </div>
     <div class="card">
       <div class="card-head">
@@ -761,13 +1078,44 @@ body.lay-edit .lay-hint{display:block;}
   <div class="card">
     <div class="card-head">
       <h2>Todos los gestores, ordenados de mayor a menor</h2>
-      <div style="display:flex; align-items:center; gap:14px;">
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
         <span class="legend-chip"><span class="team-dot a"></span>Chevere</span>
         <span class="legend-chip"><span class="team-dot b"></span>Imparables</span>
+        <select class="pick" id="gestorBarDaySel" aria-label="Filtrar por día" style="min-width:150px;">
+          <option value="">Todo el período</option>
+        </select>
         <span class="hint" id="gestorBarChartHint"></span>
       </div>
     </div>
     <svg class="trend-svg gestor-bar-svg" id="gestorBarSvg" viewBox="0 0 900 300" preserveAspectRatio="none"></svg>
+    <div class="table-scroll" style="margin-top:14px;">
+      <table class="summary" id="gestorBarTable"></table>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h2>Llamadas por mercado</h2>
+    <span class="hint" id="marketHint">volumen y tasa de contestación por país — en el período seleccionado · mejor/menor tasa excluye "Sin dato" y mercados con muy poco volumen</span>
+  </div>
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
+    <div class="kpi">
+      <span class="label">Mercados activos</span>
+      <span class="value mono" id="kpiMarketCount">–</span>
+      <span class="sub" id="kpiMarketCountSub">con llamadas en el período</span>
+    </div>
+    <div class="kpi">
+      <span class="label">Mejor tasa de contestación</span>
+      <span class="value" id="kpiMarketBest" style="font-size:19px;">–</span>
+      <span class="sub" id="kpiMarketBestSub">&nbsp;</span>
+    </div>
+    <div class="kpi">
+      <span class="label">Menor tasa de contestación</span>
+      <span class="value" id="kpiMarketWorst" style="font-size:19px;">–</span>
+      <span class="sub" id="kpiMarketWorstSub">&nbsp;</span>
+    </div>
+  </div>
+  <div class="table-scroll">
+    <table class="summary" id="marketTable"></table>
   </div>
 
   <div class="section-title">
@@ -783,7 +1131,7 @@ body.lay-edit .lay-hint{display:block;}
     <div class="kpi">
       <span class="label">Llamadas contestadas</span>
       <span class="value mono" id="kpiAnswered">–</span>
-      <span class="sub" id="kpiAnsweredSub">de <b id="kpiAnsweredTotal">–</b> llamadas totales</span>
+      <span class="sub" id="kpiAnsweredSub">de <b>–</b> llamadas totales</span>
     </div>
   </div>
 
@@ -816,7 +1164,7 @@ body.lay-edit .lay-hint{display:block;}
       <div id="rankList"></div>
     </div>
 
-    <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="col-stack">
       <div class="card">
         <div class="card-head">
           <h2 id="trendTitle">Tendencia del equipo</h2>
@@ -824,7 +1172,7 @@ body.lay-edit .lay-hint{display:block;}
         </div>
         <svg class="trend-svg" id="trendSvg" viewBox="0 0 460 180" preserveAspectRatio="none"></svg>
       </div>
-      <div class="card">
+      <div class="card" style="flex:1; display:flex; flex-direction:column;">
         <div class="card-head">
           <h2>Historial de cargas</h2>
           <span class="hint" id="uploadCount"></span>
@@ -836,7 +1184,7 @@ body.lay-edit .lay-hint{display:block;}
 
   <div class="section-title">
     <h2 id="summaryTitle">Resumen completo de llamadas</h2>
-    <span class="hint">todas las llamadas, sin importar el resultado — <button class="toggle-detail" id="btnExportSummary">descargar CSV</button></span>
+    <span class="hint">todas las llamadas, sin importar el resultado · no incluye fines de semana — <button class="toggle-detail" id="btnExportSummary">descargar CSV</button></span>
   </div>
   <div class="table-scroll">
     <table class="summary" id="summaryTable"></table>
@@ -923,6 +1271,20 @@ body.lay-edit .lay-hint{display:block;}
   </div>
 </div>
 
+<div class="overlay" id="phoneOverlay"></div>
+<div class="phone-picker" id="phonePicker">
+  <h3>¿De qué gestor es este registro?</h3>
+  <p class="field-hint">Este archivo de celular no trae el nombre adentro — elige a quién pertenecen estas llamadas antes de guardarlas. Se suman a lo que ya tenga ese gestor (por ejemplo, del reporte de Issabel) sin borrar nada.</p>
+  <div class="field" style="margin-top:14px;">
+    <label for="phonePickerSelect">Gestor</label>
+    <select id="phonePickerSelect"></select>
+  </div>
+  <div class="phone-picker-actions">
+    <button class="btn" id="phonePickerCancel">Cancelar</button>
+    <button class="btn primary" id="phonePickerConfirm">Continuar</button>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    CONTACTABILIDAD — panel de contactabilidad por gestor
@@ -932,15 +1294,16 @@ body.lay-edit .lay-hint{display:block;}
 
 // ---------- Datos de arranque (semilla real, por si la base aún no respondió) ----------
 const SEED_GESTORES = [{"ext": "1101", "name": "Sherly Amavilia Cotom Mateo", "team": "imparables"}, {"ext": "1102", "name": "Sarai Azusena Ticas Garcia", "team": "imparables"}, {"ext": "1103", "name": "Jasmin Virginia Ramirez Colay", "team": "imparables"}, {"ext": "1104", "name": "María Alejandra Valey Hernandez", "team": "chevere"}, {"ext": "1105", "name": "Astrid Paola Vasquez Orellana", "team": "imparables"}, {"ext": "1106", "name": "Karina Alejandra Noriega Cifuentes", "team": "imparables"}, {"ext": "1107", "name": "Diego Jose Soto Giron", "team": "chevere"}, {"ext": "1109", "name": "Bryan David Rodriguez Larios", "team": "chevere"}, {"ext": "1110", "name": "Juan Francisco Reyes López", "team": "imparables"}, {"ext": "1111", "name": "Angie Dyana Buch Diaz", "team": "chevere"}, {"ext": "1112", "name": "Alejandra Sofía Díaz García", "team": "chevere"}, {"ext": "1113", "name": "Heidi Adelaida Morales Salguero", "team": "chevere"}, {"ext": "1115", "name": "Derick Joseph Alejandro González Sis", "team": "imparables"}, {"ext": "1116", "name": "Jonathan Omar Guzmán Giron", "team": "chevere"}, {"ext": "1117", "name": "Marcos Enrique Canteo Becerra", "team": "imparables"}, {"ext": "1118", "name": "Mishelle Andrea Soto Meza", "team": "imparables"}, {"ext": "1119", "name": "Dahirin Alexandra Pérez López", "team": "chevere"}, {"ext": "1120", "name": "Julio Alexander Cano Salazar", "team": "chevere"}];
-const SEED_DAILY = [{"answered": 20, "busy": 0, "byCountry": {"GT": {"answered": 20, "busy": 0, "dur1to3": 5, "durOver3": 0, "durUnder1": 15, "effective": 5, "noAnswer": 31, "other": 0, "talk": 562, "total": 51}}, "date": "2026-09-02", "dur1to3": 5, "durOver3": 0, "durUnder1": 15, "effective": 5, "ext": "1101", "name": "Sherly Amavilia Cotom Mateo", "noAnswer": 31, "other": 0, "talk": 562, "total": 51}, {"answered": 29, "busy": 0, "byCountry": {"GT": {"answered": 29, "busy": 0, "dur1to3": 3, "durOver3": 0, "durUnder1": 26, "effective": 3, "noAnswer": 34, "other": 0, "talk": 648, "total": 63}}, "date": "2026-09-03", "dur1to3": 3, "durOver3": 0, "durUnder1": 26, "effective": 3, "ext": "1101", "name": "Sherly Amavilia Cotom Mateo", "noAnswer": 34, "other": 0, "talk": 648, "total": 63}, {"answered": 28, "busy": 2, "byCountry": {"GT": {"answered": 28, "busy": 1, "dur1to3": 4, "durOver3": 0, "durUnder1": 24, "effective": 4, "noAnswer": 35, "other": 0, "talk": 838, "total": 64}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-04", "dur1to3": 4, "durOver3": 0, "durUnder1": 24, "effective": 4, "ext": "1101", "name": "Sherly Amavilia Cotom Mateo", "noAnswer": 35, "other": 0, "talk": 838, "total": 65}, {"answered": 30, "busy": 0, "byCountry": {"GT": {"answered": 30, "busy": 0, "dur1to3": 5, "durOver3": 1, "durUnder1": 24, "effective": 6, "noAnswer": 31, "other": 0, "talk": 1014, "total": 61}}, "date": "2026-09-07", "dur1to3": 5, "durOver3": 1, "durUnder1": 24, "effective": 6, "ext": "1101", "name": "Sherly Amavilia Cotom Mateo", "noAnswer": 31, "other": 0, "talk": 1014, "total": 61}, {"answered": 38, "busy": 0, "byCountry": {"GT": {"answered": 37, "busy": 0, "dur1to3": 2, "durOver3": 0, "durUnder1": 35, "effective": 2, "noAnswer": 46, "other": 0, "talk": 675, "total": 83}, "SIN_DATO": {"answered": 1, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 0, "talk": 1, "total": 1}}, "date": "2026-09-08", "dur1to3": 2, "durOver3": 0, "durUnder1": 36, "effective": 2, "ext": "1101", "name": "Sherly Amavilia Cotom Mateo", "noAnswer": 46, "other": 0, "talk": 676, "total": 84}, {"answered": 1, "busy": 0, "byCountry": {"GT": {"answered": 1, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 0, "talk": 2, "total": 1}, "SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 2, "talk": 0, "total": 2}}, "date": "2026-09-03", "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "ext": "1102", "name": "Sarai Azusena Ticas Garcia", "noAnswer": 0, "other": 2, "talk": 2, "total": 3}, {"answered": 75, "busy": 0, "byCountry": {"NIC": {"answered": 75, "busy": 0, "dur1to3": 6, "durOver3": 5, "durUnder1": 64, "effective": 11, "noAnswer": 18, "other": 0, "talk": 3335, "total": 93}}, "date": "2026-09-07", "dur1to3": 6, "durOver3": 5, "durUnder1": 64, "effective": 11, "ext": "1102", "name": "Sarai Azusena Ticas Garcia", "noAnswer": 18, "other": 0, "talk": 3335, "total": 93}, {"answered": 114, "busy": 28, "byCountry": {"NIC": {"answered": 114, "busy": 14, "dur1to3": 23, "durOver3": 3, "durUnder1": 88, "effective": 26, "noAnswer": 4, "other": 1, "talk": 4074, "total": 133}, "SIN_DATO": {"answered": 0, "busy": 14, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 15}}, "date": "2026-09-08", "dur1to3": 23, "durOver3": 3, "durUnder1": 88, "effective": 26, "ext": "1102", "name": "Sarai Azusena Ticas Garcia", "noAnswer": 4, "other": 2, "talk": 4074, "total": 148}, {"answered": 0, "busy": 0, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 2, "talk": 0, "total": 2}}, "date": "2026-09-02", "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "ext": "1104", "name": "María Alejandra Valey Hernandez", "noAnswer": 0, "other": 2, "talk": 0, "total": 2}, {"answered": 0, "busy": 0, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 1}}, "date": "2026-09-03", "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "ext": "1104", "name": "María Alejandra Valey Hernandez", "noAnswer": 0, "other": 1, "talk": 0, "total": 1}, {"answered": 0, "busy": 0, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 2, "talk": 0, "total": 2}}, "date": "2026-09-04", "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "ext": "1104", "name": "María Alejandra Valey Hernandez", "noAnswer": 0, "other": 2, "talk": 0, "total": 2}, {"answered": 44, "busy": 8, "byCountry": {"NIC": {"answered": 44, "busy": 4, "dur1to3": 4, "durOver3": 1, "durUnder1": 39, "effective": 5, "noAnswer": 2, "other": 0, "talk": 937, "total": 50}, "SIN_DATO": {"answered": 0, "busy": 4, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 5}}, "date": "2026-09-07", "dur1to3": 4, "durOver3": 1, "durUnder1": 39, "effective": 5, "ext": "1104", "name": "María Alejandra Valey Hernandez", "noAnswer": 2, "other": 1, "talk": 937, "total": 55}, {"answered": 66, "busy": 2, "byCountry": {"NIC": {"answered": 66, "busy": 1, "dur1to3": 7, "durOver3": 0, "durUnder1": 59, "effective": 6, "noAnswer": 4, "other": 0, "talk": 1127, "total": 71}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-08", "dur1to3": 7, "durOver3": 0, "durUnder1": 59, "effective": 6, "ext": "1104", "name": "María Alejandra Valey Hernandez", "noAnswer": 4, "other": 0, "talk": 1127, "total": 72}, {"answered": 29, "busy": 30, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 15, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 15}, "SV": {"answered": 29, "busy": 15, "dur1to3": 3, "durOver3": 0, "durUnder1": 26, "effective": 3, "noAnswer": 44, "other": 0, "talk": 725, "total": 88}}, "date": "2026-09-02", "dur1to3": 3, "durOver3": 0, "durUnder1": 26, "effective": 3, "ext": "1105", "name": "Astrid Paola Vasquez Orellana", "noAnswer": 44, "other": 0, "talk": 725, "total": 103}, {"answered": 27, "busy": 32, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 16, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 2, "talk": 0, "total": 18}, "SV": {"answered": 27, "busy": 16, "dur1to3": 5, "durOver3": 2, "durUnder1": 20, "effective": 7, "noAnswer": 38, "other": 1, "talk": 1247, "total": 82}}, "date": "2026-09-03", "dur1to3": 5, "durOver3": 2, "durUnder1": 20, "effective": 7, "ext": "1105", "name": "Astrid Paola Vasquez Orellana", "noAnswer": 38, "other": 3, "talk": 1247, "total": 100}, {"answered": 36, "busy": 32, "byCountry": {"SIN_DATO": {"answered": 1, "busy": 16, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 8, "talk": 2, "total": 25}, "SV": {"answered": 35, "busy": 16, "dur1to3": 8, "durOver3": 0, "durUnder1": 27, "effective": 8, "noAnswer": 50, "other": 8, "talk": 1020, "total": 109}}, "date": "2026-09-04", "dur1to3": 8, "durOver3": 0, "durUnder1": 28, "effective": 8, "ext": "1105", "name": "Astrid Paola Vasquez Orellana", "noAnswer": 50, "other": 16, "talk": 1022, "total": 134}, {"answered": 20, "busy": 28, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 14, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 2, "talk": 0, "total": 16}, "SV": {"answered": 20, "busy": 14, "dur1to3": 4, "durOver3": 1, "durUnder1": 15, "effective": 5, "noAnswer": 30, "other": 2, "talk": 819, "total": 66}}, "date": "2026-09-07", "dur1to3": 4, "durOver3": 1, "durUnder1": 15, "effective": 5, "ext": "1105", "name": "Astrid Paola Vasquez Orellana", "noAnswer": 30, "other": 4, "talk": 819, "total": 82}, {"answered": 50, "busy": 30, "byCountry": {"SIN_DATO": {"answered": 1, "busy": 15, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 5, "talk": 3, "total": 21}, "SV": {"answered": 49, "busy": 15, "dur1to3": 15, "durOver3": 1, "durUnder1": 33, "effective": 15, "noAnswer": 79, "other": 5, "talk": 2094, "total": 148}}, "date": "2026-09-08", "dur1to3": 15, "durOver3": 1, "durUnder1": 34, "effective": 15, "ext": "1105", "name": "Astrid Paola Vasquez Orellana", "noAnswer": 79, "other": 10, "talk": 2097, "total": 169}, {"answered": 78, "busy": 26, "byCountry": {"HN": {"answered": 78, "busy": 13, "dur1to3": 7, "durOver3": 2, "durUnder1": 69, "effective": 9, "noAnswer": 44, "other": 0, "talk": 2338, "total": 135}, "SIN_DATO": {"answered": 0, "busy": 13, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 13}}, "date": "2026-09-02", "dur1to3": 7, "durOver3": 2, "durUnder1": 69, "effective": 9, "ext": "1106", "name": "Karina Alejandra Noriega Cifuentes", "noAnswer": 44, "other": 0, "talk": 2338, "total": 148}, {"answered": 44, "busy": 10, "byCountry": {"HN": {"answered": 44, "busy": 5, "dur1to3": 4, "durOver3": 2, "durUnder1": 38, "effective": 6, "noAnswer": 22, "other": 0, "talk": 1376, "total": 71}, "SIN_DATO": {"answered": 0, "busy": 5, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 5}}, "date": "2026-09-03", "dur1to3": 4, "durOver3": 2, "durUnder1": 38, "effective": 6, "ext": "1106", "name": "Karina Alejandra Noriega Cifuentes", "noAnswer": 22, "other": 0, "talk": 1376, "total": 76}, {"answered": 23, "busy": 8, "byCountry": {"HN": {"answered": 23, "busy": 4, "dur1to3": 2, "durOver3": 0, "durUnder1": 21, "effective": 2, "noAnswer": 24, "other": 1, "talk": 469, "total": 52}, "SIN_DATO": {"answered": 0, "busy": 4, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 5}}, "date": "2026-09-04", "dur1to3": 2, "durOver3": 0, "durUnder1": 21, "effective": 2, "ext": "1106", "name": "Karina Alejandra Noriega Cifuentes", "noAnswer": 24, "other": 2, "talk": 469, "total": 57}, {"answered": 48, "busy": 8, "byCountry": {"HN": {"answered": 48, "busy": 4, "dur1to3": 7, "durOver3": 4, "durUnder1": 37, "effective": 11, "noAnswer": 25, "other": 0, "talk": 2346, "total": 77}, "SIN_DATO": {"answered": 0, "busy": 4, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 4}}, "date": "2026-09-07", "dur1to3": 7, "durOver3": 4, "durUnder1": 37, "effective": 11, "ext": "1106", "name": "Karina Alejandra Noriega Cifuentes", "noAnswer": 25, "other": 0, "talk": 2346, "total": 81}, {"answered": 74, "busy": 14, "byCountry": {"HN": {"answered": 74, "busy": 7, "dur1to3": 14, "durOver3": 1, "durUnder1": 59, "effective": 15, "noAnswer": 47, "other": 0, "talk": 2167, "total": 128}, "SIN_DATO": {"answered": 0, "busy": 7, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 7}}, "date": "2026-09-08", "dur1to3": 14, "durOver3": 1, "durUnder1": 59, "effective": 15, "ext": "1106", "name": "Karina Alejandra Noriega Cifuentes", "noAnswer": 47, "other": 0, "talk": 2167, "total": 135}, {"answered": 57, "busy": 16, "byCountry": {"HN": {"answered": 57, "busy": 8, "dur1to3": 7, "durOver3": 0, "durUnder1": 50, "effective": 7, "noAnswer": 24, "other": 0, "talk": 1358, "total": 89}, "SIN_DATO": {"answered": 0, "busy": 8, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 8}}, "date": "2026-09-02", "dur1to3": 7, "durOver3": 0, "durUnder1": 50, "effective": 7, "ext": "1107", "name": "Diego Jose Soto Giron", "noAnswer": 24, "other": 0, "talk": 1358, "total": 97}, {"answered": 67, "busy": 18, "byCountry": {"HN": {"answered": 67, "busy": 9, "dur1to3": 3, "durOver3": 1, "durUnder1": 63, "effective": 4, "noAnswer": 17, "other": 0, "talk": 1538, "total": 93}, "SIN_DATO": {"answered": 0, "busy": 9, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 9}}, "date": "2026-09-03", "dur1to3": 3, "durOver3": 1, "durUnder1": 63, "effective": 4, "ext": "1107", "name": "Diego Jose Soto Giron", "noAnswer": 17, "other": 0, "talk": 1538, "total": 102}, {"answered": 104, "busy": 68, "byCountry": {"HN": {"answered": 104, "busy": 34, "dur1to3": 10, "durOver3": 2, "durUnder1": 92, "effective": 12, "noAnswer": 35, "other": 1, "talk": 2742, "total": 174}, "SIN_DATO": {"answered": 0, "busy": 34, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 35}}, "date": "2026-09-04", "dur1to3": 10, "durOver3": 2, "durUnder1": 92, "effective": 12, "ext": "1107", "name": "Diego Jose Soto Giron", "noAnswer": 35, "other": 2, "talk": 2742, "total": 209}, {"answered": 65, "busy": 18, "byCountry": {"HN": {"answered": 65, "busy": 9, "dur1to3": 11, "durOver3": 1, "durUnder1": 53, "effective": 12, "noAnswer": 19, "other": 0, "talk": 1935, "total": 93}, "SIN_DATO": {"answered": 0, "busy": 9, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 9}}, "date": "2026-09-07", "dur1to3": 11, "durOver3": 1, "durUnder1": 53, "effective": 12, "ext": "1107", "name": "Diego Jose Soto Giron", "noAnswer": 19, "other": 0, "talk": 1935, "total": 102}, {"answered": 67, "busy": 28, "byCountry": {"HN": {"answered": 67, "busy": 14, "dur1to3": 6, "durOver3": 3, "durUnder1": 58, "effective": 9, "noAnswer": 31, "other": 0, "talk": 1859, "total": 112}, "SIN_DATO": {"answered": 0, "busy": 14, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 14}}, "date": "2026-09-08", "dur1to3": 6, "durOver3": 3, "durUnder1": 58, "effective": 9, "ext": "1107", "name": "Diego Jose Soto Giron", "noAnswer": 31, "other": 0, "talk": 1859, "total": 126}, {"answered": 4, "busy": 0, "byCountry": {"SV": {"answered": 4, "busy": 0, "dur1to3": 2, "durOver3": 2, "durUnder1": 0, "effective": 4, "noAnswer": 2, "other": 0, "talk": 661, "total": 6}}, "date": "2026-09-02", "dur1to3": 2, "durOver3": 2, "durUnder1": 0, "effective": 4, "ext": "1109", "name": "Bryan David Rodriguez Larios", "noAnswer": 2, "other": 0, "talk": 661, "total": 6}, {"answered": 4, "busy": 8, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 4, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 4}, "SV": {"answered": 4, "busy": 4, "dur1to3": 2, "durOver3": 0, "durUnder1": 2, "effective": 2, "noAnswer": 14, "other": 0, "talk": 194, "total": 22}}, "date": "2026-09-03", "dur1to3": 2, "durOver3": 0, "durUnder1": 2, "effective": 2, "ext": "1109", "name": "Bryan David Rodriguez Larios", "noAnswer": 14, "other": 0, "talk": 194, "total": 26}, {"answered": 45, "busy": 38, "byCountry": {"SIN_DATO": {"answered": 1, "busy": 19, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 1, "other": 11, "talk": 1, "total": 32}, "SV": {"answered": 44, "busy": 19, "dur1to3": 10, "durOver3": 1, "durUnder1": 33, "effective": 11, "noAnswer": 70, "other": 12, "talk": 1726, "total": 145}}, "date": "2026-09-04", "dur1to3": 10, "durOver3": 1, "durUnder1": 34, "effective": 11, "ext": "1109", "name": "Bryan David Rodriguez Larios", "noAnswer": 71, "other": 23, "talk": 1727, "total": 177}, {"answered": 10, "busy": 8, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 4, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 3, "talk": 0, "total": 7}, "SV": {"answered": 10, "busy": 4, "dur1to3": 3, "durOver3": 0, "durUnder1": 7, "effective": 2, "noAnswer": 25, "other": 3, "talk": 292, "total": 42}}, "date": "2026-09-07", "dur1to3": 3, "durOver3": 0, "durUnder1": 7, "effective": 2, "ext": "1109", "name": "Bryan David Rodriguez Larios", "noAnswer": 25, "other": 6, "talk": 292, "total": 49}, {"answered": 11, "busy": 2, "byCountry": {"SIN_DATO": {"answered": 2, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 1, "talk": 3, "total": 4}, "SV": {"answered": 9, "busy": 1, "dur1to3": 5, "durOver3": 0, "durUnder1": 4, "effective": 5, "noAnswer": 34, "other": 1, "talk": 432, "total": 45}}, "date": "2026-09-08", "dur1to3": 5, "durOver3": 0, "durUnder1": 6, "effective": 5, "ext": "1109", "name": "Bryan David Rodriguez Larios", "noAnswer": 34, "other": 2, "talk": 435, "total": 49}, {"answered": 65, "busy": 4, "byCountry": {"GT": {"answered": 63, "busy": 2, "dur1to3": 3, "durOver3": 6, "durUnder1": 54, "effective": 9, "noAnswer": 10, "other": 0, "talk": 1884, "total": 75}, "SIN_DATO": {"answered": 2, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 0, "talk": 2, "total": 4}}, "date": "2026-09-02", "dur1to3": 3, "durOver3": 6, "durUnder1": 56, "effective": 9, "ext": "1110", "name": "Juan Francisco Reyes López", "noAnswer": 10, "other": 0, "talk": 1886, "total": 79}, {"answered": 56, "busy": 0, "byCountry": {"GT": {"answered": 55, "busy": 0, "dur1to3": 9, "durOver3": 4, "durUnder1": 42, "effective": 13, "noAnswer": 8, "other": 0, "talk": 2623, "total": 63}, "SIN_DATO": {"answered": 1, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 0, "talk": 1, "total": 1}}, "date": "2026-09-03", "dur1to3": 9, "durOver3": 4, "durUnder1": 43, "effective": 13, "ext": "1110", "name": "Juan Francisco Reyes López", "noAnswer": 8, "other": 0, "talk": 2624, "total": 64}, {"answered": 59, "busy": 6, "byCountry": {"GT": {"answered": 59, "busy": 3, "dur1to3": 10, "durOver3": 2, "durUnder1": 47, "effective": 11, "noAnswer": 4, "other": 0, "talk": 2063, "total": 66}, "SIN_DATO": {"answered": 0, "busy": 3, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 3}}, "date": "2026-09-04", "dur1to3": 10, "durOver3": 2, "durUnder1": 47, "effective": 11, "ext": "1110", "name": "Juan Francisco Reyes López", "noAnswer": 4, "other": 0, "talk": 2063, "total": 69}, {"answered": 60, "busy": 4, "byCountry": {"GT": {"answered": 58, "busy": 2, "dur1to3": 15, "durOver3": 1, "durUnder1": 42, "effective": 16, "noAnswer": 4, "other": 0, "talk": 2134, "total": 64}, "SIN_DATO": {"answered": 2, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 0, "talk": 2, "total": 4}}, "date": "2026-09-07", "dur1to3": 15, "durOver3": 1, "durUnder1": 44, "effective": 16, "ext": "1110", "name": "Juan Francisco Reyes López", "noAnswer": 4, "other": 0, "talk": 2136, "total": 68}, {"answered": 70, "busy": 4, "byCountry": {"GT": {"answered": 70, "busy": 2, "dur1to3": 4, "durOver3": 5, "durUnder1": 61, "effective": 9, "noAnswer": 17, "other": 0, "talk": 2423, "total": 89}, "SIN_DATO": {"answered": 0, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 2}}, "date": "2026-09-08", "dur1to3": 4, "durOver3": 5, "durUnder1": 61, "effective": 9, "ext": "1110", "name": "Juan Francisco Reyes López", "noAnswer": 17, "other": 0, "talk": 2423, "total": 91}, {"answered": 32, "busy": 4, "byCountry": {"PAN": {"answered": 32, "busy": 2, "dur1to3": 6, "durOver3": 1, "durUnder1": 25, "effective": 7, "noAnswer": 0, "other": 2, "talk": 1111, "total": 36}, "SIN_DATO": {"answered": 0, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 2, "talk": 0, "total": 4}}, "date": "2026-09-02", "dur1to3": 6, "durOver3": 1, "durUnder1": 25, "effective": 7, "ext": "1112", "name": "Alejandra Sofía Díaz García", "noAnswer": 0, "other": 4, "talk": 1111, "total": 40}, {"answered": 12, "busy": 2, "byCountry": {"PAN": {"answered": 12, "busy": 1, "dur1to3": 2, "durOver3": 0, "durUnder1": 10, "effective": 2, "noAnswer": 1, "other": 3, "talk": 247, "total": 17}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 3, "talk": 0, "total": 4}}, "date": "2026-09-03", "dur1to3": 2, "durOver3": 0, "durUnder1": 10, "effective": 2, "ext": "1112", "name": "Alejandra Sofía Díaz García", "noAnswer": 1, "other": 6, "talk": 247, "total": 21}, {"answered": 16, "busy": 2, "byCountry": {"PAN": {"answered": 16, "busy": 1, "dur1to3": 2, "durOver3": 2, "durUnder1": 12, "effective": 4, "noAnswer": 1, "other": 0, "talk": 779, "total": 18}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-04", "dur1to3": 2, "durOver3": 2, "durUnder1": 12, "effective": 4, "ext": "1112", "name": "Alejandra Sofía Díaz García", "noAnswer": 1, "other": 0, "talk": 779, "total": 19}, {"answered": 32, "busy": 12, "byCountry": {"PAN": {"answered": 31, "busy": 6, "dur1to3": 6, "durOver3": 0, "durUnder1": 25, "effective": 6, "noAnswer": 4, "other": 3, "talk": 823, "total": 44}, "SIN_DATO": {"answered": 1, "busy": 6, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 3, "talk": 15, "total": 10}}, "date": "2026-09-07", "dur1to3": 6, "durOver3": 0, "durUnder1": 26, "effective": 6, "ext": "1112", "name": "Alejandra Sofía Díaz García", "noAnswer": 4, "other": 6, "talk": 838, "total": 54}, {"answered": 46, "busy": 14, "byCountry": {"PAN": {"answered": 44, "busy": 7, "dur1to3": 7, "durOver3": 2, "durUnder1": 35, "effective": 9, "noAnswer": 8, "other": 1, "talk": 1362, "total": 60}, "SIN_DATO": {"answered": 2, "busy": 7, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 1, "talk": 20, "total": 10}}, "date": "2026-09-08", "dur1to3": 7, "durOver3": 2, "durUnder1": 37, "effective": 9, "ext": "1112", "name": "Alejandra Sofía Díaz García", "noAnswer": 8, "other": 2, "talk": 1382, "total": 70}, {"answered": 98, "busy": 4, "byCountry": {"GT": {"answered": 98, "busy": 2, "dur1to3": 14, "durOver3": 8, "durUnder1": 76, "effective": 22, "noAnswer": 11, "other": 0, "talk": 4273, "total": 111}, "SIN_DATO": {"answered": 0, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 2}}, "date": "2026-09-02", "dur1to3": 14, "durOver3": 8, "durUnder1": 76, "effective": 22, "ext": "1113", "name": "Heidi Adelaida Morales Salguero", "noAnswer": 11, "other": 0, "talk": 4273, "total": 113}, {"answered": 97, "busy": 0, "byCountry": {"GT": {"answered": 95, "busy": 0, "dur1to3": 7, "durOver3": 2, "durUnder1": 86, "effective": 9, "noAnswer": 17, "other": 0, "talk": 1792, "total": 112}, "SIN_DATO": {"answered": 2, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 0, "talk": 2, "total": 2}}, "date": "2026-09-03", "dur1to3": 7, "durOver3": 2, "durUnder1": 88, "effective": 9, "ext": "1113", "name": "Heidi Adelaida Morales Salguero", "noAnswer": 17, "other": 0, "talk": 1794, "total": 114}, {"answered": 89, "busy": 0, "byCountry": {"GT": {"answered": 89, "busy": 0, "dur1to3": 15, "durOver3": 2, "durUnder1": 72, "effective": 17, "noAnswer": 16, "other": 1, "talk": 2854, "total": 106}, "SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 1}}, "date": "2026-09-04", "dur1to3": 15, "durOver3": 2, "durUnder1": 72, "effective": 17, "ext": "1113", "name": "Heidi Adelaida Morales Salguero", "noAnswer": 16, "other": 2, "talk": 2854, "total": 107}, {"answered": 82, "busy": 14, "byCountry": {"GT": {"answered": 80, "busy": 7, "dur1to3": 4, "durOver3": 6, "durUnder1": 70, "effective": 10, "noAnswer": 7, "other": 0, "talk": 3089, "total": 94}, "SIN_DATO": {"answered": 2, "busy": 7, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 0, "talk": 2, "total": 9}}, "date": "2026-09-07", "dur1to3": 4, "durOver3": 6, "durUnder1": 72, "effective": 10, "ext": "1113", "name": "Heidi Adelaida Morales Salguero", "noAnswer": 7, "other": 0, "talk": 3091, "total": 103}, {"answered": 71, "busy": 2, "byCountry": {"GT": {"answered": 71, "busy": 1, "dur1to3": 11, "durOver3": 4, "durUnder1": 56, "effective": 14, "noAnswer": 30, "other": 0, "talk": 2654, "total": 102}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-08", "dur1to3": 11, "durOver3": 4, "durUnder1": 56, "effective": 14, "ext": "1113", "name": "Heidi Adelaida Morales Salguero", "noAnswer": 30, "other": 0, "talk": 2654, "total": 103}, {"answered": 33, "busy": 2, "byCountry": {"GT": {"answered": 33, "busy": 1, "dur1to3": 3, "durOver3": 2, "durUnder1": 28, "effective": 5, "noAnswer": 21, "other": 0, "talk": 1648, "total": 55}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-02", "dur1to3": 3, "durOver3": 2, "durUnder1": 28, "effective": 5, "ext": "1115", "name": "Derick Joseph Alejandro González Sis", "noAnswer": 21, "other": 0, "talk": 1648, "total": 56}, {"answered": 42, "busy": 0, "byCountry": {"GT": {"answered": 41, "busy": 0, "dur1to3": 6, "durOver3": 3, "durUnder1": 32, "effective": 8, "noAnswer": 17, "other": 0, "talk": 1589, "total": 58}, "SIN_DATO": {"answered": 1, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 0, "talk": 1, "total": 1}}, "date": "2026-09-03", "dur1to3": 6, "durOver3": 3, "durUnder1": 33, "effective": 8, "ext": "1115", "name": "Derick Joseph Alejandro González Sis", "noAnswer": 17, "other": 0, "talk": 1590, "total": 59}, {"answered": 52, "busy": 2, "byCountry": {"GT": {"answered": 51, "busy": 1, "dur1to3": 8, "durOver3": 1, "durUnder1": 42, "effective": 9, "noAnswer": 9, "other": 0, "talk": 1496, "total": 61}, "SIN_DATO": {"answered": 1, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 0, "talk": 1, "total": 2}}, "date": "2026-09-04", "dur1to3": 8, "durOver3": 1, "durUnder1": 43, "effective": 9, "ext": "1115", "name": "Derick Joseph Alejandro González Sis", "noAnswer": 9, "other": 0, "talk": 1497, "total": 63}, {"answered": 51, "busy": 0, "byCountry": {"GT": {"answered": 50, "busy": 0, "dur1to3": 12, "durOver3": 1, "durUnder1": 37, "effective": 13, "noAnswer": 9, "other": 1, "talk": 1887, "total": 60}, "SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 1}, "SV": {"answered": 1, "busy": 0, "dur1to3": 1, "durOver3": 0, "durUnder1": 0, "effective": 1, "noAnswer": 0, "other": 0, "talk": 103, "total": 1}}, "date": "2026-09-07", "dur1to3": 13, "durOver3": 1, "durUnder1": 37, "effective": 14, "ext": "1115", "name": "Derick Joseph Alejandro González Sis", "noAnswer": 9, "other": 2, "talk": 1990, "total": 62}, {"answered": 54, "busy": 2, "byCountry": {"GT": {"answered": 54, "busy": 1, "dur1to3": 9, "durOver3": 1, "durUnder1": 44, "effective": 10, "noAnswer": 31, "other": 0, "talk": 1454, "total": 86}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-08", "dur1to3": 9, "durOver3": 1, "durUnder1": 44, "effective": 10, "ext": "1115", "name": "Derick Joseph Alejandro González Sis", "noAnswer": 31, "other": 0, "talk": 1454, "total": 87}, {"answered": 33, "busy": 2, "byCountry": {"GT": {"answered": 31, "busy": 1, "dur1to3": 5, "durOver3": 1, "durUnder1": 25, "effective": 6, "noAnswer": 11, "other": 1, "talk": 675, "total": 44}, "SIN_DATO": {"answered": 2, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 1, "talk": 2, "total": 4}}, "date": "2026-09-02", "dur1to3": 5, "durOver3": 1, "durUnder1": 27, "effective": 6, "ext": "1116", "name": "Jonathan Omar Guzmán Giron", "noAnswer": 11, "other": 2, "talk": 677, "total": 48}, {"answered": 6, "busy": 0, "byCountry": {"GT": {"answered": 6, "busy": 0, "dur1to3": 1, "durOver3": 0, "durUnder1": 5, "effective": 1, "noAnswer": 3, "other": 0, "talk": 149, "total": 9}}, "date": "2026-09-03", "dur1to3": 1, "durOver3": 0, "durUnder1": 5, "effective": 1, "ext": "1116", "name": "Jonathan Omar Guzmán Giron", "noAnswer": 3, "other": 0, "talk": 149, "total": 9}, {"answered": 4, "busy": 0, "byCountry": {"GT": {"answered": 4, "busy": 0, "dur1to3": 1, "durOver3": 0, "durUnder1": 3, "effective": 1, "noAnswer": 0, "other": 0, "talk": 138, "total": 4}}, "date": "2026-09-04", "dur1to3": 1, "durOver3": 0, "durUnder1": 3, "effective": 1, "ext": "1116", "name": "Jonathan Omar Guzmán Giron", "noAnswer": 0, "other": 0, "talk": 138, "total": 4}, {"answered": 36, "busy": 2, "byCountry": {"GT": {"answered": 36, "busy": 1, "dur1to3": 9, "durOver3": 1, "durUnder1": 26, "effective": 10, "noAnswer": 24, "other": 0, "talk": 1309, "total": 61}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-07", "dur1to3": 9, "durOver3": 1, "durUnder1": 26, "effective": 10, "ext": "1116", "name": "Jonathan Omar Guzmán Giron", "noAnswer": 24, "other": 0, "talk": 1309, "total": 62}, {"answered": 22, "busy": 2, "byCountry": {"GT": {"answered": 22, "busy": 1, "dur1to3": 5, "durOver3": 1, "durUnder1": 16, "effective": 6, "noAnswer": 1, "other": 0, "talk": 809, "total": 24}, "SIN_DATO": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-08", "dur1to3": 5, "durOver3": 1, "durUnder1": 16, "effective": 6, "ext": "1116", "name": "Jonathan Omar Guzmán Giron", "noAnswer": 1, "other": 0, "talk": 809, "total": 25}, {"answered": 50, "busy": 8, "byCountry": {"GT": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}, "HN": {"answered": 50, "busy": 3, "dur1to3": 6, "durOver3": 1, "durUnder1": 43, "effective": 7, "noAnswer": 14, "other": 0, "talk": 1582, "total": 67}, "SIN_DATO": {"answered": 0, "busy": 4, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 5, "other": 0, "talk": 0, "total": 9}}, "date": "2026-09-02", "dur1to3": 6, "durOver3": 1, "durUnder1": 43, "effective": 7, "ext": "1117", "name": "Marcos Enrique Canteo Becerra", "noAnswer": 19, "other": 0, "talk": 1582, "total": 77}, {"answered": 44, "busy": 4, "byCountry": {"GT": {"answered": 0, "busy": 1, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 1}, "HN": {"answered": 44, "busy": 1, "dur1to3": 2, "durOver3": 0, "durUnder1": 42, "effective": 2, "noAnswer": 15, "other": 0, "talk": 555, "total": 60}, "SIN_DATO": {"answered": 0, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 3, "other": 0, "talk": 0, "total": 5}}, "date": "2026-09-04", "dur1to3": 2, "durOver3": 0, "durUnder1": 42, "effective": 2, "ext": "1117", "name": "Marcos Enrique Canteo Becerra", "noAnswer": 18, "other": 0, "talk": 555, "total": 66}, {"answered": 45, "busy": 6, "byCountry": {"HN": {"answered": 45, "busy": 3, "dur1to3": 1, "durOver3": 0, "durUnder1": 44, "effective": 1, "noAnswer": 15, "other": 0, "talk": 304, "total": 63}, "SIN_DATO": {"answered": 0, "busy": 3, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 1, "other": 0, "talk": 0, "total": 4}}, "date": "2026-09-07", "dur1to3": 1, "durOver3": 0, "durUnder1": 44, "effective": 1, "ext": "1117", "name": "Marcos Enrique Canteo Becerra", "noAnswer": 16, "other": 0, "talk": 304, "total": 67}, {"answered": 38, "busy": 16, "byCountry": {"HN": {"answered": 38, "busy": 8, "dur1to3": 3, "durOver3": 1, "durUnder1": 34, "effective": 4, "noAnswer": 15, "other": 0, "talk": 730, "total": 61}, "SIN_DATO": {"answered": 0, "busy": 8, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 1, "other": 0, "talk": 0, "total": 9}}, "date": "2026-09-08", "dur1to3": 3, "durOver3": 1, "durUnder1": 34, "effective": 4, "ext": "1117", "name": "Marcos Enrique Canteo Becerra", "noAnswer": 16, "other": 0, "talk": 730, "total": 70}, {"answered": 0, "busy": 0, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 2, "talk": 0, "total": 2}}, "date": "2026-09-02", "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "ext": "1118", "name": "Mishelle Andrea Soto Meza", "noAnswer": 0, "other": 2, "talk": 0, "total": 2}, {"answered": 0, "busy": 0, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 1}}, "date": "2026-09-03", "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "ext": "1118", "name": "Mishelle Andrea Soto Meza", "noAnswer": 0, "other": 1, "talk": 0, "total": 1}, {"answered": 99, "busy": 4, "byCountry": {"NIC": {"answered": 99, "busy": 2, "dur1to3": 15, "durOver3": 2, "durUnder1": 82, "effective": 17, "noAnswer": 4, "other": 0, "talk": 2612, "total": 105}, "SIN_DATO": {"answered": 0, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 2}}, "date": "2026-09-07", "dur1to3": 15, "durOver3": 2, "durUnder1": 82, "effective": 17, "ext": "1118", "name": "Mishelle Andrea Soto Meza", "noAnswer": 4, "other": 0, "talk": 2612, "total": 107}, {"answered": 142, "busy": 8, "byCountry": {"NIC": {"answered": 142, "busy": 4, "dur1to3": 15, "durOver3": 4, "durUnder1": 123, "effective": 19, "noAnswer": 9, "other": 1, "talk": 3429, "total": 156}, "SIN_DATO": {"answered": 0, "busy": 4, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 3, "talk": 0, "total": 7}}, "date": "2026-09-08", "dur1to3": 15, "durOver3": 4, "durUnder1": 123, "effective": 19, "ext": "1118", "name": "Mishelle Andrea Soto Meza", "noAnswer": 9, "other": 4, "talk": 3429, "total": 163}, {"answered": 50, "busy": 71, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 38, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 1, "talk": 0, "total": 39}, "SV": {"answered": 50, "busy": 33, "dur1to3": 8, "durOver3": 0, "durUnder1": 42, "effective": 8, "noAnswer": 1, "other": 0, "talk": 1185, "total": 84}}, "date": "2026-09-02", "dur1to3": 8, "durOver3": 0, "durUnder1": 42, "effective": 8, "ext": "1119", "name": "Dahirin Alexandra Pérez López", "noAnswer": 1, "other": 1, "talk": 1185, "total": 123}, {"answered": 44, "busy": 57, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 31, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 31}, "SV": {"answered": 44, "busy": 26, "dur1to3": 3, "durOver3": 4, "durUnder1": 37, "effective": 7, "noAnswer": 9, "other": 0, "talk": 1974, "total": 79}}, "date": "2026-09-03", "dur1to3": 3, "durOver3": 4, "durUnder1": 37, "effective": 7, "ext": "1119", "name": "Dahirin Alexandra Pérez López", "noAnswer": 9, "other": 0, "talk": 1974, "total": 110}, {"answered": 32, "busy": 38, "byCountry": {"SIN_DATO": {"answered": 0, "busy": 21, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 21}, "SV": {"answered": 32, "busy": 17, "dur1to3": 3, "durOver3": 2, "durUnder1": 27, "effective": 5, "noAnswer": 5, "other": 0, "talk": 1051, "total": 54}}, "date": "2026-09-04", "dur1to3": 3, "durOver3": 2, "durUnder1": 27, "effective": 5, "ext": "1119", "name": "Dahirin Alexandra Pérez López", "noAnswer": 5, "other": 0, "talk": 1051, "total": 75}, {"answered": 48, "busy": 38, "byCountry": {"SIN_DATO": {"answered": 1, "busy": 21, "dur1to3": 0, "durOver3": 0, "durUnder1": 1, "effective": 0, "noAnswer": 0, "other": 1, "talk": 9, "total": 23}, "SV": {"answered": 47, "busy": 17, "dur1to3": 7, "durOver3": 1, "durUnder1": 39, "effective": 8, "noAnswer": 5, "other": 1, "talk": 1356, "total": 70}}, "date": "2026-09-07", "dur1to3": 7, "durOver3": 1, "durUnder1": 40, "effective": 8, "ext": "1119", "name": "Dahirin Alexandra Pérez López", "noAnswer": 5, "other": 2, "talk": 1365, "total": 93}, {"answered": 52, "busy": 45, "byCountry": {"SIN_DATO": {"answered": 2, "busy": 25, "dur1to3": 0, "durOver3": 0, "durUnder1": 2, "effective": 0, "noAnswer": 0, "other": 4, "talk": 14, "total": 31}, "SV": {"answered": 50, "busy": 20, "dur1to3": 5, "durOver3": 4, "durUnder1": 41, "effective": 9, "noAnswer": 5, "other": 4, "talk": 2169, "total": 79}}, "date": "2026-09-08", "dur1to3": 5, "durOver3": 4, "durUnder1": 43, "effective": 9, "ext": "1119", "name": "Dahirin Alexandra Pérez López", "noAnswer": 5, "other": 8, "talk": 2183, "total": 110}, {"answered": 47, "busy": 18, "byCountry": {"HN": {"answered": 47, "busy": 9, "dur1to3": 4, "durOver3": 0, "durUnder1": 43, "effective": 4, "noAnswer": 27, "other": 0, "talk": 852, "total": 83}, "SIN_DATO": {"answered": 0, "busy": 9, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 9}}, "date": "2026-09-02", "dur1to3": 4, "durOver3": 0, "durUnder1": 43, "effective": 4, "ext": "1120", "name": "Julio Alexander Cano Salazar", "noAnswer": 27, "other": 0, "talk": 852, "total": 92}, {"answered": 13, "busy": 0, "byCountry": {"HN": {"answered": 13, "busy": 0, "dur1to3": 2, "durOver3": 0, "durUnder1": 11, "effective": 2, "noAnswer": 3, "other": 0, "talk": 331, "total": 16}}, "date": "2026-09-03", "dur1to3": 2, "durOver3": 0, "durUnder1": 11, "effective": 2, "ext": "1120", "name": "Julio Alexander Cano Salazar", "noAnswer": 3, "other": 0, "talk": 331, "total": 16}, {"answered": 22, "busy": 20, "byCountry": {"GT": {"answered": 0, "busy": 2, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 2}, "HN": {"answered": 22, "busy": 8, "dur1to3": 1, "durOver3": 1, "durUnder1": 20, "effective": 2, "noAnswer": 3, "other": 0, "talk": 477, "total": 33}, "SIN_DATO": {"answered": 0, "busy": 10, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 10}}, "date": "2026-09-04", "dur1to3": 1, "durOver3": 1, "durUnder1": 20, "effective": 2, "ext": "1120", "name": "Julio Alexander Cano Salazar", "noAnswer": 3, "other": 0, "talk": 477, "total": 45}, {"answered": 1, "busy": 0, "byCountry": {"HN": {"answered": 1, "busy": 0, "dur1to3": 1, "durOver3": 0, "durUnder1": 0, "effective": 1, "noAnswer": 0, "other": 0, "talk": 102, "total": 1}, "SV": {"answered": 0, "busy": 0, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 1, "other": 0, "talk": 0, "total": 1}}, "date": "2026-09-07", "dur1to3": 1, "durOver3": 0, "durUnder1": 0, "effective": 1, "ext": "1120", "name": "Julio Alexander Cano Salazar", "noAnswer": 1, "other": 0, "talk": 102, "total": 2}, {"answered": 52, "busy": 34, "byCountry": {"HN": {"answered": 52, "busy": 17, "dur1to3": 2, "durOver3": 2, "durUnder1": 48, "effective": 4, "noAnswer": 19, "other": 0, "talk": 1088, "total": 88}, "SIN_DATO": {"answered": 0, "busy": 17, "dur1to3": 0, "durOver3": 0, "durUnder1": 0, "effective": 0, "noAnswer": 0, "other": 0, "talk": 0, "total": 17}}, "date": "2026-09-08", "dur1to3": 2, "durOver3": 2, "durUnder1": 48, "effective": 4, "ext": "1120", "name": "Julio Alexander Cano Salazar", "noAnswer": 19, "other": 0, "talk": 1088, "total": 105}];
-const SEED_UPLOADS = [{"id": "seed", "filename": "PRIMERA SEMANA DE SEPTIEMBRE.xlsx", "uploadedAt": "2026-09-03T18:00:00-06:00", "rowsTotal": 1828, "rowsMatched": 1809, "rowsUnmatched": 19, "dateMin": "2026-09-01", "dateMax": "2026-09-03", "thresholdUsed": 60}, {"id": "u_1788561424046", "filename": "Issabel (7).xlsx", "uploadedAt": "2026-09-04T22:37:04.046Z", "rowsTotal": 2875, "rowsMatched": 2838, "rowsUnmatched": 37, "dateMin": "2026-09-02", "dateMax": "2026-09-04", "thresholdUsed": 60}, {"id": "u_1788817855482", "filename": "Issabel (8).xlsx", "uploadedAt": "2026-09-07T21:50:55.482Z", "rowsTotal": 3716, "rowsMatched": 3656, "rowsUnmatched": 60, "dateMin": "2026-09-02", "dateMax": "2026-09-07", "thresholdUsed": 60}, {"id": "u_1788907475300", "filename": "Issabel (9).xlsx", "uploadedAt": "2026-09-08T22:44:35.300Z", "rowsTotal": 5771, "rowsMatched": 5642, "rowsUnmatched": 129, "dateMin": "2026-09-02", "dateMax": "2026-09-08", "thresholdUsed": 60}];
+const SEED_DAILY = [];
+const SEED_UPLOADS = [];
 const DEFAULT_CONFIG = {
   dailyGoal: 60, dailyGoalTotal: 60, thresholdSeconds: 60,
-  // Meta diaria variable por período (ejemplo pre-cargado; editable en el Panel de supervisión).
-  goalSchedule: [
-    {from:'2026-09-02', to:'2026-09-12', goal:60},
-    {from:'2026-09-14', to:'2026-09-30', goal:182}
-  ],
+  // Meta diaria variable por período — vacío por defecto (se usa la meta única
+  // dailyGoalTotal para todos los días) hasta que se agregue un período real
+  // desde el Panel de supervisión. Ojo: nunca dejar aquí datos de ejemplo — al
+  // no venir guardados en la base, cualquier período de muestra se activaría
+  // solo como si fuera real en cuanto la fecha cayera dentro de su rango.
+  goalSchedule: [],
   // KPIs derivados de muestra (editables/eliminables en el Panel de supervisión).
   derivedKpis: [
     {id:'k_resp', name:'Tasa de respuesta', num:'answered', op:'ratio', den:'total', fmt:'pct'},
@@ -968,7 +1331,7 @@ const TEAMS = { chevere:'Team Chevere', imparables:'Team Imparables' };
 // (ej. "SIP/TIGO_GTSIP-00000cb2" -> GT). Códigos conocidos abajo; cualquier otro troncal nuevo
 // se muestra con su propio código sin romper nada.
 const COUNTRY_PAT = /_([A-Za-z]{2,4})SIP-/;
-const COUNTRY_NAMES = { GT:'Guatemala', HN:'Honduras', SV:'El Salvador', PAN:'Panamá', NI:'Nicaragua', CR:'Costa Rica', MX:'México', US:'Estados Unidos', SIN_DATO:'Sin dato' };
+const COUNTRY_NAMES = { GT:'Guatemala', HN:'Honduras', SV:'El Salvador', PAN:'Panamá', NI:'Nicaragua', NIC:'Nicaragua', CR:'Costa Rica', MX:'México', US:'Estados Unidos', SIN_DATO:'Sin dato' };
 function countryLabel(code){ return COUNTRY_NAMES[code] || code; }
 
 // ---------- Estado ----------
@@ -987,6 +1350,13 @@ const state = {
   db: null,
   sortCol: 'total',
   sortDir: 'desc',
+  contactSortCol: 'answered',
+  contactSortDir: 'desc',
+  summarySortCol: 'total',
+  summarySortDir: 'desc',
+  tvMode: false,
+  tvScreenIdx: 0,
+  captureMode: false,
 };
 
 SEED_GESTORES.forEach(g => state.gestores[String(g.ext)] = {name:g.name, team:g.team||''});
@@ -1039,6 +1409,7 @@ const dateFmtUTC = new Intl.DateTimeFormat('en-CA', {timeZone:'UTC', year:'numer
 const dateFmtHuman = new Intl.DateTimeFormat('es-GT', {timeZone:'UTC', day:'2-digit', month:'short'});
 const dateFmtHumanFull = new Intl.DateTimeFormat('es-GT', {timeZone:'UTC', day:'2-digit', month:'long', year:'numeric'});
 function toUTC(dstr){ return new Date(dstr+'T00:00:00Z'); }
+function isWeekend(dstr){ const dow = toUTC(dstr).getUTCDay(); return dow===0 || dow===6; }
 
 function uidToDateStr(uid){
   const n = parseFloat(uid);
@@ -1080,6 +1451,21 @@ function showToast(html, ms=5200){
   clearTimeout(showToast._h);
   showToast._h = setTimeout(()=>t.classList.remove('show'), ms);
 }
+// Escribe en la base compartida y avisa con claridad si el permiso de esta
+// persona es de "solo ver" (por ejemplo, alguien con quien se compartió el
+// enlace sin darle edición): en vez de fallar en silencio, se le explica que
+// el cambio no se guardó para todos. `p` puede ser null cuando no hay base
+// conectada (modo local); en ese caso se considera éxito.
+async function dbWrite(p, okMsg, deniedMsg){
+  try {
+    if (p) await p;
+    if (okMsg) showToast(okMsg);
+    return true;
+  } catch(e){
+    showToast(deniedMsg || 'No se pudo guardar: solo quien tiene permiso de edición puede cambiar estos datos compartidos.');
+    return false;
+  }
+}
 function allDatesSorted(){
   return Array.from(new Set(Array.from(state.daily.values()).map(r=>r.date))).sort();
 }
@@ -1118,6 +1504,18 @@ function baseRecords(){
 // This is the scope for the headline "contactabilidad" number.
 function filteredRecords(){
   const base = baseRecords();
+  return state.filterGestor ? base.filter(r=>r.ext===state.filterGestor) : base;
+}
+// recordsIgnoringDay: same scope as filteredRecords (rango + equipo + gestor) pero SIN el
+// filtro de "día" - la usa el gráfico "Total de llamadas por semana" para poder seguir
+// mostrando todas las barras de la semana incluso después de hacer clic en una de ellas.
+function recordsIgnoringDay(){
+  const [min,max] = currentRangeBounds();
+  if (!min) return [];
+  const base = Array.from(state.daily.values()).filter(r =>
+    r.date>=min && r.date<=max &&
+    (!state.filterTeam || gTeam(r.ext)===state.filterTeam)
+  ).map(sliceForCountry);
   return state.filterGestor ? base.filter(r=>r.ext===state.filterGestor) : base;
 }
 
@@ -1180,7 +1578,7 @@ function renderKPIs(){
     const activeDays = new Set(recs.filter(r=>r.effective>0).map(r=>r.date)).size;
     $('#kpiLabel3').textContent = 'Promedio por día activo';
     $('#kpiAvg').textContent = activeDays ? (totalEff/activeDays).toFixed(1) : '0.0';
-    $('#kpiAvgSub').textContent = 'contactabilidad';
+    $('#kpiAvgSub').textContent = 'llamadas con contactabilidad, en promedio (no es %)';
 
     // tile 4: rank within the team for this same scope (range + día, sin filtrar por gestor)
     const base = baseRecords();
@@ -1193,8 +1591,8 @@ function renderKPIs(){
     $('#kpiLabel4').textContent = 'Puesto en el equipo';
     $('#kpiTop').textContent = idx>=0 ? `#${idx+1} de ${totalGestores}` : `sin registros`;
     $('#kpiTopSub').innerHTML = idx===0
-      ? (myTotal ? `🏆 ${fmtInt(byGestor[state.filterGestor]||0)} de <b>${fmtInt(myTotal)}</b> llamadas` : '🏆 el mejor del período')
-      : (idx>=0 ? (myTotal ? `${fmtInt(byGestor[state.filterGestor]||0)} de <b>${fmtInt(myTotal)}</b> llamadas` : `${fmtInt(byGestor[state.filterGestor]||0)} de contactabilidad`) : '');
+      ? (myTotal ? `🏆 ${fmtInt(byGestor[state.filterGestor]||0)} de <b>${fmtInt(myTotal)}</b> llamadas · ${pctStr(byGestor[state.filterGestor]||0, myTotal)}` : '🏆 el mejor del período')
+      : (idx>=0 ? (myTotal ? `${fmtInt(byGestor[state.filterGestor]||0)} de <b>${fmtInt(myTotal)}</b> llamadas · ${pctStr(byGestor[state.filterGestor]||0, myTotal)}` : `${fmtInt(byGestor[state.filterGestor]||0)} de contactabilidad`) : '');
   } else {
     const byGestor = {};
     const byGestorTotal = {};
@@ -1206,18 +1604,18 @@ function renderKPIs(){
     $('#kpiEffectiveSub').innerHTML = totalCalls ? `de <b>${fmtInt(totalCalls)}</b> llamadas` : 'sin datos';
     $('#kpiLabel2').textContent = 'Gestores con actividad';
     $('#kpiGestores').textContent = fmtInt(activeGestores);
-    $('#kpiGestoresSub').innerHTML = `de <b id="kpiGestoresTotal">${fmtInt(totalGestores)}</b> en el equipo`;
+    $('#kpiGestoresSub').innerHTML = `de <b id="kpiGestoresTotal">${fmtInt(totalGestores)}</b> en el equipo · ${pctStr(activeGestores,totalGestores)}`;
     $('#kpiLabel3').textContent = 'Promedio por gestor / día';
     $('#kpiAvg').textContent = avg.toFixed(1);
-    $('#kpiAvgSub').textContent = 'contactabilidad';
+    $('#kpiAvgSub').textContent = 'llamadas con contactabilidad, en promedio (no es %)';
 
     let topExt=null, topVal=-1;
     Object.entries(byGestor).forEach(([ext,v])=>{ if (v>topVal){topVal=v; topExt=ext;} });
     const topTotal = topExt ? (byGestorTotal[topExt]||0) : 0;
     $('#kpiLabel4').textContent = 'Mejor gestor';
-    $('#kpiTop').textContent = topExt ? gName(topExt) : '–';
+    $('#kpiTop').textContent = topExt ? `👑 ${gName(topExt)}` : '–';
     $('#kpiTopSub').innerHTML = topExt
-      ? (topTotal ? `${fmtInt(topVal)} de <b>${fmtInt(topTotal)}</b> llamadas` : `${fmtInt(topVal)} de contactabilidad`)
+      ? (topTotal ? `${fmtInt(topVal)} de <b>${fmtInt(topTotal)}</b> llamadas · ${pctStr(topVal,topTotal)}` : `${fmtInt(topVal)} de contactabilidad`)
       : '';
   }
 
@@ -1275,7 +1673,7 @@ function renderRanking(){
     const pct = Math.max((r.val/max)*100, 3);
     return `<div class="rank-row">
       <span class="rank-num">${i+1}</span>
-      <span class="rank-name" title="${escapeHtml(r.name)}" data-ext="${r.ext}">${escapeHtml(r.name)}</span>
+      <span class="rank-name" title="${escapeHtml(r.name)}" data-ext="${r.ext}">${i===0?'👑 ':''}${escapeHtml(r.name)}</span>
       <div class="rank-bar-track">
         <div class="rank-bar-fill ${i===0?'top':''}" style="width:${pct}%"></div>
       </div>
@@ -1360,13 +1758,15 @@ function weekLabel(weekStart){ return dateFmtHuman.format(toUTC(weekStart)); }
 
 function renderWeeklyChart(){
   const svg = $('#weeklySvg');
-  const recs = filteredRecords();
+  const recs = recordsIgnoringDay();
   const marketLabel = state.filterCountry ? countryLabel(state.filterCountry) : 'todos los mercados';
   $('#weeklyChartHint').textContent = (state.filterGestor ? gName(state.filterGestor)+' · ' : '') + marketLabel;
 
   if (!recs.length){
     $('#weeklyHint').textContent = `total de llamadas — ${marketLabel}`;
     svg.innerHTML = `<text x="10" y="90" class="trend-axis">Sin llamadas en este período.</text>`;
+    $('#weeklyInsights').innerHTML = '';
+    $('#weeklyTeamCompare').innerHTML = '';
     return;
   }
 
@@ -1388,7 +1788,7 @@ function renderWeeklyChart(){
       const b = dayMap.get(dt);
       return { label: dateFmtHuman.format(toUTC(dt)), total:b.total, goal:b.goalSum, weekStart: weekStartStr(dt) };
     });
-    $('#weeklyHint').textContent = `total por día, agrupado por semana — ${marketLabel}`;
+    $('#weeklyHint').textContent = `total por día, agrupado por semana — ${marketLabel} · clic en una barra para ver ese día`;
   } else {
     const buckets = new Map();
     recs.forEach(r=>{
@@ -1464,14 +1864,16 @@ function renderWeeklyChart(){
     const badgeW = badgeText ? Math.max(byDay?32:56, badgeText.length*6.4+14) : 0;
     const badgeCy = valueY - (byDay ? 18 : 22);
     const dayLabelY = byDay ? H-22 : H-10;
+    const dateStr = byDay ? allDays[i] : '';
+    const isSelected = byDay && state.filterDay && state.filterDay===dateStr;
     return `<g>
-      <rect class="week-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="${byDay?5:7}" fill="url(#${gradId})"><title>${it.label}: ${fmtInt(it.total)} llamadas${pct!==null?` · ${pct}% de la meta`:''}</title></rect>
+      <rect class="week-bar ${byDay?'week-bar-click':''}" data-date="${dateStr}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="${byDay?5:7}" fill="url(#${gradId})" ${isSelected?`stroke="var(--ink)" stroke-width="2.5"`:''}><title>${it.label}: ${fmtInt(it.total)} llamadas${pct!==null?` · ${pct}% de la meta`:''}${byDay?' · clic para filtrar':''}</title></rect>
       ${showLabel ? `<text x="${cx.toFixed(1)}" y="${valueY.toFixed(1)}" text-anchor="middle" font-family="var(--font-display)" font-weight="800" font-size="${byDay?11:13}" fill="var(--ink)">${fmtInt(it.total)}</text>` : ''}
       ${badgeText ? `
         <rect x="${(cx-badgeW/2).toFixed(1)}" y="${(badgeCy-9).toFixed(1)}" width="${badgeW.toFixed(1)}" height="18" rx="9" fill="var(--${st}-wash)"/>
         <text x="${cx.toFixed(1)}" y="${(badgeCy+3.5).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-weight="700" font-size="9.5" fill="var(--${st})">${badgeText}</text>
       ` : ''}
-      <text class="trend-axis" x="${cx.toFixed(1)}" y="${dayLabelY}" text-anchor="middle">${it.label}</text>
+      <text class="trend-axis" x="${cx.toFixed(1)}" y="${dayLabelY}" text-anchor="middle" ${isSelected?'style="fill:var(--ink); font-weight:700;"':''}>${it.label}</text>
     </g>`;
   }).join('');
 
@@ -1491,6 +1893,83 @@ function renderWeeklyChart(){
     </defs>`;
 
   svg.innerHTML = defs + bands + gridLine + bars;
+
+  if (byDay){
+    svg.querySelectorAll('.week-bar-click').forEach(rect=>{
+      rect.addEventListener('click', ()=>{
+        const dt = rect.dataset.date;
+        state.filterDay = (state.filterDay===dt) ? '' : dt;
+        $('#pickDay').value = state.filterDay;
+        renderAll();
+      });
+    });
+  }
+
+  // Franja de datos rápidos debajo de la gráfica: mejor día/semana, promedio y tendencia.
+  const totalSum = items.reduce((s,it)=>s+it.total,0);
+  const avgVal = n ? totalSum/n : 0;
+  let bestIdx = 0;
+  items.forEach((it,i)=>{ if (it.total>items[bestIdx].total) bestIdx=i; });
+  const bestItem = items[bestIdx];
+  const unit = byDay ? 'día' : 'semana';
+  let trendHtml = '<span style="color:var(--ink-mute)">–</span>';
+  if (n>=2){
+    const last = items[n-1].total, prev = items[n-2].total;
+    if (prev){
+      const diff = (last-prev)/prev*100;
+      const dir = diff>=0 ? 'up' : 'down';
+      const arrow = diff>=0 ? '▲' : '▼';
+      trendHtml = `<span class="wi-trend ${dir}">${arrow} ${Math.abs(diff).toFixed(0)}%</span>`;
+    }
+  }
+  $('#weeklyInsights').innerHTML = `
+    <div class="week-insight">
+      <span class="wi-label">Mejor ${unit}</span>
+      <span class="wi-value">${fmtInt(bestItem.total)}</span>
+      <span class="wi-sub">${escapeHtml(bestItem.label)}</span>
+    </div>
+    <div class="week-insight">
+      <span class="wi-label">Promedio</span>
+      <span class="wi-value">${fmtInt(Math.round(avgVal))}</span>
+      <span class="wi-sub">por ${unit}</span>
+    </div>
+    <div class="week-insight">
+      <span class="wi-label">Tendencia</span>
+      <span class="wi-value">${trendHtml}</span>
+      <span class="wi-sub">último vs. anterior</span>
+    </div>
+  `;
+
+  // Comparación por equipo del mismo período - solo tiene sentido con ambos equipos
+  // a la vista (sin filtrar por equipo ni por un solo gestor).
+  const tcEl = $('#weeklyTeamCompare');
+  if (state.filterTeam || state.filterGestor){
+    tcEl.innerHTML = '';
+  } else {
+    const teamTotals = {chevere:0, imparables:0, otro:0};
+    recs.forEach(r=>{
+      const tm = gTeam(r.ext);
+      if (tm==='chevere') teamTotals.chevere += (r.total||0);
+      else if (tm==='imparables') teamTotals.imparables += (r.total||0);
+      else teamTotals.otro += (r.total||0);
+    });
+    const tcSum = teamTotals.chevere + teamTotals.imparables + teamTotals.otro;
+    if (!tcSum){
+      tcEl.innerHTML = '';
+    } else {
+      const maxTeam = Math.max(teamTotals.chevere, teamTotals.imparables, 1);
+      const rowHtml = (label, cls, val) => `
+        <div class="wtc-row">
+          <span class="wtc-name">${cls?`<span class="team-dot ${cls}"></span>`:''}${label}</span>
+          <div class="wtc-track"><div class="wtc-fill ${cls}" style="width:${Math.max(val/maxTeam*100,val>0?3:0)}%"></div></div>
+          <span class="wtc-val">${fmtInt(val)} <span class="wtc-pct">(${pctStr(val,tcSum)})</span></span>
+        </div>`;
+      tcEl.innerHTML = `<span class="wtc-title">Chevere vs. Imparables — ${unit==='día'?'período mostrado':unit}</span>`
+        + rowHtml(TEAMS.chevere, 'a', teamTotals.chevere)
+        + rowHtml(TEAMS.imparables, 'b', teamTotals.imparables)
+        + (teamTotals.otro ? rowHtml('Sin equipo', '', teamTotals.otro) : '');
+    }
+  }
 }
 
 // ---------- Render: Ranking por cumplimiento de meta diaria ----------
@@ -1503,7 +1982,11 @@ function renderGoalRanking(){
   let dates = [];
   let d = toUTC(min); const endD = toUTC(max);
   while (d<=endD){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
-  if (state.filterDay) dates = dates.filter(dt=>dt===state.filterDay);
+  if (state.filterDay){
+    dates = dates.filter(dt=>dt===state.filterDay);
+  } else {
+    dates = dates.filter(dt=>!isWeekend(dt));
+  }
 
   const hasSchedule = Array.isArray(state.config.goalSchedule) && state.config.goalSchedule.length>0;
   const exts = state.filterGestor ? [state.filterGestor] : visibleExts();
@@ -1517,7 +2000,7 @@ function renderGoalRanking(){
   });
   rows = rows.filter(r=>r.diasTrabajados>0 && r.pct!==null).sort((a,b)=>b.pct-a.pct);
 
-  $('#goalRankHint').textContent = hasSchedule ? '% de la meta diaria (variable por período) acumulada' : `% de la meta (${fmtInt(goal)}/día) acumulada en el período`;
+  $('#goalRankHint').textContent = (hasSchedule ? '% de la meta diaria (variable por período) acumulada' : `% de la meta (${fmtInt(goal)}/día) acumulada en el período`) + ' · no incluye fines de semana';
 
   if (!rows.length){ el.innerHTML = '<div class="rank-empty">Sin días trabajados en este período.</div>'; return; }
 
@@ -1555,25 +2038,67 @@ function shortName(name){
 function renderGestorBarChart(){
   const svg = $('#gestorBarSvg');
   const [min,max] = currentRangeBounds();
-  if (!min){ svg.innerHTML = ''; $('#gestorBarHint').textContent = 'sin datos'; return; }
+  const daySel = $('#gestorBarDaySel');
+  if (!min){
+    svg.innerHTML = ''; $('#gestorBarHint').textContent = 'sin datos';
+    daySel.innerHTML = '<option value="">Todo el período</option>';
+    $('#gestorBarTable').innerHTML = '';
+    return;
+  }
 
-  let dates = [];
+  let allDates = [];
   let d = toUTC(min); const endD = toUTC(max);
-  while (d<=endD){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
-  if (state.filterDay) dates = dates.filter(dt=>dt===state.filterDay);
+  while (d<=endD){ allDates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
+
+  // Selector de día local a esta tarjeta — mismo estado (state.filterDay) que el filtro global,
+  // para poder ver el conteo/porcentaje de un día puntual sin desplazarse arriba.
+  daySel.innerHTML = '<option value="">Todo el período</option>' +
+    allDates.map(dt=>`<option value="${dt}" ${dt===state.filterDay?'selected':''}>${dateFmtHumanFull.format(toUTC(dt))}</option>`).join('');
+  if (state.filterDay && !allDates.includes(state.filterDay)) daySel.value = '';
 
   const marketLabel = state.filterCountry ? countryLabel(state.filterCountry) : 'todos los mercados';
-  const scopeLabel = state.filterDay ? `el ${dateFmtHumanFull.format(toUTC(state.filterDay))}` : 'todo el período seleccionado';
+  const scopeLabel = state.filterDay ? `el ${dateFmtHumanFull.format(toUTC(state.filterDay))}` : 'todo el período seleccionado (sin fines de semana)';
   $('#gestorBarHint').textContent = `${scopeLabel} · ${marketLabel}`;
 
   const exts = state.filterGestor ? [state.filterGestor] : visibleExts();
   let rows = exts.map(ext=>{
-    const total = dates.reduce((s,dt)=> s + ((getRec(ext+'_'+dt)||{}).total||0), 0);
-    return {ext, name:gName(ext), team:gTeam(ext), total};
+    const t = extTotals(ext, min, max); // ya respeta state.filterDay y state.filterCountry
+    return {ext, name:gName(ext), team:gTeam(ext), total:t.total, answered:t.answered, effective:t.effective};
   });
   rows.sort((a,b)=> b.total-a.total || a.name.localeCompare(b.name));
 
   $('#gestorBarChartHint').textContent = `${rows.length} gestor${rows.length===1?'':'es'} · ${fmtInt(rows.reduce((s,r)=>s+r.total,0))} llamadas en total`;
+
+  // Tabla de números y porcentaje debajo de las barras — mismo orden/filtro que el gráfico.
+  const tbl = $('#gestorBarTable');
+  if (!rows.length){
+    tbl.innerHTML = '';
+  } else {
+    const thead = `<thead><tr>
+      <th>Gestor</th><th>Equipo</th>
+      <th class="cell-num">Llamadas</th><th class="cell-num">Contestadas</th>
+      <th class="cell-num">Contactabilidad</th><th class="cell-num">% Contactabilidad</th>
+    </tr></thead>`;
+    const body = rows.map(r=>{
+      const teamLabel = r.team ? `<span class="team-dot ${r.team==='chevere'?'a':'b'}"></span>${TEAMS[r.team]||r.team}` : 'Sin equipo';
+      return `<tr data-ext="${r.ext}" style="cursor:pointer;">
+        <th style="text-align:left">${escapeHtml(r.name)}<div class="mono" style="font-size:10.5px;color:var(--ink-mute);font-weight:400;">ext. ${r.ext}</div></th>
+        <td>${teamLabel}</td>
+        <td class="cell-num">${fmtInt(r.total)}</td>
+        <td class="cell-num">${fmtInt(r.answered)}</td>
+        <td class="cell-num eff-col">${fmtInt(r.effective)}</td>
+        <td class="cell-num">${pctStr(r.effective, r.total)}</td>
+      </tr>`;
+    }).join('');
+    const sum = {total:rows.reduce((s,r)=>s+r.total,0), answered:rows.reduce((s,r)=>s+r.answered,0), effective:rows.reduce((s,r)=>s+r.effective,0)};
+    const foot = rows.length>1 ? `<tfoot><tr class="grand-row"><th style="text-align:left">Total</th><td></td>
+      <td class="cell-num">${fmtInt(sum.total)}</td><td class="cell-num">${fmtInt(sum.answered)}</td>
+      <td class="cell-num eff-col">${fmtInt(sum.effective)}</td><td class="cell-num">${pctStr(sum.effective,sum.total)}</td></tr></tfoot>` : '';
+    tbl.innerHTML = thead + '<tbody>' + body + '</tbody>' + foot;
+    tbl.querySelectorAll('tbody tr[data-ext]').forEach(tr=>{
+      tr.addEventListener('click', ()=>{ state.filterGestor = tr.dataset.ext; $('#pickGestor').value = state.filterGestor; renderAll(); });
+    });
+  }
 
   if (!rows.length){ svg.innerHTML = `<text x="10" y="90" class="trend-axis">Sin gestores para mostrar.</text>`; return; }
 
@@ -1589,10 +2114,13 @@ function renderGestorBarChart(){
   let startX = padL, stepExtra = 0;
   if (n === 1){ startX = padL + Math.max((innerW-barW)/2, 0); }
   else if (baseUsed < innerW){ stepExtra = (innerW - baseUsed) / (n - 1); }
-  const showValue = n<=14;
 
   const gridLine = `<line class="trend-grid" x1="${padL}" x2="${W-padR}" y1="${padT+innerH}" y2="${padT+innerH}"/>`;
 
+  // Número de llamadas encima de cada barra — siempre visible (antes se ocultaba con
+  // más de 14 gestores). Dentro de la barra, cerca del borde superior, en blanco con un
+  // halo oscuro para que se lea sobre el degradado en cualquier tema; si la barra es muy
+  // baja para que quepa el número adentro, se coloca justo arriba en tinta del tema.
   const bars = rows.map((r,i)=>{
     const x = startX + i*(barW+gap+stepExtra);
     const h = maxV ? Math.max((r.total/maxV)*innerH, r.total>0 ? 3 : 0) : 0;
@@ -1600,9 +2128,15 @@ function renderGestorBarChart(){
     const cx = x+barW/2;
     const gradId = r.team==='chevere' ? 'gestorBarGradA' : r.team==='imparables' ? 'gestorBarGradB' : 'gestorBarGradN';
     const labelY = padT+innerH+16;
+    const fits = h >= 22;
+    const valueLabel = r.total>0
+      ? (fits
+          ? `<text x="${cx.toFixed(1)}" y="${(y+15).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-weight="700" font-size="11" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width="3" paint-order="stroke">${fmtInt(r.total)}</text>`
+          : `<text x="${cx.toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-weight="700" font-size="10.5" fill="var(--ink)">${fmtInt(r.total)}</text>`)
+      : '';
     return `<g>
       <rect class="gestor-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="5" fill="url(#${gradId})"><title>${escapeHtml(r.name)}: ${fmtInt(r.total)} llamadas</title></rect>
-      ${showValue && r.total>0 ? `<text x="${cx.toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-weight="700" font-size="10.5" fill="var(--ink)">${fmtInt(r.total)}</text>` : ''}
+      ${valueLabel}
       <text class="trend-axis" x="0" y="0" text-anchor="end" transform="translate(${cx.toFixed(1)},${labelY}) rotate(-40)">${escapeHtml(shortName(r.name))}</text>
     </g>`;
   }).join('');
@@ -1623,6 +2157,88 @@ function renderGestorBarChart(){
     </defs>`;
 
   svg.innerHTML = defs + gridLine + bars;
+}
+
+// ---------- Render: Llamadas por mercado ----------
+// "Mercado" = país (código de troncal telefónica). Usa r.byCountry, que siempre viene
+// completo (independiente del filtro de país activo) - ver sliceForCountry.
+const MARKET_MIN_CALLS = 10; // volumen mínimo para poder ser "mejor/menor tasa"
+function marketAgg(){
+  const acc = {};
+  filteredRecords().forEach(r=>{
+    const bc = r.byCountry;
+    if (!bc) return;
+    Object.keys(bc).forEach(code=>{
+      const c = bc[code] || {};
+      const a = acc[code] || {total:0, answered:0, effective:0};
+      a.total += c.total||0; a.answered += c.answered||0; a.effective += c.effective||0;
+      acc[code] = a;
+    });
+  });
+  return acc;
+}
+function renderMarkets(){
+  const table = $('#marketTable');
+  const acc = marketAgg();
+  let rows = Object.keys(acc).map(code=>{
+    const a = acc[code];
+    return {code, label:countryLabel(code), total:a.total, answered:a.answered, effective:a.effective,
+      pctAns: a.total ? (a.answered/a.total*100) : null, pctEff: a.total ? (a.effective/a.total*100) : null};
+  }).filter(r=>r.total>0);
+  rows.sort((a,b)=>b.total-a.total);
+
+  $('#kpiMarketCount').textContent = fmtInt(rows.length);
+
+  if (!rows.length){
+    table.innerHTML = '';
+    $('#kpiMarketBest').textContent = '–'; $('#kpiMarketBestSub').innerHTML = '&nbsp;';
+    $('#kpiMarketWorst').textContent = '–'; $('#kpiMarketWorstSub').innerHTML = '&nbsp;';
+    return;
+  }
+
+  // "Mejor/menor tasa de contestación" solo entre países reales con volumen suficiente:
+  // se excluye "Sin dato" (troncal sin país identificable, no es un mercado real) y
+  // cualquier mercado con muy pocas llamadas, para que no gane/pierda el título por ruido.
+  const realMarkets = rows.filter(r=>r.code!=='SIN_DATO');
+  const qualifying = realMarkets.filter(r=>r.total>=MARKET_MIN_CALLS);
+  const pool = qualifying.length>=2 ? qualifying : (realMarkets.length>=2 ? realMarkets : rows);
+  const byRate = [...pool].sort((a,b)=>b.pctAns-a.pctAns);
+  const best = byRate[0], worst = byRate[byRate.length-1];
+
+  $('#kpiMarketBest').textContent = `${best.label} · ${best.pctAns.toFixed(0)}%`;
+  $('#kpiMarketBestSub').innerHTML = `${fmtInt(best.total)} llamadas`;
+  if (worst && worst.code!==best.code){
+    $('#kpiMarketWorst').textContent = `${worst.label} · ${worst.pctAns.toFixed(0)}%`;
+    $('#kpiMarketWorstSub').innerHTML = `${fmtInt(worst.total)} llamadas`;
+  } else {
+    $('#kpiMarketWorst').textContent = '–';
+    $('#kpiMarketWorstSub').innerHTML = 'solo un mercado con volumen suficiente';
+  }
+
+  const thead = `<thead><tr>
+    <th style="text-align:left">Mercado</th>
+    <th>Total</th>
+    <th>Contestadas</th>
+    <th>% Contestadas</th>
+    <th>Contactabilidad</th>
+    <th>% Contactabilidad</th>
+  </tr></thead>`;
+
+  const tbody = '<tbody>' + rows.map(r=>{
+    let badge = '';
+    if (r.code===best.code) badge = ' <span class="badge-count" style="background:var(--good-wash); color:var(--good);">▲ mejor tasa</span>';
+    else if (worst && r.code===worst.code && worst.code!==best.code) badge = ' <span class="badge-count" style="background:var(--surface-2); color:var(--ink-mute);">▼ menor tasa</span>';
+    return `<tr>
+      <th style="text-align:left">${escapeHtml(r.label)}${badge}<div class="mono" style="font-size:10.5px;color:var(--ink-mute);font-weight:400;">${escapeHtml(r.code)}</div></th>
+      <td class="cell-num">${fmtInt(r.total)}</td>
+      <td class="cell-num">${fmtInt(r.answered)}</td>
+      <td class="cell-num">${r.pctAns.toFixed(1)}%</td>
+      <td class="cell-num eff-col">${fmtInt(r.effective)}</td>
+      <td class="cell-num">${r.pctEff.toFixed(1)}%</td>
+    </tr>`;
+  }).join('') + '</tbody>';
+
+  table.innerHTML = thead + tbody;
 }
 
 // ---------- Render: Duración de llamada ----------
@@ -1648,7 +2264,9 @@ function renderContactability(){
   $('#kpiAvgDurSub').textContent = 'min:seg, llamadas contestadas';
 
   $('#kpiAnswered').textContent = fmtInt(t.answered);
-  $('#kpiAnsweredTotal').textContent = fmtInt(t.total);
+  $('#kpiAnsweredSub').innerHTML = t.total
+    ? `de <b>${fmtInt(t.total)}</b> llamadas totales · ${pctStr(t.answered,t.total)}`
+    : 'sin llamadas en este período';
 
   const wrap = $('#durBucketsWrap');
   const tracked = t.durUnder1+t.dur1to3+t.durOver3;
@@ -1692,13 +2310,24 @@ function contactRowHtml(label, sub, t, cls, ext){
     <td class="cell-num">${bucketCell(t.durOver3)}</td>
   </tr>`;
 }
+function contactSortVal(r, col){
+  if (col==='name') return r.name;
+  if (col==='avgDur') return r.answered ? (r.talk/r.answered) : 0;
+  return r[col]||0;
+}
 function renderContactTable(){
   const table = $('#contactTable');
   const { min, groups, exts } = buildSummaryRows();
   if (!min || !exts.length){ table.innerHTML = ''; return; }
 
+  const arrow = col => state.contactSortCol===col ? `<span class="arrow">${state.contactSortDir==='asc'?'▲':'▼'}</span>` : '';
   const thead = `<thead><tr>
-    <th>Gestor</th><th>Contestadas</th><th>Tiempo prom.</th><th>Menos de 1 min</th><th>1 a 3 min</th><th>Más de 3 min</th>
+    <th class="sortable" data-sort="name">Gestor ${arrow('name')}</th>
+    <th class="sortable" data-sort="answered">Contestadas ${arrow('answered')}</th>
+    <th class="sortable" data-sort="avgDur">Tiempo prom. ${arrow('avgDur')}</th>
+    <th class="sortable" data-sort="durUnder1">Menos de 1 min ${arrow('durUnder1')}</th>
+    <th class="sortable" data-sort="dur1to3">1 a 3 min ${arrow('dur1to3')}</th>
+    <th class="sortable" data-sort="durOver3">Más de 3 min ${arrow('durOver3')}</th>
   </tr></thead>`;
 
   const teamOrder = ['chevere','imparables',''];
@@ -1710,7 +2339,12 @@ function renderContactTable(){
     const sum = sumTotals(grp);
     const rowCls = `team-row ${teamKey==='chevere'?'team-a':teamKey==='imparables'?'team-b':'team-none'}`;
     if (!state.filterGestor || grp.length>1) body += contactRowHtml(`${label} <span class="badge-count">${grp.length}</span>`, '', sum, rowCls);
-    grp.sort((a,b)=>b.answered-a.answered).forEach(r=>{
+    grp.sort((a,b)=>{
+      const av=contactSortVal(a,state.contactSortCol), bv=contactSortVal(b,state.contactSortCol);
+      if (av<bv) return state.contactSortDir==='asc'?-1:1;
+      if (av>bv) return state.contactSortDir==='asc'?1:-1;
+      return 0;
+    }).forEach(r=>{
       body += contactRowHtml(escapeHtml(r.name), 'ext. '+r.ext, r, '', r.ext);
     });
   });
@@ -1724,6 +2358,14 @@ function renderContactTable(){
     tr.style.cursor='pointer';
     tr.addEventListener('click', ()=>{ state.filterGestor = tr.dataset.ext; $('#pickGestor').value = state.filterGestor; renderAll(); });
   });
+  table.querySelectorAll('thead th.sortable').forEach(th=>{
+    th.onclick = () => {
+      const col = th.dataset.sort;
+      if (state.contactSortCol===col) state.contactSortDir = state.contactSortDir==='asc'?'desc':'asc';
+      else { state.contactSortCol = col; state.contactSortDir = col==='name'?'asc':'desc'; }
+      renderContactTable();
+    };
+  });
 }
 
 // ---------- Render: Upload log ----------
@@ -1735,6 +2377,15 @@ function renderUploadLog(){
   el.innerHTML = sorted.map(u=>{
     const dt = new Date(u.uploadedAt);
     const when = isNaN(dt) ? '' : new Intl.DateTimeFormat('es-GT',{timeZone:GT_TZ, day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}).format(dt);
+    if (u.source === 'phone'){
+      return `<div class="log-item">
+        <div class="log-dot" style="background:var(--accent-2, var(--accent))"></div>
+        <p>📱 <b>${escapeHtml(u.gestorName || gName(u.ext))}</b> · registro de celular<br>
+        ${fmtInt(u.rowsMatched)} llamadas salientes · ${u.dateMin} a ${u.dateMax}
+        ${u.rowsUnmatched?` · <span style="color:var(--ink-mute)">${u.rowsUnmatched} no contadas</span>`:''}
+        <br><time>${when}</time></p>
+      </div>`;
+    }
     return `<div class="log-item">
       <div class="log-dot"></div>
       <p><b>${escapeHtml(u.filename)}</b><br>
@@ -1834,15 +2485,19 @@ function renderCompliance(){
   const table = $('#complianceTable');
   const goal = state.config.dailyGoalTotal || DEFAULT_CONFIG.dailyGoalTotal;
   const hasSchedule = Array.isArray(state.config.goalSchedule) && state.config.goalSchedule.length>0;
-  $('#complianceHint').textContent = hasSchedule
+  $('#complianceHint').textContent = (hasSchedule
     ? `meta diaria variable por período (ver Panel de supervisión) · acumulado = total ÷ (suma de metas de los días trabajados)`
-    : `meta: ${fmtInt(goal)} llamadas/día (toques, no tienen que contar para la contactabilidad) · acumulado = total del período ÷ (meta × días trabajados)`;
+    : `meta: ${fmtInt(goal)} llamadas/día (toques, no tienen que contar para la contactabilidad) · acumulado = total del período ÷ (meta × días trabajados)`) + ' · no incluye fines de semana';
   if (!min){ table.innerHTML=''; return; }
 
   let dates = [];
   let d = toUTC(min); const endD = toUTC(max);
   while (d<=endD){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
-  if (state.filterDay) dates = dates.filter(dt=>dt===state.filterDay);
+  if (state.filterDay){
+    dates = dates.filter(dt=>dt===state.filterDay);
+  } else {
+    dates = dates.filter(dt=>!isWeekend(dt));
+  }
 
   const gestorExts = state.filterGestor ? [state.filterGestor] : visibleExts();
   if (!gestorExts.length || !dates.length){ table.innerHTML=''; return; }
@@ -1897,7 +2552,13 @@ function extTotals(ext, min, max){
   state.daily.forEach(raw=>{
     if (raw.ext!==ext) return;
     if (raw.date<min || raw.date>max) return;
-    if (state.filterDay && raw.date!==state.filterDay) return;
+    if (state.filterDay){
+      if (raw.date!==state.filterDay) return;
+    } else if (isWeekend(raw.date)){
+      // Los fines de semana no cuentan para los totales — solo se ven si se
+      // elige explícitamente ese día puntual con el filtro de día.
+      return;
+    }
     const r = sliceForCountry(raw);
     acc.total += r.total||0; acc.answered += r.answered||0; acc.effective += r.effective||0;
     acc.noAnswer += r.noAnswer||0; acc.busy += r.busy||0; acc.other += r.other||0;
@@ -1942,13 +2603,26 @@ function buildSummaryRows(){
   });
   return {min, max, exts, groups};
 }
+function summarySortVal(r, col){
+  if (col==='name') return r.name;
+  if (col==='pctEff') return r.total ? r.effective/r.total : 0;
+  return r[col]||0;
+}
 function renderSummary(){
   const table = $('#summaryTable');
   const { min, groups, exts } = buildSummaryRows();
   if (!min || !exts.length){ table.innerHTML = ''; return; }
 
+  const arrow = col => state.summarySortCol===col ? `<span class="arrow">${state.summarySortDir==='asc'?'▲':'▼'}</span>` : '';
   const thead = `<thead><tr>
-    <th>Gestor</th><th>Total</th><th>Contactabilidad</th><th>% Contactabilidad</th><th>Contestadas</th><th>No contestadas</th><th>Ocupado</th><th>Otros</th>
+    <th class="sortable" data-sort="name">Gestor ${arrow('name')}</th>
+    <th class="sortable" data-sort="total">Total ${arrow('total')}</th>
+    <th class="sortable" data-sort="effective">Contactabilidad ${arrow('effective')}</th>
+    <th class="sortable" data-sort="pctEff">% Contactabilidad ${arrow('pctEff')}</th>
+    <th class="sortable" data-sort="answered">Contestadas ${arrow('answered')}</th>
+    <th class="sortable" data-sort="noAnswer">No contestadas ${arrow('noAnswer')}</th>
+    <th class="sortable" data-sort="busy">Ocupado ${arrow('busy')}</th>
+    <th class="sortable" data-sort="other">Otros ${arrow('other')}</th>
   </tr></thead>`;
 
   const teamOrder = ['chevere','imparables',''];
@@ -1960,7 +2634,12 @@ function renderSummary(){
     const sum = sumTotals(grp);
     const rowCls = `team-row ${teamKey==='chevere'?'team-a':teamKey==='imparables'?'team-b':'team-none'}`;
     if (!state.filterGestor || grp.length>1) body += summaryRowHtml(`${label} <span class="badge-count">${grp.length}</span>`, '', sum, rowCls);
-    grp.sort((a,b)=>b.effective-a.effective).forEach(r=>{
+    grp.sort((a,b)=>{
+      const av=summarySortVal(a,state.summarySortCol), bv=summarySortVal(b,state.summarySortCol);
+      if (av<bv) return state.summarySortDir==='asc'?-1:1;
+      if (av>bv) return state.summarySortDir==='asc'?1:-1;
+      return 0;
+    }).forEach(r=>{
       body += summaryRowHtml(escapeHtml(r.name), 'ext. '+r.ext, r, '', false, r.ext);
     });
   });
@@ -1973,6 +2652,14 @@ function renderSummary(){
   table.querySelectorAll('tbody tr[data-ext]').forEach(tr=>{
     tr.style.cursor='pointer';
     tr.addEventListener('click', ()=>{ state.filterGestor = tr.dataset.ext; $('#pickGestor').value = state.filterGestor; renderAll(); });
+  });
+  table.querySelectorAll('thead th.sortable').forEach(th=>{
+    th.onclick = () => {
+      const col = th.dataset.sort;
+      if (state.summarySortCol===col) state.summarySortDir = state.summarySortDir==='asc'?'desc':'asc';
+      else { state.summarySortCol = col; state.summarySortDir = col==='name'?'asc':'desc'; }
+      renderSummary();
+    };
   });
 }
 function exportSummaryCsv(){
@@ -2001,6 +2688,7 @@ function renderAll(){
   renderWeeklyChart();
   renderGoalRanking();
   renderGestorBarChart();
+  renderMarkets();
   renderContactability();
   renderContactTable();
   renderUploadLog();
@@ -2008,19 +2696,27 @@ function renderAll(){
   renderCompliance();
   renderMatrix();
   renderFootnote();
+  if (state.tvMode) renderTVScreen();
+  if (state.captureMode) renderCaptureView();
 }
 
 // ---------- Carga de archivo Excel/CSV ----------
 function findHeaderRow(rows){
   for (let i=0;i<Math.min(rows.length,10);i++){
     const cells = (rows[i]||[]).map(c=>String(c||'').trim().toLowerCase());
-    if (cells.includes('source') && cells.includes('status')) return i;
+    if ((cells.includes('source') && cells.includes('status')) ||
+        (cells.includes('fuente') && cells.includes('estado'))) return i;
   }
   return -1;
 }
+// Quita acentos para que "Duración"/"Duracion", "Código"/"Codigo", etc. coincidan igual.
+function stripAccents(s){
+  return s.normalize ? s.normalize('NFD').replace(/[̀-ͯ]/g,'') : s;
+}
 function colIndex(headerRow, names){
-  const norm = headerRow.map(c=>String(c||'').trim().toLowerCase());
-  for (const n of names){ const idx = norm.indexOf(n); if (idx>=0) return idx; }
+  const norm = headerRow.map(c=>stripAccents(String(c||'').trim().toLowerCase()));
+  const namesNorm = names.map(n=>stripAccents(n));
+  for (const n of namesNorm){ const idx = norm.indexOf(n); if (idx>=0) return idx; }
   return -1;
 }
 
@@ -2033,14 +2729,14 @@ async function handleFile(file){
     const hIdx = findHeaderRow(rows);
     if (hIdx<0){ showToast('No se encontró una fila de encabezado con columnas "Source" y "Status".'); return; }
     const header = rows[hIdx];
-    const iSource = colIndex(header,['source']);
-    const iStatus = colIndex(header,['status']);
-    const iDuration = colIndex(header,['duration']);
-    const iUid = colIndex(header,['uniqueid']);
-    const iDate = colIndex(header,['date']);
-    const iSrcCh = colIndex(header,['src. channel','src channel']);
-    const iDstCh = colIndex(header,['dst. channel','dst channel']);
-    if (iSource<0 || iStatus<0 || iDuration<0){ showToast('Faltan columnas requeridas (Source, Status, Duration).'); return; }
+    const iSource = colIndex(header,['source','fuente']);
+    const iStatus = colIndex(header,['status','estado']);
+    const iDuration = colIndex(header,['duration','duracion']);
+    const iUid = colIndex(header,['uniqueid','identificador unico','identificador']);
+    const iDate = colIndex(header,['date','fecha']);
+    const iSrcCh = colIndex(header,['src. channel','src channel','canal de origen','canal origen']);
+    const iDstCh = colIndex(header,['dst. channel','dst channel','canal dst.','canal dst','canal de destino','canal destino']);
+    if (iSource<0 || iStatus<0 || iDuration<0){ showToast('Faltan columnas requeridas (Source/Fuente, Status/Estado, Duration/Duración).'); return; }
 
     const agg = new Map();
     let rowsTotal=0, rowsMatched=0, rowsUnmatched=0;
@@ -2072,7 +2768,7 @@ async function handleFile(file){
         if (!a.byCountry[country]) a.byCountry[country] = {total:0, answered:0, effective:0, talk:0, noAnswer:0, busy:0, other:0, durUnder1:0, dur1to3:0, durOver3:0};
         const c = a.byCountry[country];
         a.total++; c.total++;
-        if (status==='ANSWERED'){
+        if (status==='ANSWERED' || status==='CONTESTADA' || status==='CONTESTADO'){
           a.answered++; c.answered++;
           a.talk += durSec; c.talk += durSec;
           if (durSec > state.config.thresholdSeconds){ a.effective++; c.effective++; }
@@ -2080,9 +2776,9 @@ async function handleFile(file){
           if (durSec < 60){ a.durUnder1++; c.durUnder1++; }
           else if (durSec < 180){ a.dur1to3++; c.dur1to3++; }
           else { a.durOver3++; c.durOver3++; }
-        } else if (status==='NO ANSWER'){
+        } else if (status==='NO ANSWER' || status==='NO CONTESTADA' || status==='NO CONTESTADO' || status==='SIN CONTESTAR'){
           a.noAnswer++; c.noAnswer++;
-        } else if (status==='BUSY'){
+        } else if (status==='BUSY' || status==='OCUPADO' || status==='OCUPADA'){
           a.busy++; c.busy++;
         } else {
           a.other++; c.other++;
@@ -2094,9 +2790,28 @@ async function handleFile(file){
 
     if (!agg.size){ showToast('No se encontraron filas que coincidan con extensiones de gestores conocidos.'); return; }
 
+    // Este reporte va a reemplazar por completo el historial de Issabel. Antes de
+    // borrar todo, rescata cualquier aporte de "registro de celular" (gestores que
+    // también reportan llamadas desde su teléfono) para que ese reemplazo no se lo
+    // lleve por delante — se vuelve a sumar sobre los datos nuevos de Issabel.
+    state.daily.forEach((rec, key)=>{
+      if (!rec.phone || !rec.phone.total) return;
+      const [ext, date] = key.split('_');
+      if (agg.has(key)){
+        applyPhoneDelta(agg.get(key), rec.phone, 1);
+        agg.get(key).phone = rec.phone;
+      } else {
+        const fresh = {ext, name:gName(ext), date, total:0, answered:0, effective:0, talk:0, noAnswer:0, busy:0, other:0, durUnder1:0, dur1to3:0, durOver3:0, byCountry:{}};
+        applyPhoneDelta(fresh, rec.phone, 1);
+        fresh.phone = rec.phone;
+        agg.set(key, fresh);
+      }
+    });
+
     // Cada reporte semanal reemplaza por completo al anterior: no se acumula historial
     // entre cargas. Se borran todos los registros previos (local y en la base) antes
-    // de escribir los del archivo recién subido.
+    // de escribir los del archivo recién subido (los aportes de celular ya quedaron
+    // rescatados arriba, dentro de agg).
     const oldKeys = Array.from(state.daily.keys());
     state.daily.clear();
     if (state.db && oldKeys.length){
@@ -2117,22 +2832,147 @@ async function handleFile(file){
     state.uploads.push(uploadEntry);
     state.range = 'last_upload';
 
+    let uploadBlocked = false;
     if (state.db){
       const entries = Array.from(agg.values());
       const CONC = 12;
+      let anyDenied = false;
       for (let i=0;i<entries.length;i+=CONC){
-        await Promise.all(entries.slice(i,i+CONC).map(e=>
-          state.db.collection('daily_stats').doc(e.ext+'_'+e.date).set(e).catch(()=>{})
+        const results = await Promise.allSettled(entries.slice(i,i+CONC).map(e=>
+          state.db.collection('daily_stats').doc(e.ext+'_'+e.date).set(e)
         ));
+        if (results.some(r=>r.status==='rejected')) anyDenied = true;
       }
-      await state.db.collection('uploads').doc(uploadEntry.id).set(uploadEntry).catch(()=>{});
+      const upOk = await dbWrite(state.db.collection('uploads').doc(uploadEntry.id).set(uploadEntry), null, null);
+      uploadBlocked = anyDenied || !upOk;
     }
 
-    showToast(`Reporte procesado: <b>${fmtInt(agg.size)}</b> combinaciones gestor/día, ${fmtInt(rowsMatched)} filas identificadas (${dMin} a ${dMax}).${rowsUnmatched?` ${rowsUnmatched} filas no correspondían a un gestor conocido.`:''}`, 7000);
+    if (uploadBlocked){
+      showToast('Este enlace es de solo lectura: el reporte se ve en tu pantalla pero no se guardó en la base compartida. Pide a la persona administradora que lo suba.', 8000);
+    } else {
+      showToast(`Reporte procesado: <b>${fmtInt(agg.size)}</b> combinaciones gestor/día, ${fmtInt(rowsMatched)} filas identificadas (${dMin} a ${dMax}).${rowsUnmatched?` ${rowsUnmatched} filas no correspondían a un gestor conocido.`:''}`, 7000);
+    }
     renderAll();
   } catch(err){
     console.error(err);
     showToast('No se pudo leer el archivo. Verifica que sea la exportación de Issabel en formato .xlsx.');
+  }
+}
+
+/* ============================================================
+   REGISTRO DE CELULAR (gestores que llaman desde su teléfono,
+   sin pasar por Issabel) — archivo .txt de un solo gestor, formato:
+     Row: N date=<epoch ms>, number=+..., duration=<segundos>, type=<int>
+   type: 2 = saliente (la llamada que hizo el gestor; es lo único que
+   contamos), 1/3/5 = entrante/perdida/rechazada (no cuentan como
+   llamada hecha). No trae nombre ni extensión, así que se pide elegir
+   el gestor al subir. Los datos se SUMAN a lo que ya haya ese día para
+   ese gestor (por ejemplo, de Issabel) — nunca se reemplaza el reporte
+   entero, solo el aporte de este archivo puntual, y una segunda subida
+   del mismo archivo no duplica nada (ver upsertPhoneContribution). */
+function zeroPhoneContribution(){
+  return {total:0, answered:0, effective:0, noAnswer:0, talk:0, durUnder1:0, dur1to3:0, durOver3:0};
+}
+function applyPhoneDelta(rec, phone, sign){
+  const keys = ['total','answered','effective','noAnswer','talk','durUnder1','dur1to3','durOver3'];
+  keys.forEach(k=>{ rec[k] = (rec[k]||0) + sign*(phone[k]||0); });
+  if (!rec.byCountry) rec.byCountry = {};
+  if (!rec.byCountry.SIN_DATO) rec.byCountry.SIN_DATO = {total:0,answered:0,effective:0,talk:0,noAnswer:0,busy:0,other:0,durUnder1:0,dur1to3:0,durOver3:0};
+  const c = rec.byCountry.SIN_DATO;
+  keys.forEach(k=>{ c[k] = (c[k]||0) + sign*(phone[k]||0); });
+  keys.forEach(k=>{ if (rec[k]<0) rec[k]=0; if (c[k]<0) c[k]=0; });
+}
+// Guarda/actualiza el aporte de celular de un (gestor, día) sin perder lo que
+// ya había de otras fuentes. Si ya existía un aporte de celular anterior para
+// ese mismo día (por ejemplo, se vuelve a subir el archivo corregido), primero
+// se quita el aporte viejo y luego se agrega el nuevo — así nunca se duplica.
+function upsertPhoneContribution(ext, date, newPhone){
+  const key = ext+'_'+date;
+  const existing = state.daily.get(key);
+  const rec = existing
+    ? {...existing, byCountry: JSON.parse(JSON.stringify(existing.byCountry||{}))}
+    : {ext, name:gName(ext), date, total:0, answered:0, effective:0, talk:0, noAnswer:0, busy:0, other:0, durUnder1:0, dur1to3:0, durOver3:0, byCountry:{}};
+  const oldPhone = rec.phone || zeroPhoneContribution();
+  applyPhoneDelta(rec, oldPhone, -1);
+  applyPhoneDelta(rec, newPhone, 1);
+  rec.phone = newPhone;
+  state.daily.set(key, rec);
+  return rec;
+}
+async function handlePhoneFile(file, ext){
+  try{
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let text;
+    if (bytes.length>=2 && bytes[0]===0xFF && bytes[1]===0xFE) text = new TextDecoder('utf-16le').decode(buf.slice(2));
+    else if (bytes.length>=2 && bytes[0]===0xFE && bytes[1]===0xFF) text = new TextDecoder('utf-16be').decode(buf.slice(2));
+    else text = new TextDecoder('utf-8').decode(buf);
+
+    const lineRe = /Row:\s*\d+\s+date=(\d+),\s*number=([+0-9]+),\s*duration=(\d+),\s*type=(\d+)/;
+    const byDate = new Map();
+    let rowsTotal=0, rowsMatched=0, rowsUnmatched=0, dMin=null, dMax=null;
+
+    text.split(/\r?\n/).forEach(line=>{
+      const m = lineRe.exec(line);
+      if (!m) return;
+      rowsTotal++;
+      const epochMs = Number(m[1]);
+      const durSec = Number(m[3]);
+      const type = Number(m[4]);
+      if (type !== 2){ rowsUnmatched++; return; } // solo llamadas salientes (hechas por el gestor)
+      rowsMatched++;
+      const dateStr = dateFmt.format(new Date(epochMs)); // fecha local (Guatemala)
+      if (!dMin || dateStr<dMin) dMin=dateStr;
+      if (!dMax || dateStr>dMax) dMax=dateStr;
+      if (!byDate.has(dateStr)) byDate.set(dateStr, zeroPhoneContribution());
+      const d = byDate.get(dateStr);
+      d.total++;
+      if (durSec > 0){
+        d.answered++; d.talk += durSec;
+        if (durSec > state.config.thresholdSeconds) d.effective++;
+        if (durSec < 60) d.durUnder1++;
+        else if (durSec < 180) d.dur1to3++;
+        else d.durOver3++;
+      } else {
+        d.noAnswer++;
+      }
+    });
+
+    if (!byDate.size){ showToast('No se encontraron llamadas salientes (type=2) en este archivo.'); return; }
+
+    const touched = [];
+    byDate.forEach((phone, date)=> touched.push(upsertPhoneContribution(ext, date, phone)));
+
+    const uploadEntry = {
+      id:'u_'+Date.now(), filename:file.name, uploadedAt:new Date().toISOString(),
+      rowsTotal, rowsMatched, rowsUnmatched, dateMin:dMin, dateMax:dMax,
+      thresholdUsed: state.config.thresholdSeconds, source:'phone', ext, gestorName: gName(ext)
+    };
+    state.uploads.push(uploadEntry);
+
+    let uploadBlocked = false;
+    if (state.db){
+      const CONC = 12;
+      let anyDenied = false;
+      for (let i=0;i<touched.length;i+=CONC){
+        const results = await Promise.allSettled(touched.slice(i,i+CONC).map(rec=>
+          state.db.collection('daily_stats').doc(rec.ext+'_'+rec.date).set(rec)
+        ));
+        if (results.some(r=>r.status==='rejected')) anyDenied = true;
+      }
+      const upOk = await dbWrite(state.db.collection('uploads').doc(uploadEntry.id).set(uploadEntry), null, null);
+      uploadBlocked = anyDenied || !upOk;
+    }
+
+    if (uploadBlocked){
+      showToast('Este enlace es de solo lectura: el registro se ve en tu pantalla pero no se guardó en la base compartida.', 8000);
+    } else {
+      showToast(`Registro de celular de <b>${escapeHtml(gName(ext))}</b> procesado: ${fmtInt(rowsMatched)} llamadas salientes (${dMin} a ${dMax}).${rowsUnmatched?` ${rowsUnmatched} filas eran llamadas recibidas/perdidas/rechazadas y no se contaron.`:''}`, 7500);
+    }
+    renderAll();
+  } catch(err){
+    console.error(err);
+    showToast('No se pudo leer el archivo de registro de celular.');
   }
 }
 
@@ -2238,6 +3078,38 @@ function closeDrawer(){ $('#drawer').classList.remove('show'); $('#overlay').cla
 // ---------- Eventos ----------
 $('#btnUpload').addEventListener('click', ()=> $('#fileInput').click());
 $('#fileInput').addEventListener('change', e=>{ if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value=''; });
+
+// ---------- Registro de celular: elegir gestor antes de procesar ----------
+let pendingPhoneFile = null;
+function populatePhonePickerOptions(){
+  const sel = $('#phonePickerSelect');
+  if (!sel) return;
+  const exts = Object.keys(state.gestores).sort((a,b)=> gName(a).localeCompare(gName(b), 'es'));
+  sel.innerHTML = exts.map(ext=>`<option value="${ext}">${escapeHtml(gName(ext))} (${ext})</option>`).join('');
+}
+function openPhonePicker(file){
+  pendingPhoneFile = file;
+  populatePhonePickerOptions();
+  $('#phonePicker').classList.add('show'); $('#phoneOverlay').classList.add('show');
+}
+function closePhonePicker(){
+  pendingPhoneFile = null;
+  $('#phonePicker').classList.remove('show'); $('#phoneOverlay').classList.remove('show');
+}
+$('#btnUploadPhone').addEventListener('click', ()=> $('#phoneFileInput').click());
+$('#phoneFileInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; e.target.value = '';
+  if (f) openPhonePicker(f);
+});
+$('#phonePickerCancel').addEventListener('click', closePhonePicker);
+$('#phoneOverlay').addEventListener('click', closePhonePicker);
+$('#phonePickerConfirm').addEventListener('click', async ()=>{
+  const ext = $('#phonePickerSelect').value;
+  const file = pendingPhoneFile;
+  closePhonePicker();
+  if (file && ext) await handlePhoneFile(file, ext);
+});
+
 $('#btnExport').addEventListener('click', exportCsv);
 $('#btnExportSummary').addEventListener('click', exportSummaryCsv);
 $('#btnSettings').addEventListener('click', openDrawer);
@@ -2257,22 +3129,21 @@ $('#pickTeam').addEventListener('change', e=>{
 $('#pickGestor').addEventListener('change', e=>{ state.filterGestor = e.target.value; renderAll(); });
 $('#pickCountry').addEventListener('change', e=>{ state.filterCountry = e.target.value; renderAll(); });
 $('#pickDay').addEventListener('change', e=>{ state.filterDay = e.target.value; renderAll(); });
+$('#gestorBarDaySel').addEventListener('change', e=>{ state.filterDay = e.target.value; renderAll(); });
 
 $('#btnSaveConfig').addEventListener('click', async ()=>{
   const th = parseInt($('#cfgThreshold').value,10);
   const goal = parseInt($('#cfgGoal').value,10);
   state.config.thresholdSeconds = isFinite(th) ? th : DEFAULT_CONFIG.thresholdSeconds;
   state.config.dailyGoal = isFinite(goal) ? goal : DEFAULT_CONFIG.dailyGoal;
-  if (state.db) await state.db.doc('config/settings').set(state.config).catch(()=>{});
-  showToast('Configuración guardada.');
+  await dbWrite(state.db ? state.db.doc('config/settings').set(state.config) : null, 'Configuración guardada.', 'Este enlace es de solo lectura: no se pudo guardar la configuración compartida.');
   renderAll();
 });
 
 $('#btnSaveGoalTot').addEventListener('click', async ()=>{
   const goalTot = parseInt($('#cfgGoalTot').value,10);
   state.config.dailyGoalTotal = isFinite(goalTot) && goalTot>0 ? goalTot : DEFAULT_CONFIG.dailyGoalTotal;
-  if (state.db) await state.db.doc('config/settings').set(state.config).catch(()=>{});
-  showToast('Meta de cumplimiento guardada.');
+  await dbWrite(state.db ? state.db.doc('config/settings').set(state.config) : null, 'Meta de cumplimiento guardada.', 'Este enlace es de solo lectura: no se pudo guardar la meta compartida.');
   renderAll();
 });
 
@@ -2344,6 +3215,617 @@ async function initDb(){
     }, ()=>{});
   } catch(e){ /* sin base disponible: se mantiene el modo semilla */ }
 }
+
+// ---------- Modo TV (pantalla de la oficina) ----------
+// Se activa con el botón "Modo TV" de la barra superior. No es un artefacto
+// aparte: usa la MISMA conexión en vivo a la base de datos (state.db /
+// onSnapshot en initDb), así que cualquier llamada nueva que entre se
+// refleja sola, sin que nadie tenga que sincronizar ni actualizar nada a mano.
+const TV_ROTATE_MS = 30000;
+let tvTimer = null;
+
+function tvGoalStatusOf(pct){ return pct===null ? 'good' : (pct>=100 ? 'good' : (pct>=70 ? 'warn' : 'crit')); }
+
+function renderTvRank(){
+  const recs = filteredRecords();
+  const byGestor = {};
+  recs.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + (r.effective||0); });
+  const [min,max] = currentRangeBounds();
+  const scopeLabel = state.filterDay ? dateFmtHuman.format(toUTC(state.filterDay)) : (min ? `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}` : '');
+  // Se muestra la tabla COMPLETA de gestores visibles (los 18, o el equipo
+  // filtrado) — no solo un top 8 — para que el recorrido de cámara pase por
+  // todo el equipo y al final se vea la tabla entera, no un extracto.
+  let rows = visibleExts().map(ext=>({ext, name:gName(ext), team:gTeam(ext), val:byGestor[ext]||0}));
+  rows = rows.sort((a,b)=>b.val-a.val);
+  if (!rows.length){
+    return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking de contactabilidad</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div>
+      <div class="tv-rank-list" style="align-items:center;"><div style="font-size:22px; color:var(--tv-ink-mute);">Sin contactabilidad registrada todavía en este período.</div></div></div>`;
+  }
+  const maxV = rows[0].val || 1;
+  const initials = name => name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const medals = ['🥇','🥈','🥉'];
+  const medalClass = ['gold','silver','bronze'];
+  const rowsHtml = rows.map((r,i)=>{
+    const pct = Math.max((r.val/maxV)*100, 4);
+    const avColor = r.team==='chevere' ? 'var(--tv-team-a)' : r.team==='imparables' ? 'var(--tv-team-b)' : 'var(--tv-ink-mute)';
+    const mCls = i<3 ? medalClass[i] : '';
+    const posHtml = i<3 ? medals[i] : '#'+(i+1);
+    return `<div class="tv-rank-row ${mCls}">
+      <div class="tv-rank-pos ${i<3?'medal':''}">${posHtml}</div>
+      <div class="tv-rank-avatar" style="background:${avColor}">${escapeHtml(initials(r.name))}</div>
+      <div class="tv-rank-body">
+        <div class="tv-rank-name">${escapeHtml(r.name)}</div>
+        <div class="tv-rank-track"><div class="tv-rank-fill ${mCls}" data-width-target="${pct}%"></div></div>
+      </div>
+      <div class="tv-rank-val" data-count="${r.val}">0</div>
+    </div>`;
+  }).join('');
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking de contactabilidad</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div><div class="tv-rank-list">${rowsHtml}</div></div>`;
+}
+
+function localDateStr(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// "Ranking de llamadas": igual que el ranking de contactabilidad, pero
+// ordenado por volumen de llamadas realizadas (no por contactabilidad), y
+// de UN SOLO DÍA — el día más reciente de la ÚLTIMA carga subida (mismo
+// criterio que el filtro "Última carga" del panel), no la semana completa
+// — así el conteo siempre corresponde al día real más reciente que se
+// subió, aunque todavía no haya llegado el reporte del día calendario de
+// "hoy" (por ejemplo, a primera hora de la mañana).
+function renderTvCalls(){
+  const dates = allDatesSorted();
+  const range = lastUploadRange();
+  const day = range ? range[1] : (dates.length ? dates[dates.length-1] : null);
+  const scopeLabel = day ? dateFmtHuman.format(toUTC(day)) : 'Sin datos todavía';
+
+  // Se muestra la tabla COMPLETA de gestores visibles (los 18, o el equipo
+  // filtrado) — mismo formato que "Ranking de contactabilidad" (medallas,
+  // recorrido de cámara, tabla completa al final) — pero el valor de cada
+  // fila es el total de llamadas realizadas ESE día, no la contactabilidad.
+  const byGestor = {};
+  const exts = visibleExts();
+  if (day){
+    exts.forEach(ext=>{
+      const r = getRec(ext+'_'+day);
+      byGestor[ext] = r ? (r.total||0) : 0;
+    });
+  }
+  let rows = exts.map(ext=>({ext, name:gName(ext), team:gTeam(ext), val:byGestor[ext]||0}));
+  rows = rows.sort((a,b)=>b.val-a.val);
+  if (!rows.length || !rows.some(r=>r.val>0)){
+    return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking de llamadas</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div>
+      <div class="tv-rank-list" style="align-items:center;"><div style="font-size:22px; color:var(--tv-ink-mute);">Todavía no hay llamadas registradas.</div></div></div>`;
+  }
+  const maxV = rows[0].val || 1;
+  const initials = name => name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const medals = ['🥇','🥈','🥉'];
+  const medalClass = ['gold','silver','bronze'];
+  const rowsHtml = rows.map((r,i)=>{
+    const pct = Math.max((r.val/maxV)*100, 4);
+    const avColor = r.team==='chevere' ? 'var(--tv-team-a)' : r.team==='imparables' ? 'var(--tv-team-b)' : 'var(--tv-ink-mute)';
+    const mCls = i<3 ? medalClass[i] : '';
+    const posHtml = i<3 ? medals[i] : '#'+(i+1);
+    return `<div class="tv-rank-row ${mCls}">
+      <div class="tv-rank-pos ${i<3?'medal':''}">${posHtml}</div>
+      <div class="tv-rank-avatar" style="background:${avColor}">${escapeHtml(initials(r.name))}</div>
+      <div class="tv-rank-body">
+        <div class="tv-rank-name">${escapeHtml(r.name)}</div>
+        <div class="tv-rank-track"><div class="tv-rank-fill ${mCls}" data-width-target="${pct}%"></div></div>
+      </div>
+      <div class="tv-rank-val" data-count="${r.val}">0</div>
+    </div>`;
+  }).join('');
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking de llamadas</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div><div class="tv-rank-list">${rowsHtml}</div></div>`;
+}
+
+let tvGoalLastPct = null;
+function renderTvGoal(){
+  // "Hoy" se calcula con la fecha local del navegador (la del televisor/computadora
+  // de la oficina), no en UTC, para que coincida con el día real que se está viviendo.
+  const todayStr = localDateStr(new Date());
+  const exts = visibleExts();
+  let total = 0, metaSum = 0, activeToday = 0;
+  exts.forEach(ext=>{
+    const r = getRec(ext+'_'+todayStr);
+    if (r && (r.total||0)>0){ total += r.total; metaSum += goalForDate(todayStr); activeToday++; }
+  });
+  let scopeLabel;
+  if (activeToday>0){
+    scopeLabel = 'Hoy · ' + dateFmtHuman.format(toUTC(todayStr));
+  } else {
+    // Sin datos de hoy todavía (por ejemplo, no se ha subido el reporte del día):
+    // se muestra el acumulado del período/filtros que estén activos en el panel.
+    const recs = filteredRecords();
+    const [min,max] = currentRangeBounds();
+    total = recs.reduce((s,r)=>s+(r.total||0),0);
+    let dates = [];
+    if (min){ let d=toUTC(min); const e=toUTC(max); while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); } }
+    dates = state.filterDay ? dates.filter(dt=>dt===state.filterDay) : dates.filter(dt=>!isWeekend(dt));
+    metaSum = 0;
+    exts.forEach(ext=> dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if (r && (r.total||0)>0) metaSum += goalForDate(dt); }));
+    scopeLabel = state.filterDay ? dateFmtHuman.format(toUTC(state.filterDay)) : (min ? `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}` : 'sin datos aún');
+  }
+  const pct = metaSum ? (total/metaSum*100) : null;
+  tvGoalLastPct = pct;
+  const st = tvGoalStatusOf(pct);
+  const barWidth = pct===null ? 0 : Math.min(pct,100);
+  const diff = pct===null ? null : Math.round(total-metaSum);
+  const msg = pct===null ? 'Todavía no hay llamadas registradas.' : (diff>=0 ? `¡Meta cumplida! +${fmtInt(diff)} llamadas sobre lo esperado` : `Faltan ${fmtInt(Math.abs(diff))} llamadas para la meta`);
+  const msgClass = (pct!==null && pct>=100) ? 'celebrate' : '';
+  const pctHtml = pct===null
+    ? `<div class="tv-goal-pct">–</div>`
+    : `<div class="tv-goal-pct ${st}"><span data-count="${Math.round(pct)}" data-suffix="%">0%</span></div>`;
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Avance de la meta</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div>
+    <div class="tv-goal-wrap">
+      ${pctHtml}
+      <div class="tv-goal-nums"><span data-count="${total}">0</span> de <span data-count="${Math.round(metaSum)}">0</span> llamadas</div>
+      <div class="tv-goal-track"><div class="tv-goal-fill ${st}" data-width-target="${barWidth}%"></div></div>
+      <div class="tv-goal-msg ${msgClass}">${msg}</div>
+    </div></div>`;
+}
+
+function renderTvTeams(){
+  const recs = filteredRecords();
+  const [min,max] = currentRangeBounds();
+  const scopeLabel = state.filterDay ? dateFmtHuman.format(toUTC(state.filterDay)) : (min ? `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}` : '');
+  const totals = {chevere:0, imparables:0};
+  const byGestor = {};
+  recs.forEach(r=>{
+    const tm = gTeam(r.ext);
+    if (tm==='chevere') totals.chevere += (r.total||0);
+    else if (tm==='imparables') totals.imparables += (r.total||0);
+    byGestor[r.ext] = (byGestor[r.ext]||0) + (r.effective||0);
+  });
+  const sum = totals.chevere + totals.imparables;
+  const topOfTeam = teamKey => {
+    let bestExt=null, bestVal=-1;
+    Object.keys(byGestor).forEach(ext=>{ if (gTeam(ext)===teamKey && byGestor[ext]>bestVal){ bestVal=byGestor[ext]; bestExt=ext; } });
+    return bestExt && bestVal>0 ? `${escapeHtml(gName(bestExt))} lidera (${fmtInt(bestVal)})` : 'Sin datos aún';
+  };
+  const shareA = sum ? (totals.chevere/sum*100) : 50;
+  const shareB = sum ? (totals.imparables/sum*100) : 50;
+  const leadA = totals.chevere>totals.imparables, leadB = totals.imparables>totals.chevere;
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Chevere vs. Imparables</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div>
+    <div class="tv-teams-wrap">
+      <div class="tv-teams-cols">
+        <div class="tv-team-col ${leadA?'leading':''}">
+          <div class="tv-team-name a">${TEAMS.chevere}</div>
+          <div class="tv-team-val" data-count="${totals.chevere}">0</div>
+          <div class="tv-team-pct">${pctStr(totals.chevere,sum)} de las llamadas</div>
+          <div class="tv-team-top">${topOfTeam('chevere')}</div>
+        </div>
+        <div class="tv-vs">VS</div>
+        <div class="tv-team-col ${leadB?'leading':''}">
+          <div class="tv-team-name b">${TEAMS.imparables}</div>
+          <div class="tv-team-val" data-count="${totals.imparables}">0</div>
+          <div class="tv-team-pct">${pctStr(totals.imparables,sum)} de las llamadas</div>
+          <div class="tv-team-top">${topOfTeam('imparables')}</div>
+        </div>
+      </div>
+      <div class="tv-teams-bar">
+        <div class="tv-teams-bar-a" data-width-target="${shareA}%"></div>
+        <div class="tv-teams-bar-b" data-width-target="${shareB}%"></div>
+      </div>
+    </div></div>`;
+}
+
+function tvReducedMotion(){
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){ return false; }
+}
+
+const tvSleep = ms => new Promise(res=>setTimeout(res, ms));
+let tvCameraGen = 0;
+
+// La "cámara" del ranking: la lista completa ya existe en el DOM (nada
+// aparece tarjeta por tarjeta) y esta función mueve transform-origin/scale
+// sobre ella para simular un recorrido — se acerca a cada gestor de arriba
+// a abajo y, al terminar, se aleja y deja ver el ranking completo. Se
+// reinicia sola si la pantalla se vuelve a dibujar (nuevo dato en vivo o
+// nueva rotación) gracias al contador de generación `tvCameraGen`.
+// Mide cuánto hay que achicar la lista para que TODAS las filas entren en
+// la pantalla sin recortarse, comparando la altura real de la lista contra
+// el espacio disponible (la pantalla menos el título/subtítulo). Se separó
+// en su propia función porque se necesita medir más de una vez: las
+// tipografías (Google Fonts) pueden tardar en cargar, y si medimos con la
+// tipografía de reemplazo puesta, el cálculo sale mal y la tabla queda más
+// chica de lo necesario — así que se vuelve a calcular cuando ya cargó la
+// tipografía real.
+function tvComputeFitScale(list){
+  const stage = list.parentElement;
+  if (!stage) return 1;
+  const titleEl = stage.querySelector('.tv-screen-title');
+  const subEl = stage.querySelector('.tv-screen-sub');
+  const usedByHeader = (titleEl ? titleEl.offsetHeight : 0)
+    + (subEl ? subEl.offsetHeight + (parseFloat(getComputedStyle(subEl).marginBottom)||0) : 0);
+  const availableH = Math.max(140, stage.clientHeight - usedByHeader);
+  const listH = list.scrollHeight;
+  if (availableH > 0 && listH > availableH){
+    // El piso de .78 evita que, si alguna medición sale mal, la tabla se
+    // vea diminuta — preferimos, en el peor caso, que se recorte un poco
+    // antes que quedar minúscula.
+    return Math.max(0.78, Math.min(1, (availableH / listH) * 0.96));
+  }
+  return 1;
+}
+
+async function tvRunCameraTour(list){
+  if (!list) return;
+  const myGen = ++tvCameraGen;
+  const rows = Array.from(list.querySelectorAll('.tv-rank-row'));
+  list.style.transition = 'none';
+  list.style.transform = 'translateY(0px) scale(1)';
+  rows.forEach(r=> r.classList.remove('tv-focus','tv-dim'));
+  if (!rows.length) return;
+
+  // "Escenario" visible = el contenedor de la pantalla (.tv-screen-inner);
+  // ahí es donde queremos que cada fila quede centrada antes de acercarnos.
+  const stage = list.parentElement;
+
+  // Con hasta 18 gestores, la tabla completa puede no entrar a tamaño normal
+  // en la pantalla. Calculamos un factor de ajuste (fitScale) para que TODA
+  // la lista quepa sin recortarse — tanto en la vista inicial y final como
+  // durante todo el recorrido — y lo mantenemos fijo mientras dura la
+  // animación; solo la posición (translateY) cambia entre filas.
+  let fitScale = tvComputeFitScale(list);
+  list.style.transform = `translateY(0px) scale(${fitScale})`;
+
+  // Si las tipografías web todavía no habían cargado al medir, volvemos a
+  // calcular en cuanto estén listas — así la tabla no se queda "atascada"
+  // en un tamaño calculado con la tipografía de reemplazo.
+  if (window.document && document.fonts && document.fonts.status !== 'loaded'){
+    document.fonts.ready.then(()=>{
+      if (myGen !== tvCameraGen) return;
+      const refit = tvComputeFitScale(list);
+      if (Math.abs(refit - fitScale) > 0.01){
+        fitScale = refit;
+        list.style.transform = `translateY(0px) scale(${fitScale})`;
+      }
+    }).catch(()=>{});
+  }
+
+  if (tvReducedMotion() || rows.length < 2) return;
+
+  await tvSleep(650);
+  if (myGen !== tvCameraGen) return;
+  // Última red de seguridad: si por lo que sea el cálculo inicial no
+  // coincide con el tamaño real ya asentado (fuentes, layout tardío), se
+  // recalcula una vez más justo antes de empezar a mover la cámara.
+  {
+    const refit = tvComputeFitScale(list);
+    if (Math.abs(refit - fitScale) > 0.01){
+      fitScale = refit;
+      list.style.transform = `translateY(0px) scale(${fitScale})`;
+    }
+  }
+
+  const overviewBufferMs = 4200;
+  const budget = Math.max(TV_ROTATE_MS - overviewBufferMs - 650, 4000);
+  const perRow = budget / rows.length;
+  const moveMs = perRow*0.30, zoomInMs = perRow*0.24, holdMs = perRow*0.22, zoomOutMs = perRow*0.24;
+  let translateY = 0;
+
+  for (let i=0; i<rows.length; i++){
+    if (myGen !== tvCameraGen) return;
+    const row = rows[i];
+    const stageRect = stage.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    // stageRect/rowRect ya vienen medidos en píxeles reales de pantalla (con
+    // el fitScale actual aplicado), así que el delta también está en píxeles
+    // reales — y como translateY() se escribe antes de scale() en la cadena
+    // de transform, se aplica DESPUÉS del escalado, en esos mismos píxeles
+    // reales. Por eso se suma directo, sin dividir por fitScale.
+    const delta = (stageRect.top + stageRect.height/2) - (rowRect.top + rowRect.height/2);
+    translateY += delta;
+
+    // 1) Deslizar suavemente hasta centrar la fila — la lista solo se mueve
+    //    (y mantiene su fitScale fijo), nunca se vuelve a escalar de más,
+    //    así cada tarjeta conserva su propia forma.
+    list.style.transition = `transform ${moveMs}ms cubic-bezier(.4,0,.2,1)`;
+    list.style.transform = `translateY(${translateY}px) scale(${fitScale})`;
+    await tvSleep(moveMs);
+    if (myGen !== tvCameraGen) return;
+
+    // 2) Acercarse: la propia tarjeta del gestor (su "cuadrado") se agranda
+    //    y brilla; las demás se atenúan — el zoom es sobre esa tarjeta, no
+    //    sobre la lista completa.
+    rows.forEach(r=> r.classList.toggle('tv-dim', r!==row));
+    row.classList.add('tv-focus');
+    await tvSleep(zoomInMs);
+    if (myGen !== tvCameraGen) return;
+    await tvSleep(holdMs);
+    if (myGen !== tvCameraGen) return;
+
+    // 3) Alejarse antes de pasar al siguiente.
+    row.classList.remove('tv-focus');
+    rows.forEach(r=> r.classList.remove('tv-dim'));
+    await tvSleep(zoomOutMs);
+  }
+  if (myGen !== tvCameraGen) return;
+  list.style.transition = `transform 900ms cubic-bezier(.22,.61,.36,1)`;
+  list.style.transform = `translateY(0px) scale(${fitScale})`;
+}
+
+// Anima los números (cuentan hacia arriba) y las barras (crecen desde 0) cada
+// vez que se dibuja una pantalla — así cada rotación y cada dato nuevo que
+// entra se siente vivo, no un cambio instantáneo y frío.
+function tvMountAnimations(root){
+  if (!root) return;
+  const reduced = tvReducedMotion();
+  root.querySelectorAll('[data-count]').forEach(el=>{
+    const target = parseFloat(el.getAttribute('data-count'))||0;
+    const suffix = el.getAttribute('data-suffix')||'';
+    if (reduced){ el.textContent = fmtInt(Math.round(target))+suffix; return; }
+    const t0 = performance.now(); const dur = 1050;
+    function step(now){
+      const p = Math.min((now-t0)/dur, 1);
+      const eased = 1 - Math.pow(1-p, 3);
+      el.textContent = fmtInt(Math.round(target*eased))+suffix;
+      if (p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+  root.querySelectorAll('[data-width-target]').forEach(el=>{
+    const w = el.getAttribute('data-width-target');
+    if (reduced){ el.style.width = w; return; }
+    el.style.width = '0%';
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.style.width = w; }); });
+  });
+  const rankList = root.querySelector('.tv-rank-list');
+  if (rankList) tvRunCameraTour(rankList);
+}
+
+// Pequeña celebración de confeti — llamadas de meta cumplida o superada.
+function tvLaunchConfetti(){
+  if (tvReducedMotion()) return;
+  const layer = $('#tvConfetti');
+  if (!layer) return;
+  layer.innerHTML = '';
+  const colors = ['#6db3ff','#38e07f','#ffd166','#ff9257','#26e0a4','#ff6f6f'];
+  const pieces = 70;
+  for (let i=0; i<pieces; i++){
+    const p = document.createElement('div');
+    p.className = 'tv-confetti-piece';
+    const size = 6 + Math.random()*7;
+    p.style.width = size+'px';
+    p.style.height = (size*1.6)+'px';
+    p.style.left = (Math.random()*100)+'%';
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    const dur = 2.6 + Math.random()*1.8;
+    p.style.animationDuration = dur+'s';
+    p.style.animationDelay = (Math.random()*0.9)+'s';
+    layer.appendChild(p);
+  }
+  setTimeout(()=>{ if (layer) layer.innerHTML = ''; }, 5200);
+}
+
+// Orden de la rotación: ranking de contactabilidad → volumen de llamadas de
+// hoy → avance de la meta → Chevere vs. Imparables.
+const TV_SCREENS = [renderTvRank, renderTvCalls, renderTvGoal, renderTvTeams];
+const TV_GOAL_SCREEN_IDX = 2;
+let tvConfettiArmed = true;
+
+function renderTVScreen(){
+  const el = $('#tvScreen');
+  if (!el) return;
+  el.innerHTML = TV_SCREENS[state.tvScreenIdx % TV_SCREENS.length]();
+  tvMountAnimations(el);
+  const dotsEl = $('#tvDots');
+  if (dotsEl) dotsEl.innerHTML = TV_SCREENS.map((_,i)=>`<span class="tv-dot ${i===state.tvScreenIdx?'active':''}"></span>`).join('');
+  const clockEl = $('#tvClock');
+  if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('es-GT', {hour:'2-digit', minute:'2-digit'});
+  // Confeti cuando la meta está cumplida o superada — una sola vez por
+  // visita a esta pantalla, no en cada refresco en vivo mientras se queda ahí.
+  if (state.tvScreenIdx===TV_GOAL_SCREEN_IDX && tvGoalLastPct!==null && tvGoalLastPct>=100 && tvConfettiArmed){
+    tvConfettiArmed = false;
+    setTimeout(tvLaunchConfetti, 500);
+  }
+}
+
+function tvAdvance(){
+  state.tvScreenIdx = (state.tvScreenIdx+1) % TV_SCREENS.length;
+  tvConfettiArmed = true;
+  renderTVScreen();
+}
+
+// Paleta decorativa según la hora del día — solo cambia el "clima" visual de
+// fondo (aurora, acento); los colores con significado (equipos, meta,
+// medallas) nunca cambian. Así la pantalla no se ve igual toda la jornada.
+function tvComputeTimeTheme(){
+  const h = new Date().getHours();
+  if (h>=5 && h<12) return 'morning';
+  if (h>=12 && h<18) return 'afternoon';
+  return 'night';
+}
+function tvApplyTimeTheme(){
+  const view = $('#tvView');
+  if (!view) return;
+  const theme = tvComputeTimeTheme();
+  if (view.dataset.tvTheme !== theme) view.dataset.tvTheme = theme;
+}
+
+let tvClockTimer = null;
+let tvThemeTimer = null;
+
+function startTvMode(){
+  state.tvMode = true;
+  state.tvScreenIdx = 0;
+  tvConfettiArmed = true;
+  document.body.classList.add('tv-mode');
+  const view = $('#tvView');
+  if (view) view.hidden = false;
+  tvApplyTimeTheme();
+  renderTVScreen();
+  if (tvTimer) clearInterval(tvTimer);
+  tvTimer = setInterval(tvAdvance, TV_ROTATE_MS);
+  if (tvClockTimer) clearInterval(tvClockTimer);
+  tvClockTimer = setInterval(()=>{ const clockEl=$('#tvClock'); if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'}); }, 15000);
+  if (tvThemeTimer) clearInterval(tvThemeTimer);
+  tvThemeTimer = setInterval(tvApplyTimeTheme, 60000);
+  updateTvFullscreenBtn();
+}
+
+function stopTvMode(){
+  state.tvMode = false;
+  document.body.classList.remove('tv-mode');
+  const view = $('#tvView');
+  if (view) view.hidden = true;
+  if (tvTimer){ clearInterval(tvTimer); tvTimer = null; }
+  if (tvClockTimer){ clearInterval(tvClockTimer); tvClockTimer = null; }
+  if (tvThemeTimer){ clearInterval(tvThemeTimer); tvThemeTimer = null; }
+  tvCameraGen++; // invalida cualquier recorrido de cámara en curso
+  const layer = $('#tvConfetti');
+  if (layer) layer.innerHTML = '';
+  if (isTvFullscreen()) exitFullscreenSafe();
+}
+
+// ---------- Pantalla completa (modo TV) ----------
+// Usa la Fullscreen API real del navegador (oculta pestañas/barra de
+// direcciones) además del overlay CSS del modo TV — pensado para cuando se
+// proyecta o se conecta a un monitor/TV de oficina.
+function isTvFullscreen(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function exitFullscreenSafe(){
+  try{
+    if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }catch(err){}
+}
+function updateTvFullscreenBtn(){
+  const btn = $('#tvFullscreenBtn');
+  if (!btn) return;
+  const full = isTvFullscreen();
+  btn.innerHTML = full
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v3a2 2 0 0 1-2 2H4"/><path d="M15 3v3a2 2 0 0 0 2 2h3"/><path d="M9 21v-3a2 2 0 0 0-2-2H4"/><path d="M15 21v-3a2 2 0 0 1 2-2h3"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+  const label = full ? 'Salir de pantalla completa' : 'Pantalla completa';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+}
+async function toggleTvFullscreen(){
+  try{
+    if (!isTvFullscreen()){
+      const el = document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else { showToast('Tu navegador no permite activar pantalla completa así — probá la tecla F11.'); return; }
+    } else {
+      exitFullscreenSafe();
+    }
+  }catch(err){
+    showToast('No se pudo activar pantalla completa — probá la tecla F11.');
+  }
+}
+document.addEventListener('fullscreenchange', updateTvFullscreenBtn);
+document.addEventListener('webkitfullscreenchange', updateTvFullscreenBtn);
+
+// ---------- Vista para capturar: todos los gestores en una tabla horizontal,
+// estática (no rota), pensada para tomar una sola captura de pantalla sin
+// desplazarse. Usa el mismo alcance/filtros (equipo, gestor, mercado, día)
+// que el resto del panel — si ya filtraste por un día arriba, se abre así. ----------
+function renderCaptureView(){
+  const table = $('#captureTable');
+  const sub = $('#captureSub');
+  if (!table) return;
+  const [min,max] = currentRangeBounds();
+  if (!min){
+    table.innerHTML = '';
+    if (sub) sub.textContent = 'Sin datos todavía.';
+    return;
+  }
+  const marketLabel = state.filterCountry ? countryLabel(state.filterCountry) : 'todos los mercados';
+  const teamLabel = state.filterTeam ? (TEAMS[state.filterTeam]||state.filterTeam) : 'ambos equipos';
+  const scopeLabel = state.filterDay ? dateFmtHumanFull.format(toUTC(state.filterDay)) : `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))} (sin fines de semana)`;
+  if (sub) sub.textContent = `${scopeLabel} · ${teamLabel} · ${marketLabel}`;
+
+  const exts = state.filterGestor ? [state.filterGestor] : visibleExts();
+  let rows = exts.map(ext=>{
+    const t = extTotals(ext, min, max);
+    return {ext, name:gName(ext), team:gTeam(ext), total:t.total, answered:t.answered, effective:t.effective};
+  });
+  rows.sort((a,b)=> b.total-a.total || a.name.localeCompare(b.name));
+
+  if (!rows.length){ table.innerHTML = ''; return; }
+
+  const thead = `<thead><tr>
+    <th>#</th><th>Gestor</th><th>Equipo</th>
+    <th class="cell-num">Llamadas</th><th class="cell-num">Contestadas</th>
+    <th class="cell-num">Contactabilidad</th><th class="cell-num">% Contactabilidad</th>
+  </tr></thead>`;
+  const body = rows.map((r,i)=>{
+    const teamLabelRow = r.team ? `<span class="team-dot ${r.team==='chevere'?'a':'b'}"></span>${TEAMS[r.team]||r.team}` : 'Sin equipo';
+    return `<tr>
+      <td><span class="capture-rank">${i+1}</span></td>
+      <td>${escapeHtml(r.name)}</td>
+      <td>${teamLabelRow}</td>
+      <td class="cell-num">${fmtInt(r.total)}</td>
+      <td class="cell-num">${fmtInt(r.answered)}</td>
+      <td class="cell-num capture-eff">${fmtInt(r.effective)}</td>
+      <td class="cell-num">${pctStr(r.effective, r.total)}</td>
+    </tr>`;
+  }).join('');
+  const sum = {total:rows.reduce((s,r)=>s+r.total,0), answered:rows.reduce((s,r)=>s+r.answered,0), effective:rows.reduce((s,r)=>s+r.effective,0)};
+  const foot = rows.length>1 ? `<tfoot><tr><td></td><td>Total</td><td></td>
+    <td class="cell-num">${fmtInt(sum.total)}</td><td class="cell-num">${fmtInt(sum.answered)}</td>
+    <td class="cell-num capture-eff">${fmtInt(sum.effective)}</td><td class="cell-num">${pctStr(sum.effective,sum.total)}</td></tr></tfoot>` : '';
+  table.innerHTML = thead + '<tbody>' + body + '</tbody>' + foot;
+
+  requestAnimationFrame(fitCaptureView);
+}
+// Si la tabla de 18 gestores no cabe entera en la pantalla, se reduce (sin recortar
+// filas) para que quepa completa en una sola captura — igual que el ajuste automático
+// del Modo TV.
+function fitCaptureView(){
+  const view = $('#captureView');
+  const inner = $('#captureInner');
+  if (!view || !inner || view.hidden) return;
+  inner.style.transform = 'scale(1)';
+  const availH = inner.clientHeight;
+  const contentH = inner.scrollHeight;
+  if (availH>0 && contentH > availH){
+    const scale = Math.max(0.5, Math.min(1, (availH/contentH) * 0.98));
+    inner.style.transform = `scale(${scale})`;
+  }
+}
+function startCaptureMode(){
+  state.captureMode = true;
+  document.body.classList.add('capture-mode');
+  const view = $('#captureView');
+  if (view) view.hidden = false;
+  renderCaptureView();
+}
+function stopCaptureMode(){
+  state.captureMode = false;
+  document.body.classList.remove('capture-mode');
+  const view = $('#captureView');
+  if (view) view.hidden = true;
+}
+const btnCaptureView = $('#btnCaptureView');
+if (btnCaptureView) btnCaptureView.addEventListener('click', startCaptureMode);
+const captureExitBtn = $('#captureExit');
+if (captureExitBtn) captureExitBtn.addEventListener('click', stopCaptureMode);
+window.addEventListener('resize', ()=>{ if (state.captureMode) fitCaptureView(); });
+
+// Botón "Modo TV" en la barra superior: forma principal y confiable de entrar,
+// sin depender de que el enlace conserve ningún parámetro (?tv=1 puede no llegar
+// a la página real según cómo la abra el navegador, así que el botón es el respaldo
+// que siempre funciona con un clic).
+const btnTvMode = $('#btnTvMode');
+if (btnTvMode) btnTvMode.addEventListener('click', startTvMode);
+const tvExitBtn = $('#tvExit');
+if (tvExitBtn) tvExitBtn.addEventListener('click', stopTvMode);
+const tvFullscreenBtn = $('#tvFullscreenBtn');
+if (tvFullscreenBtn) tvFullscreenBtn.addEventListener('click', toggleTvFullscreen);
+document.addEventListener('keydown', (e)=>{
+  if (e.key==='Escape' && state.tvMode) stopTvMode();
+  if (e.key==='Escape' && state.captureMode) stopCaptureMode();
+});
+
+try {
+  if (new URLSearchParams(location.search).get('tv')==='1') startTvMode();
+} catch(e){}
 
 renderAll();
 initDb();
@@ -2446,6 +3928,121 @@ initDb();
       renderAll();
       showToast('Base cargada correctamente.');
     }catch(e){ showToast('No se pudo leer el archivo .json de la base.'); }
+  }
+
+  /* ---------- Descargar HTML actualizado (panel independiente) ----------
+     Genera una copia de ESTA misma página (mismo HTML/CSS/JS), pero con los
+     datos "semilla" (SEED_GESTORES / SEED_DAILY / SEED_UPLOADS) reemplazados
+     por lo que hay cargado AHORA MISMO, para poder mandarla por correo o
+     WhatsApp y que quien la abra vea el panel completo (filtros, gráficos,
+     etc.) con los datos actualizados, sin necesitar conexión a la base viva. */
+  function seedGestoresNow(){
+    return Object.keys(state.gestores).sort().map(ext => ({
+      ext, name: state.gestores[ext].name || '', team: state.gestores[ext].team || ''
+    }));
+  }
+  function seedDailyNow(){
+    return Array.from(state.daily.values());
+  }
+  function seedUploadsNow(){
+    // Un registro por fecha máxima (el de más filas), en el orden en que aparecieron.
+    const bestByKey = new Map();
+    const order = [];
+    (state.uploads||[]).forEach(u=>{
+      const key = u.dateMax || u.id;
+      const prev = bestByKey.get(key);
+      if (!prev || (u.rowsTotal||0) > (prev.rowsTotal||0)) bestByKey.set(key, u);
+      if (!order.includes(key)) order.push(key);
+    });
+    return order.map(k=>bestByKey.get(k));
+  }
+  function buildUpdatedHtmlDoc(){
+    const doc = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const swap = (html, name, value)=>{
+      const re = new RegExp('const ' + name + ' = \\[[\\s\\S]*?\\];');
+      const json = JSON.stringify(value);
+      return html.replace(re, ()=> 'const ' + name + ' = ' + json + ';');
+    };
+    let out = doc;
+    out = swap(out, 'SEED_GESTORES', seedGestoresNow());
+    out = swap(out, 'SEED_DAILY', seedDailyNow());
+    out = swap(out, 'SEED_UPLOADS', seedUploadsNow());
+    return out;
+  }
+  function htmlSnapshotFilename(){
+    const now = new Date();
+    const fDate = new Intl.DateTimeFormat('es-GT', {timeZone:GT_TZ, day:'2-digit', month:'short', year:'numeric'}).format(now).replace(/\./g,'');
+    const fTime = new Intl.DateTimeFormat('es-GT', {timeZone:GT_TZ, hour:'2-digit', minute:'2-digit', hour12:false}).format(now).replace(':','h');
+    return `Reporte de llamadas - ${fDate} (${fTime}).html`;
+  }
+  async function downloadHtmlSnapshot(){
+    let html;
+    try{ html = buildUpdatedHtmlDoc(); }
+    catch(e){ showToast('No se pudo generar el HTML actualizado.'); return; }
+    const filename = htmlSnapshotFilename();
+
+    try{
+      if (typeof claude !== 'undefined' && claude && typeof claude.use === 'function'){
+        const downloads = await claude.use('downloads').catch(()=>null);
+        if (downloads){
+          try{
+            const res = await downloads.save({filename, data: html});
+            showToast(res.status==='saved' ? 'HTML guardado.' : 'HTML entregado.');
+            return;
+          }catch(e){
+            if (e && e.code==='declined') return;
+            /* si falla la capacidad, seguimos con la descarga normal de abajo */
+          }
+        }
+      }
+    }catch(e){ /* claude no disponible en esta vista: usamos la descarga normal */ }
+
+    try{
+      const blob = new Blob([html], {type:'text/html;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      showToast('HTML descargado con los datos de este momento.');
+    }catch(e){
+      showToast('No se pudo generar el HTML en esta vista.');
+    }
+  }
+
+  /* ---------- Modo claro / oscuro ---------- */
+  const THEME_KEY = 'callrep_theme_v1';
+  function storedTheme(){
+    try{ const v = localStorage.getItem(THEME_KEY); return (v==='light'||v==='dark') ? v : null; }catch(e){ return null; }
+  }
+  function effectiveTheme(){
+    const attr = document.documentElement.getAttribute('data-theme');
+    if (attr==='light' || attr==='dark') return attr;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function updateThemeButton(){
+    const btn = document.getElementById('btnThemeToggle');
+    if (!btn) return;
+    const dark = effectiveTheme()==='dark';
+    const sun = document.getElementById('themeIconSun');
+    const moon = document.getElementById('themeIconMoon');
+    if (sun) sun.hidden = dark;      // el ícono muestra el modo ACTUAL: sol = claro
+    if (moon) moon.hidden = !dark;   // luna = oscuro
+    const label = dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+    btn.title = label; btn.setAttribute('aria-label', label);
+  }
+  function applyTheme(mode){
+    document.documentElement.setAttribute('data-theme', mode);
+    try{ localStorage.setItem(THEME_KEY, mode); }catch(e){}
+    updateThemeButton();
+  }
+  function toggleTheme(){
+    applyTheme(effectiveTheme()==='dark' ? 'light' : 'dark');
+  }
+  function initTheme(){
+    const saved = storedTheme();
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    updateThemeButton();
   }
 
   /* ============================================================
@@ -2671,9 +4268,14 @@ initDb();
   // 3) Conectar botones nuevos.
   const bind = (id, fn)=>{ const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
   bind('btnDownloadBase', downloadBase);
+  bind('btnDownloadHtml', downloadHtmlSnapshot);
   bind('btnLoadBase', ()=> document.getElementById('baseInput').click());
   const baseInput = document.getElementById('baseInput');
   if (baseInput) baseInput.addEventListener('change', e=>{ if (e.target.files[0]) loadBaseFile(e.target.files[0]); e.target.value=''; });
+
+  // Modo claro / oscuro.
+  initTheme();
+  bind('btnThemeToggle', toggleTheme);
 
   const btnEdit = document.getElementById('btnEditLayout');
   if (btnEdit) btnEdit.addEventListener('click', ()=> setEditing(!document.body.classList.contains('lay-edit')));
@@ -2720,7 +4322,11 @@ initDb();
     if (!min) return null;
     let dates=[]; let d=toUTC(min); const e=toUTC(max);
     while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
-    if (state.filterDay) dates = dates.filter(x=>x===state.filterDay);
+    if (state.filterDay){
+      dates = dates.filter(x=>x===state.filterDay);
+    } else {
+      dates = dates.filter(x=>!isWeekend(x));
+    }
     const exts = state.filterGestor ? [state.filterGestor] : visibleExts();
     return {dates, exts};
   }
