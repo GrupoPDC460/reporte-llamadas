@@ -274,7 +274,7 @@ button{font-family:inherit;}
 
 /* Trend chart */
 .trend-svg{display:block; width:100%; height:200px; overflow:visible;}
-.chart-scroll{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:4px;}
+.chart-scroll{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--ink-mute) var(--surface-2);}
 .chart-scroll::-webkit-scrollbar{height:9px;}
 .chart-scroll::-webkit-scrollbar-track{background:var(--surface-2); border-radius:99px;}
 .chart-scroll::-webkit-scrollbar-thumb{background:var(--border); border-radius:99px;}
@@ -1893,7 +1893,7 @@ function renderWeeklyChart(){
   const H=190, padL=30, padR=14, padT=48, padB = byDay ? 40 : 32;
   // Ancho dinámico: cada barra tiene su espacio; si hay muchos días, el SVG
   // se hace más ancho que el contenedor y aparece scroll horizontal (no se apretuja).
-  const perBar = byDay ? 40 : 100;
+  const perBar = byDay ? 62 : 120;
   const W = Math.max(460, padL + padR + n*perBar);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.style.width = (W>460) ? (W+'px') : '100%';
