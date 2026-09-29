@@ -274,6 +274,11 @@ button{font-family:inherit;}
 
 /* Trend chart */
 .trend-svg{display:block; width:100%; height:200px; overflow:visible;}
+.chart-scroll{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:4px;}
+.chart-scroll::-webkit-scrollbar{height:9px;}
+.chart-scroll::-webkit-scrollbar-track{background:var(--surface-2); border-radius:99px;}
+.chart-scroll::-webkit-scrollbar-thumb{background:var(--border); border-radius:99px;}
+.chart-scroll::-webkit-scrollbar-thumb:hover{background:var(--ink-mute);}
 .trend-axis{fill:var(--ink-mute); font-family:var(--font-mono); font-size:10px;}
 .trend-grid{stroke:var(--border); stroke-width:1;}
 .gestor-bar-svg{height:300px;}
@@ -1092,7 +1097,9 @@ body.capture-mode .capture-view{display:flex;}
         <h2>Total de llamadas por semana</h2>
         <span class="hint" id="weeklyChartHint">todas las llamadas</span>
       </div>
-      <svg class="trend-svg" id="weeklySvg" viewBox="0 0 460 190" preserveAspectRatio="none"></svg>
+      <div class="chart-scroll">
+        <svg class="trend-svg" id="weeklySvg" viewBox="0 0 460 190" preserveAspectRatio="none"></svg>
+      </div>
       <div class="week-insights" id="weeklyInsights"></div>
       <div class="week-teamcompare" id="weeklyTeamCompare"></div>
     </div>
@@ -1731,15 +1738,15 @@ function renderRanking(){
   }
 
   $('#rankTitle').textContent = 'Ranking de gestores';
-  $('#rankHint').textContent = state.filterDay ? `contactabilidad el ${dateFmtHuman.format(toUTC(state.filterDay))}` : 'contactabilidad en el período';
+  $('#rankHint').textContent = state.filterDay ? `contestadas el ${dateFmtHuman.format(toUTC(state.filterDay))}` : 'contestadas (contacto) en el período';
 
   const recs = filteredRecords();
   const byGestor = {};
-  recs.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + r.effective; });
+  recs.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + (r.answered||0); });
   let rows = visibleExts().map(ext => ({ext, name:gName(ext), val: byGestor[ext]||0}));
   rows = rows.filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
 
-  if (!rows.length){ el.innerHTML = '<div class="rank-empty">Sin contactabilidad en este período.</div>'; return; }
+  if (!rows.length){ el.innerHTML = '<div class="rank-empty">Sin contestadas en este período.</div>'; return; }
   const max = Math.max(...rows.map(r=>r.val), 1);
   el.innerHTML = rows.map((r,i)=>{
     const pct = Math.max((r.val/max)*100, 3);
@@ -1836,6 +1843,7 @@ function renderWeeklyChart(){
 
   if (!recs.length){
     $('#weeklyHint').textContent = `total de llamadas — ${marketLabel}`;
+    svg.setAttribute('viewBox','0 0 460 190'); svg.style.width='100%';
     svg.innerHTML = `<text x="10" y="90" class="trend-axis">Sin llamadas en este período.</text>`;
     $('#weeklyInsights').innerHTML = '';
     $('#weeklyTeamCompare').innerHTML = '';
@@ -1882,7 +1890,13 @@ function renderWeeklyChart(){
   const statusOf = p => p===null ? 'good' : (p>=100 ? 'good' : (p>=70 ? 'warn' : 'crit'));
 
   const n = items.length;
-  const W=460, H=190, padL=30, padR=14, padT=48, padB = byDay ? 40 : 32;
+  const H=190, padL=30, padR=14, padT=48, padB = byDay ? 40 : 32;
+  // Ancho dinámico: cada barra tiene su espacio; si hay muchos días, el SVG
+  // se hace más ancho que el contenedor y aparece scroll horizontal (no se apretuja).
+  const perBar = byDay ? 40 : 100;
+  const W = Math.max(460, padL + padR + n*perBar);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.width = (W>460) ? (W+'px') : '100%';
   const innerW = W-padL-padR, innerH = H-padT-padB;
   const maxV = Math.max(...items.map(it=>it.total), 1);
 
@@ -1900,7 +1914,7 @@ function renderWeeklyChart(){
   let startX = padL, extraPerGap = 0;
   if (n === 1){ startX = padL + Math.max((innerW-barW)/2, 0); }
   else if (baseUsed < innerW){ extraPerGap = (innerW - baseUsed) / (n - 1); }
-  const showLabel = n<=12;
+  const showLabel = n<=12 || W>460;
 
   const xs = []; { let cx = startX; for (let i=0;i<n;i++){ xs.push(cx); cx += barW + (gaps[i]||0) + (i<n-1?extraPerGap:0); } }
 
@@ -3425,7 +3439,7 @@ function tvGoalStatusOf(pct){ return pct===null ? 'good' : (pct>=100 ? 'good' : 
 function renderTvRank(){
   const recs = filteredRecords();
   const byGestor = {};
-  recs.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + (r.effective||0); });
+  recs.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + (r.answered||0); });
   const [min,max] = currentRangeBounds();
   const scopeLabel = state.filterDay ? dateFmtHuman.format(toUTC(state.filterDay)) : (min ? `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}` : '');
   // Se muestra la tabla COMPLETA de gestores visibles (los 18, o el equipo
@@ -3434,8 +3448,8 @@ function renderTvRank(){
   let rows = visibleExts().map(ext=>({ext, name:gName(ext), team:gTeam(ext), val:byGestor[ext]||0}));
   rows = rows.sort((a,b)=>b.val-a.val);
   if (!rows.length){
-    return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking de contactabilidad</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div>
-      <div class="tv-rank-list" style="align-items:center;"><div style="font-size:22px; color:var(--tv-ink-mute);">Sin contactabilidad registrada todavía en este período.</div></div></div>`;
+    return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking por contactadas</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div>
+      <div class="tv-rank-list" style="align-items:center;"><div style="font-size:22px; color:var(--tv-ink-mute);">Sin llamadas contestadas todavía en este período.</div></div></div>`;
   }
   const maxV = rows[0].val || 1;
   const initials = name => name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -3456,7 +3470,7 @@ function renderTvRank(){
       <div class="tv-rank-val" data-count="${r.val}">0</div>
     </div>`;
   }).join('');
-  return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking de contactabilidad</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div><div class="tv-rank-list">${rowsHtml}</div></div>`;
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Ranking por contactadas</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div><div class="tv-rank-list">${rowsHtml}</div></div>`;
 }
 
 function localDateStr(d){
@@ -3477,7 +3491,7 @@ function renderTvCalls(){
   const scopeLabel = day ? dateFmtHuman.format(toUTC(day)) : 'Sin datos todavía';
 
   // Se muestra la tabla COMPLETA de gestores visibles (los 18, o el equipo
-  // filtrado) — mismo formato que "Ranking de contactabilidad" (medallas,
+  // filtrado) — mismo formato que "Ranking por contactadas" (medallas,
   // recorrido de cámara, tabla completa al final) — pero el valor de cada
   // fila es el total de llamadas realizadas ESE día, no la contactabilidad.
   const byGestor = {};
@@ -3572,7 +3586,7 @@ function renderTvTeams(){
     const tm = gTeam(r.ext);
     if (tm==='chevere') totals.chevere += (r.total||0);
     else if (tm==='imparables') totals.imparables += (r.total||0);
-    byGestor[r.ext] = (byGestor[r.ext]||0) + (r.effective||0);
+    byGestor[r.ext] = (byGestor[r.ext]||0) + (r.answered||0);
   });
   const sum = totals.chevere + totals.imparables;
   const topOfTeam = teamKey => {
