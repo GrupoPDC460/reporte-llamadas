@@ -236,7 +236,7 @@ button{font-family:inherit;}
 
 /* Card */
 .grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; align-items:stretch;}
-.grid-2 > .card{display:flex; flex-direction:column;}
+.grid-2 > .card{display:flex; flex-direction:column; min-width:0;}
 .col-stack{display:flex; flex-direction:column; gap:16px;}
 .card{
   background:var(--surface); border:1px solid var(--border-soft);
@@ -274,7 +274,7 @@ button{font-family:inherit;}
 
 /* Trend chart */
 .trend-svg{display:block; width:100%; height:200px; overflow:visible;}
-.chart-scroll{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--ink-mute) var(--surface-2);}
+.chart-scroll{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding-bottom:6px; min-width:0; max-width:100%; scrollbar-width:thin; scrollbar-color:var(--ink-mute) var(--surface-2);}
 .chart-scroll::-webkit-scrollbar{height:9px;}
 .chart-scroll::-webkit-scrollbar-track{background:var(--surface-2); border-radius:99px;}
 .chart-scroll::-webkit-scrollbar-thumb{background:var(--border); border-radius:99px;}
