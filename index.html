@@ -1649,19 +1649,20 @@ function renderKPIs(){
     $('#kpiAvg').textContent = activeDays ? (totalEff/activeDays).toFixed(1) : '0.0';
     $('#kpiAvgSub').textContent = 'llamadas con contactabilidad, en promedio (no es %)';
 
-    // tile 4: rank within the team for this same scope (range + día, sin filtrar por gestor)
+    // tile 4: puesto dentro del equipo por CONTESTADAS (contacto), mismo alcance
     const base = baseRecords();
-    const byGestor = {};
+    const byAns = {};
     const byGestorTotal = {};
-    base.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + r.effective; byGestorTotal[r.ext] = (byGestorTotal[r.ext]||0) + (r.total||0); });
-    const ranked = Object.entries(byGestor).sort((a,b)=>b[1]-a[1]).map(([ext])=>ext);
+    base.forEach(r=>{ byAns[r.ext] = (byAns[r.ext]||0) + (r.answered||0); byGestorTotal[r.ext] = (byGestorTotal[r.ext]||0) + (r.total||0); });
+    const ranked = Object.entries(byAns).sort((a,b)=>b[1]-a[1]).map(([ext])=>ext);
     const idx = ranked.indexOf(state.filterGestor);
     const myTotal = byGestorTotal[state.filterGestor]||0;
-    $('#kpiLabel4').textContent = 'Puesto en el equipo';
+    const myAns = byAns[state.filterGestor]||0;
+    $('#kpiLabel4').textContent = 'Puesto por contacto';
     $('#kpiTop').textContent = idx>=0 ? `#${idx+1} de ${totalGestores}` : `sin registros`;
     $('#kpiTopSub').innerHTML = idx===0
-      ? (myTotal ? `🏆 ${fmtInt(byGestor[state.filterGestor]||0)} de <b>${fmtInt(myTotal)}</b> llamadas · ${pctStr(byGestor[state.filterGestor]||0, myTotal)}` : '🏆 el mejor del período')
-      : (idx>=0 ? (myTotal ? `${fmtInt(byGestor[state.filterGestor]||0)} de <b>${fmtInt(myTotal)}</b> llamadas · ${pctStr(byGestor[state.filterGestor]||0, myTotal)}` : `${fmtInt(byGestor[state.filterGestor]||0)} de contactabilidad`) : '');
+      ? (myTotal ? `🏆 ${fmtInt(myAns)} contestadas de <b>${fmtInt(myTotal)}</b> · ${pctStr(myAns, myTotal)}` : '🏆 el mejor del período')
+      : (idx>=0 ? (myTotal ? `${fmtInt(myAns)} contestadas de <b>${fmtInt(myTotal)}</b> · ${pctStr(myAns, myTotal)}` : `${fmtInt(myAns)} contestadas`) : '');
   } else {
     const byGestor = {};
     const byGestorTotal = {};
@@ -1679,12 +1680,14 @@ function renderKPIs(){
     $('#kpiAvgSub').textContent = 'llamadas con contactabilidad, en promedio (no es %)';
 
     let topExt=null, topVal=-1;
-    Object.entries(byGestor).forEach(([ext,v])=>{ if (v>topVal){topVal=v; topExt=ext;} });
+    const byAns={};
+    recs.forEach(r=>{ byAns[r.ext]=(byAns[r.ext]||0)+(r.answered||0); });
+    Object.entries(byAns).forEach(([ext,v])=>{ if (v>topVal){topVal=v; topExt=ext;} });
     const topTotal = topExt ? (byGestorTotal[topExt]||0) : 0;
-    $('#kpiLabel4').textContent = 'Mejor gestor';
+    $('#kpiLabel4').textContent = 'Mejor gestor (contacto)';
     $('#kpiTop').textContent = topExt ? `👑 ${gName(topExt)}` : '–';
     $('#kpiTopSub').innerHTML = topExt
-      ? (topTotal ? `${fmtInt(topVal)} de <b>${fmtInt(topTotal)}</b> llamadas · ${pctStr(topVal,topTotal)}` : `${fmtInt(topVal)} de contactabilidad`)
+      ? (topTotal ? `${fmtInt(topVal)} contestadas de <b>${fmtInt(topTotal)}</b> · ${pctStr(topVal,topTotal)}` : `${fmtInt(topVal)} contestadas`)
       : '';
   }
 
