@@ -1860,7 +1860,7 @@ function renderWeeklyChart(){
   const allDays = Array.from(dayMap.keys()).sort();
   // Con pocas semanas de historial mostramos una barra por día (más vivo y legible);
   // si el rango crece mucho, volvemos a agrupar en una barra por semana.
-  const byDay = allDays.length>0 && allDays.length<=21;
+  const byDay = allDays.length>0 && allDays.length<=35;
 
   let items; // {label, total, goal, weekStart}
   if (byDay){
