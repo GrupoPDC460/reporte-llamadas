@@ -1891,12 +1891,16 @@ function renderWeeklyChart(){
 
   const n = items.length;
   const H=190, padL=30, padR=14, padT=48, padB = byDay ? 40 : 32;
-  // Ancho dinámico: cada barra tiene su espacio; si hay muchos días, el SVG
-  // se hace más ancho que el contenedor y aparece scroll horizontal (no se apretuja).
-  const perBar = byDay ? 62 : 120;
-  const W = Math.max(460, padL + padR + n*perBar);
+  // Se ajusta al ancho de la tarjeta: si todos los días caben con un ancho mínimo
+  // legible por barra, se ven TODOS sin scroll. Solo si no caben (pantalla angosta
+  // o muchísimos días) el SVG se hace más ancho y aparece el scroll horizontal.
+  const minBar = byDay ? 26 : 70;
+  const containerEl = svg.closest('.chart-scroll');
+  const containerW = (containerEl && containerEl.clientWidth > 80) ? containerEl.clientWidth : 700;
+  const needed = padL + padR + n*minBar;
+  const W = Math.max(460, containerW, needed);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.style.width = (W>460) ? (W+'px') : '100%';
+  svg.style.width = (W > containerW + 1) ? (W+'px') : '100%';
   const innerW = W-padL-padR, innerH = H-padT-padB;
   const maxV = Math.max(...items.map(it=>it.total), 1);
 
