@@ -264,6 +264,19 @@ button{font-family:inherit;}
 .bestcontact-card .bc-name{font-family:var(--font-display); font-weight:800; font-size:22px; color:var(--ink); line-height:1.15; margin-top:2px;}
 .bestcontact-card .bc-sub{font-size:13px; color:var(--ink-soft); margin-top:3px;}
 .bestcontact-card .bc-sub b{font-family:var(--font-mono); color:var(--good);}
+.period-compliance{margin-top:20px; border-top:1px solid var(--border-soft); padding-top:16px;}
+.pc-title{font-family:var(--font-display); font-weight:800; font-size:13.5px; color:var(--ink); margin-bottom:12px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap;}
+.pc-title .pc-hint{font-family:inherit; font-weight:600; font-size:11.5px; color:var(--ink-mute);}
+.pc-table{max-height:360px; overflow-y:auto;}
+.pc-row{display:grid; grid-template-columns:minmax(0,1.5fr) repeat(var(--pc-cols,2), minmax(68px,0.9fr)); gap:10px; align-items:center; padding:7px 0; border-top:1px solid var(--border-soft);}
+.pc-row:first-child{border-top:none;}
+.pc-row.pc-head{color:var(--ink-mute); font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; position:sticky; top:0; background:var(--surface); z-index:1;}
+.pc-name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12.5px; color:var(--ink);}
+.pc-cell{display:flex; flex-direction:column; align-items:flex-start; gap:1px; font-size:10.5px; color:var(--ink-mute);}
+.pc-cell small{font-family:var(--font-mono); font-size:10px; color:var(--ink-mute);}
+.pc-head .pc-cell{font-size:10.5px;}
+.pc-pct{font-family:var(--font-mono); font-weight:800; font-size:13.5px; color:var(--ink);}
+.pc-pct.good{color:var(--good);} .pc-pct.warn{color:var(--warn);} .pc-pct.crit{color:var(--crit);}
 .defase-legend{display:flex; flex-wrap:wrap; gap:16px; margin-top:12px; font-size:12px; color:var(--ink-soft);}
 .defase-legend .dl-item{display:inline-flex; align-items:center; gap:6px;}
 .defase-legend .dl-line{width:20px; border-top:2.6px solid var(--good);}
@@ -1102,6 +1115,7 @@ body.capture-mode .capture-view{display:flex;}
       </div>
       <div class="week-insights" id="weeklyInsights"></div>
       <div class="week-teamcompare" id="weeklyTeamCompare"></div>
+      <div class="period-compliance" id="periodCompliance"></div>
     </div>
     <div class="card">
       <div class="card-head">
@@ -2185,6 +2199,45 @@ function renderDefase(){
   }
 }
 
+function renderPeriodCompliance(){
+  const el = $('#periodCompliance'); if(!el) return;
+  const periods = (state.config.goalSchedule||[]).filter(p=>p.from&&p.to)
+    .slice().sort((a,b)=> a.from<b.from?-1:1);
+  if(periods.length<1){ el.innerHTML=''; return; }   // sin metas variables, no aplica
+
+  const scopeExts = state.filterGestor ? [state.filterGestor] : visibleExts();
+  const sev = pct => pct===null?'' : (pct>=100?'good':(pct>=70?'warn':'crit'));
+  const fmtRange = p => `${dateFmtHuman.format(toUTC(p.from))}–${dateFmtHuman.format(toUTC(p.to))}`;
+
+  function periodStats(ext, p){
+    let actual=0, dias=0;
+    let d=toUTC(p.from); const end=toUTC(p.to);
+    while(d<=end){
+      const ds=dateFmtUTC.format(d);
+      if(!isWeekend(ds)){ const r=getRec(ext+'_'+ds); if(r && (r.total||0)>0){ actual+=r.total; dias++; } }
+      d.setUTCDate(d.getUTCDate()+1);
+    }
+    const meta = dias*(p.goal||0);
+    return {actual, dias, meta, pct: meta? actual/meta*100 : null};
+  }
+
+  const data = scopeExts.map(ext=>({ext, name:gName(ext), cells: periods.map(p=>periodStats(ext,p))}))
+    .filter(r=> r.cells.some(c=>c.dias>0))
+    .sort((a,b)=>{ const la=a.cells[a.cells.length-1].pct, lb=b.cells[b.cells.length-1].pct; return (lb===null?-1:lb)-(la===null?-1:la); });
+
+  if(!data.length){ el.innerHTML=''; return; }
+
+  const head = `<div class="pc-row pc-head"><span class="pc-name">Gestor</span>`+
+    periods.map(p=>`<span class="pc-cell">${fmtRange(p)}<small>meta ${p.goal}/día</small></span>`).join('')+`</div>`;
+  const body = data.map(r=>`<div class="pc-row"><span class="pc-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>`+
+    r.cells.map(c=>`<span class="pc-cell"><span class="pc-pct ${sev(c.pct)}">${c.pct===null?'–':Math.round(c.pct)+'%'}</span><small>${fmtInt(c.actual)}/${fmtInt(Math.round(c.meta))}</small></span>`).join('')+
+    `</div>`).join('');
+
+  const scopeLabel = state.filterGestor ? gName(state.filterGestor) : (state.filterTeam ? (TEAMS[state.filterTeam]||state.filterTeam) : 'todo el equipo');
+  el.style.setProperty('--pc-cols', periods.length);
+  el.innerHTML = `<div class="pc-title">Cumplimiento por gestor y período <span class="pc-hint">${escapeHtml(scopeLabel)} · verde ≥100% · sin fines de semana</span></div><div class="pc-table">${head}${body}</div>`;
+}
+
 function renderGoalRanking(){
   const el = $('#goalRankList');
   const [min,max] = currentRangeBounds();
@@ -2900,6 +2953,7 @@ function renderAll(){
   renderWeeklyChart();
   renderGoalRanking();
   renderTop3();
+  renderPeriodCompliance();
   renderDefase();
   renderGestorBarChart();
   renderMarkets();
