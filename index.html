@@ -277,6 +277,18 @@ button{font-family:inherit;}
 .pc-head .pc-cell{font-size:10.5px;}
 .pc-pct{font-family:var(--font-mono); font-weight:800; font-size:13.5px; color:var(--ink);}
 .pc-pct.good{color:var(--good);} .pc-pct.warn{color:var(--warn);} .pc-pct.crit{color:var(--crit);}
+.chan-legend{display:flex; gap:18px; margin-bottom:14px; font-size:12px; color:var(--ink-soft);}
+.chan-legend span{display:inline-flex; align-items:center; gap:6px;}
+.chan-legend i{width:11px; height:11px; border-radius:3px; display:inline-block;}
+.chan-row{display:grid; grid-template-columns:minmax(0,1.3fr) 1fr auto; gap:14px; align-items:center; padding:9px 0; border-top:1px solid var(--border-soft);}
+.chan-row:first-child{border-top:none;}
+.chan-name{font-size:13px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.chan-bar{display:flex; height:16px; border-radius:8px; overflow:hidden; background:var(--surface-2); box-shadow:inset 0 0 0 1px var(--border-soft);}
+.chan-seg{height:100%;}
+.chan-seg.issabel{background:var(--accent);}
+.chan-seg.phone{background:var(--warn);}
+.chan-val{font-family:var(--font-mono); font-size:11px; color:var(--ink-soft); white-space:nowrap; text-align:right;}
+.chan-val b{color:var(--ink);}
 .defase-legend{display:flex; flex-wrap:wrap; gap:16px; margin-top:12px; font-size:12px; color:var(--ink-soft);}
 .defase-legend .dl-item{display:inline-flex; align-items:center; gap:6px;}
 .defase-legend .dl-line{width:20px; border-top:2.6px solid var(--good);}
@@ -1140,6 +1152,14 @@ body.capture-mode .capture-view{display:flex;}
       <div class="card-head"><h2><span class="team-dot b"></span>Team Imparables</h2><span class="hint">top 3 por contestadas</span></div>
       <div id="top3Imparables"></div>
     </div>
+  </div>
+
+  <div class="section-title">
+    <h2>Llamadas por canal — Issabel vs celular</h2>
+    <span class="hint">distingue cuántas llamadas de cada gestor vienen por <b>Issabel</b> y cuántas por <b>celular</b> (ambas suman a su total) · solo gestores con aporte de celular</span>
+  </div>
+  <div class="card">
+    <div id="channelSplit"></div>
   </div>
 
   <div class="section-title">
@@ -2203,6 +2223,33 @@ function renderDefase(){
   }
 }
 
+function renderChannelSplit(){
+  const el = $('#channelSplit'); if(!el) return;
+  const recs = filteredRecords();
+  const scopeExts = state.filterGestor ? [state.filterGestor] : visibleExts();
+  const by = {};
+  recs.forEach(r=>{
+    if(!scopeExts.includes(r.ext)) return;
+    const ph = (r.phone && r.phone.total) || 0;
+    const t = r.total || 0;
+    if(!by[r.ext]) by[r.ext] = {iss:0, cel:0};
+    by[r.ext].cel += ph;
+    by[r.ext].iss += Math.max(0, t-ph);
+  });
+  const rows = Object.keys(by).map(ext=>({ext, name:gName(ext), iss:by[ext].iss, cel:by[ext].cel, tot:by[ext].iss+by[ext].cel}))
+    .filter(r=>r.cel>0).sort((a,b)=>b.cel-a.cel);
+  if(!rows.length){ el.innerHTML = '<div class="rank-empty">Aún no hay llamadas de celular en este período. Cuando subas un "registro (celular)" para un gestor, aquí verás cuántas llamadas hizo por cada canal.</div>'; return; }
+  const legend = `<div class="chan-legend"><span><i style="background:var(--accent)"></i>Issabel</span><span><i style="background:var(--warn)"></i>Celular</span></div>`;
+  el.innerHTML = legend + rows.map(r=>{
+    const issPct = r.tot? r.iss/r.tot*100 : 0, celPct = r.tot? r.cel/r.tot*100 : 0;
+    return `<div class="chan-row">
+      <span class="chan-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
+      <div class="chan-bar"><div class="chan-seg issabel" style="width:${issPct.toFixed(1)}%"></div><div class="chan-seg phone" style="width:${celPct.toFixed(1)}%"></div></div>
+      <span class="chan-val"><b>${fmtInt(r.tot)}</b> total · ${fmtInt(r.iss)} Issabel · <b style="color:var(--warn)">${fmtInt(r.cel)}</b> celular</span>
+    </div>`;
+  }).join('');
+}
+
 function renderPeriodCompliance(){
   const el = $('#periodCompliance'); if(!el) return;
   const periods = (state.config.goalSchedule||[]).filter(p=>p.from&&p.to)
@@ -2957,6 +3004,7 @@ function renderAll(){
   renderWeeklyChart();
   renderGoalRanking();
   renderTop3();
+  renderChannelSplit();
   renderPeriodCompliance();
   renderDefase();
   renderGestorBarChart();
