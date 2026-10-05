@@ -427,6 +427,15 @@ table.matrix tr:last-child td, table.matrix tr:last-child th{font-weight:700; bo
 table.matrix td.comp-hit{background:var(--good-wash); color:var(--good); font-weight:700;}
 table.matrix td.comp-miss{background:var(--crit-wash); color:var(--crit);}
 table.matrix td.comp-none{color:var(--ink-mute);}
+table.matrix td.comp-exc{background:var(--accent-wash); color:var(--accent); font-weight:700;}
+.just-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--border-soft); font-size:12.5px; flex-wrap:wrap;}
+.just-row:first-child{border-top:none;}
+.just-who{font-weight:700; color:var(--ink); min-width:130px;}
+.just-when{color:var(--ink-soft); font-family:var(--font-mono); font-size:11.5px;}
+.just-type{margin-left:auto; color:var(--ink-soft);}
+.just-pct{font-family:var(--font-mono); color:var(--accent); font-weight:700;}
+.just-note{width:100%; color:var(--ink-mute); font-size:11.5px; font-style:italic;}
+.just-empty{color:var(--ink-mute); font-size:13px; padding:14px 0;}
 table.matrix td.comp-pct{font-weight:700;}
 table.matrix td.comp-pct.good{color:var(--good);}
 table.matrix td.comp-pct.warn{color:var(--warn);}
@@ -1081,6 +1090,32 @@ body.capture-mode .capture-view{display:flex;}
 
   <div class="card">
     <div class="card-head">
+      <h2>Justificaciones / ajustes de meta</h2>
+      <span class="hint">excluye días de la meta de un gestor: vacaciones, incapacidad, permiso, Issabel caído u otro</span>
+    </div>
+    <div id="justList"></div>
+    <div class="sup-form" id="justForm">
+      <div class="sup-field" style="min-width:160px;"><label>Gestor</label><select id="jGestor" class="pick" style="max-width:none;"></select></div>
+      <div class="sup-field"><label>Desde</label><input type="date" id="jFrom"></div>
+      <div class="sup-field"><label>Hasta</label><input type="date" id="jTo"></div>
+      <div class="sup-field" style="min-width:150px;"><label>Motivo</label>
+        <select id="jType" class="pick" style="max-width:none;">
+          <option value="vacaciones">🌴 Vacaciones</option>
+          <option value="incapacidad">🏥 Incapacidad</option>
+          <option value="permiso">📋 Permiso</option>
+          <option value="issabel">⚠️ Issabel caído</option>
+          <option value="otro">📝 Otro</option>
+        </select>
+      </div>
+      <div class="sup-field" style="max-width:120px;"><label>% excusado</label><input type="number" id="jPct" min="1" max="100" step="1" value="100"></div>
+      <div class="sup-field" style="min-width:150px;"><label>Nota (opcional)</label><input type="text" id="jNote" placeholder="detalle"></div>
+      <button class="btn primary" id="jAdd" style="align-self:flex-end;">Agregar</button>
+    </div>
+    <div class="field-hint" style="margin-top:8px;"><b>100%</b> = el día no cuenta para su meta (vacaciones/incapacidad completas). <b>Menos de 100%</b> = parcial (ej. 50% = media jornada). Aplica al rango Desde–Hasta para ese gestor, y se refleja en todas las tarjetas de cumplimiento.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
       <h2>KPIs derivados de las llamadas</h2>
       <span class="hint" id="derivedHint">crea tus propios indicadores</span>
     </div>
@@ -1408,6 +1443,10 @@ const DEFAULT_CONFIG = {
   // no venir guardados en la base, cualquier período de muestra se activaría
   // solo como si fuera real en cuanto la fecha cayera dentro de su rango.
   goalSchedule: [],
+  // Justificaciones / ajustes de meta por gestor y fecha (vacaciones, incapacidad,
+  // permiso, Issabel caído, otro). Vacío por defecto — mientras no haya ninguna,
+  // el cálculo de meta queda EXACTAMENTE igual que sin esta función.
+  justificaciones: [],
   // KPIs derivados de muestra (editables/eliminables en el Panel de supervisión).
   derivedKpis: [
     {id:'k_resp', name:'Tasa de respuesta', num:'answered', op:'ratio', den:'total', fmt:'pct'},
@@ -1429,6 +1468,39 @@ function goalForDate(dateStr){
     }
   }
   return (state.config && state.config.dailyGoalTotal) || DEFAULT_CONFIG.dailyGoalTotal;
+}
+
+// --- Justificaciones (ajustes de meta por gestor/día): vacaciones, incapacidad, permiso, Issabel caído, otro ---
+// excusePct: 100 = día totalmente excusado (no cuenta para la meta) ; 1..99 = parcial (meta reducida ese %).
+// CLAVE DE SEGURIDAD: si no hay justificaciones, excusePctFor=0 → metaFactorFor=1 → metaForDay=goalForDate,
+// así que todos los cálculos quedan idénticos a hoy hasta que se registre una justificación.
+const JUST_TYPES = {vacaciones:'🌴 Vacaciones', incapacidad:'🏥 Incapacidad', permiso:'📋 Permiso', issabel:'⚠️ Issabel caído', otro:'📝 Otro'};
+function excusePctFor(ext, dateStr){
+  const list = (state.config && state.config.justificaciones) || [];
+  let max = 0;
+  for (const j of list){
+    if (!j || j.ext !== ext) continue;
+    if (j.from && dateStr < j.from) continue;
+    if ((j.to||j.from) && dateStr > (j.to||j.from)) continue;
+    const p = (j.excusePct==null) ? 100 : Math.max(0, Math.min(100, +j.excusePct));
+    if (p > max) max = p;
+  }
+  return max;
+}
+function metaFactorFor(ext, dateStr){ const e = excusePctFor(ext, dateStr); return e>=100 ? 0 : (100-e)/100; }
+function metaForDay(ext, dateStr){ return goalForDate(dateStr) * metaFactorFor(ext, dateStr); }
+function isDayExcusedFull(ext, dateStr){ return excusePctFor(ext, dateStr) >= 100; }
+function excuseRecordFor(ext, dateStr){
+  const list = (state.config && state.config.justificaciones) || [];
+  let best = null, bestP = -1;
+  for (const j of list){
+    if (!j || j.ext !== ext) continue;
+    if (j.from && dateStr < j.from) continue;
+    if ((j.to||j.from) && dateStr > (j.to||j.from)) continue;
+    const p = (j.excusePct==null) ? 100 : +j.excusePct;
+    if (p > bestP){ bestP = p; best = j; }
+  }
+  return best;
 }
 const TEAMS = { chevere:'Team Chevere', imparables:'Team Imparables' };
 // País/mercado: se identifica por el troncal de salida en Src./Dst. Channel del CDR de Issabel
@@ -2160,10 +2232,15 @@ function renderDefase(){
 
   let cumG=0, cumA=0; const pts=[];
   days.forEach(ds=>{
-    let actual=0, workers=0;
-    exts.forEach(ext=>{ const r=getRec(ext+'_'+ds); if(r && (r.total||0)>0){ actual+=r.total; workers++; } });
+    let actual=0, workers=0, goal=0;
+    exts.forEach(ext=>{
+      const r=getRec(ext+'_'+ds);
+      if(!(r && (r.total||0)>0)) return;
+      if(isDayExcusedFull(ext, ds)) return;        // día justificado completo: no cuenta ni meta ni llamadas
+      actual += r.total; workers++;
+      goal += metaForDay(ext, ds);                 // meta del día ajustada por justificación parcial (si hay)
+    });
     if(!workers) return;
-    const goal = goalForDate(ds) * (single ? 1 : workers);
     cumG += goal; cumA += actual;
     pts.push({ds, actual, goal, cumG, cumA, deficit: goal-actual});
   });
@@ -2178,7 +2255,7 @@ function renderDefase(){
     let below=0, evaluated=0;
     exts.forEach(ext=>{
       let g=0,a=0,worked=false;
-      days.forEach(ds=>{ const r=getRec(ext+'_'+ds); if(r&&(r.total||0)>0){ g+=goalForDate(ds); a+=r.total; worked=true; } });
+      days.forEach(ds=>{ const r=getRec(ext+'_'+ds); if(r&&(r.total||0)>0 && !isDayExcusedFull(ext,ds)){ g+=metaForDay(ext,ds); a+=r.total; worked=true; } });
       if(worked){ evaluated++; if(g>a) below++; }
     });
     if(evaluated) indivNote = ` · <b style="color:${below?'var(--crit)':'var(--good)'}">${below} de ${evaluated}</b> gestores bajo su meta individual`;
@@ -2261,14 +2338,16 @@ function renderPeriodCompliance(){
   const fmtRange = p => `${dateFmtHuman.format(toUTC(p.from))}–${dateFmtHuman.format(toUTC(p.to))}`;
 
   function periodStats(ext, p){
-    let actual=0, dias=0;
+    let actual=0, dias=0, meta=0;
     let d=toUTC(p.from); const end=toUTC(p.to);
     while(d<=end){
       const ds=dateFmtUTC.format(d);
-      if(!isWeekend(ds)){ const r=getRec(ext+'_'+ds); if(r && (r.total||0)>0){ actual+=r.total; dias++; } }
+      if(!isWeekend(ds)){
+        const r=getRec(ext+'_'+ds);
+        if(r && (r.total||0)>0 && !isDayExcusedFull(ext, ds)){ actual+=r.total; dias++; meta += (p.goal||0)*metaFactorFor(ext, ds); }
+      }
       d.setUTCDate(d.getUTCDate()+1);
     }
-    const meta = dias*(p.goal||0);
     return {actual, dias, meta, pct: meta? actual/meta*100 : null};
   }
 
@@ -2308,9 +2387,12 @@ function renderGoalRanking(){
   const exts = state.filterGestor ? [state.filterGestor] : visibleExts();
   let rows = exts.map(ext=>{
     const perDay = dates.map(dt => getRec(ext+'_'+dt) || null);
-    const diasTrabajados = perDay.filter(r=>r && (r.total||0)>0).length;
-    const totalCalls = perDay.reduce((s,r)=>s+(r?(r.total||0):0),0);
-    const metaAcum = perDay.reduce((s,r,idx)=> s + ((r && (r.total||0)>0) ? goalForDate(dates[idx]) : 0), 0);
+    let diasTrabajados=0, totalCalls=0, metaAcum=0;
+    perDay.forEach((r,idx)=>{
+      if(!(r && (r.total||0)>0)) return;
+      if(isDayExcusedFull(ext, dates[idx])) return;   // día justificado completo: fuera de meta y llamadas
+      diasTrabajados++; totalCalls += r.total; metaAcum += metaForDay(ext, dates[idx]);
+    });
     const pct = metaAcum ? (totalCalls/metaAcum*100) : null;
     return {ext, name:gName(ext), pct, diasTrabajados, totalCalls, metaAcum};
   });
@@ -2820,10 +2902,14 @@ function renderCompliance(){
 
   const rows = gestorExts.map(ext=>{
     const perDay = dates.map(dt => getRec(ext+'_'+dt) || null);
-    const diasTrabajados = perDay.filter(r=>r && (r.total||0)>0).length;
-    const diasCumplidos = perDay.filter((r,idx)=>r && (r.total||0)>=goalForDate(dates[idx])).length;
-    const totalCalls = perDay.reduce((s,r)=>s+(r?(r.total||0):0),0);
-    const metaAcum = perDay.reduce((s,r,idx)=> s + ((r && (r.total||0)>0) ? goalForDate(dates[idx]) : 0), 0);
+    let diasTrabajados=0, diasCumplidos=0, totalCalls=0, metaAcum=0;
+    perDay.forEach((r,idx)=>{
+      if(!(r && (r.total||0)>0)) return;
+      if(isDayExcusedFull(ext, dates[idx])) return;   // justificado completo: fuera de todo
+      diasTrabajados++; totalCalls += r.total;
+      const dm = metaForDay(ext, dates[idx]); metaAcum += dm;
+      if (r.total >= dm) diasCumplidos++;
+    });
     const pct = metaAcum ? (totalCalls/metaAcum*100) : null;
     return {ext, name:gName(ext), perDay, diasTrabajados, diasCumplidos, totalCalls, metaAcum, pct};
   });
@@ -2839,9 +2925,16 @@ function renderCompliance(){
 
   const tbody = '<tbody>' + rows.map(r=>{
     const cells = r.perDay.map((rec,idx)=>{
+      const exc = excuseRecordFor(r.ext, dates[idx]);
+      if (exc && (exc.excusePct==null || +exc.excusePct>=100)){
+        const lbl = (JUST_TYPES[exc.type]||'• Justificado');
+        return `<td class="cell-num comp-exc" title="${escapeHtml(lbl)}${exc.note?(' — '+escapeHtml(exc.note)):''} (no cuenta para la meta)">${lbl.split(' ')[0]}</td>`;
+      }
       if (!rec || !rec.total){ return `<td class="cell-num comp-none">–</td>`; }
-      const hit = rec.total >= goalForDate(dates[idx]);
-      return `<td class="cell-num ${hit?'comp-hit':'comp-miss'}">${fmtInt(rec.total)}</td>`;
+      const dm = metaForDay(r.ext, dates[idx]);
+      const hit = rec.total >= dm;
+      const tt = exc ? ` title="Justificación parcial ${exc.excusePct}% — meta del día ${Math.round(dm)}"` : '';
+      return `<td class="cell-num ${hit?'comp-hit':'comp-miss'}"${tt}>${fmtInt(rec.total)}</td>`;
     }).join('');
     const pctLabel = r.pct===null ? '–' : r.pct.toFixed(0)+'%';
     return `<tr><th>${escapeHtml(r.name)}<div style="font-family:var(--font-mono); font-weight:400; font-size:10.5px; color:var(--ink-mute);">ext. ${r.ext}</div></th>${cells}<td class="cell-num">${r.diasTrabajados?`${r.diasCumplidos}/${r.diasTrabajados}`:'–'}</td><td class="cell-num comp-pct ${pctClass(r.pct)}">${pctLabel}</td></tr>`;
@@ -3650,7 +3743,7 @@ function renderTvGoal(){
   let total = 0, metaSum = 0, activeToday = 0;
   exts.forEach(ext=>{
     const r = getRec(ext+'_'+todayStr);
-    if (r && (r.total||0)>0){ total += r.total; metaSum += goalForDate(todayStr); activeToday++; }
+    if (r && (r.total||0)>0 && !isDayExcusedFull(ext, todayStr)){ total += r.total; metaSum += metaForDay(ext, todayStr); activeToday++; }
   });
   let scopeLabel;
   if (activeToday>0){
@@ -3660,12 +3753,12 @@ function renderTvGoal(){
     // se muestra el acumulado del período/filtros que estén activos en el panel.
     const recs = filteredRecords();
     const [min,max] = currentRangeBounds();
-    total = recs.reduce((s,r)=>s+(r.total||0),0);
+    total = recs.reduce((s,r)=> s + (isDayExcusedFull(r.ext, r.date) ? 0 : (r.total||0)), 0);
     let dates = [];
     if (min){ let d=toUTC(min); const e=toUTC(max); while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); } }
     dates = state.filterDay ? dates.filter(dt=>dt===state.filterDay) : dates.filter(dt=>!isWeekend(dt));
     metaSum = 0;
-    exts.forEach(ext=> dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if (r && (r.total||0)>0) metaSum += goalForDate(dt); }));
+    exts.forEach(ext=> dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if (r && (r.total||0)>0 && !isDayExcusedFull(ext,dt)) metaSum += metaForDay(ext,dt); }));
     scopeLabel = state.filterDay ? dateFmtHuman.format(toUTC(state.filterDay)) : (min ? `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}` : 'sin datos aún');
   }
   const pct = metaSum ? (total/metaSum*100) : null;
@@ -4704,7 +4797,7 @@ initDb();
     let totalCalls=0, meta=0;
     s.dates.forEach(dt=>{
       let dayTotal=0, dayMeta=0;
-      s.exts.forEach(ext=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0){ dayTotal+=r.total; dayMeta+=goalForDate(dt); }});
+      s.exts.forEach(ext=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0 && !isDayExcusedFull(ext,dt)){ dayTotal+=r.total; dayMeta+=metaForDay(ext,dt); }});
       totalCalls+=dayTotal; meta+=dayMeta;
       const p = periods.find(pp=> (!pp.from||dt>=pp.from)&&(!pp.to||dt<=pp.to));
       if(p){ p.total+=dayTotal; p.meta+=dayMeta; }
@@ -4768,7 +4861,7 @@ initDb();
     }
     const per = s.exts.map(ext=>{
       let total=0, meta=0, answered=0, effective=0, talk=0, dias=0;
-      s.dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0){ total+=r.total; meta+=goalForDate(dt); answered+=r.answered||0; effective+=r.effective||0; talk+=r.talk||0; dias++; }});
+      s.dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0 && !isDayExcusedFull(ext,dt)){ total+=r.total; meta+=metaForDay(ext,dt); answered+=r.answered||0; effective+=r.effective||0; talk+=r.talk||0; dias++; }});
       return {ext, name:gName(ext), total, meta, answered, effective, talk, dias, pct: meta? total/meta*100 : null,
               contactRate: total? effective/total : 0, aht: answered? talk/answered : 0};
     });
@@ -4863,7 +4956,34 @@ initDb();
     }).join('');
   }
 
-  function renderSupervisor(){ renderProgress(); renderAlerts(); renderGoalSched(); renderDerived(); }
+  function fillJGestor(){
+    const sel=$('#jGestor'); if(!sel) return;
+    const cur = sel.value;
+    const exts = Object.keys(state.gestores).sort((a,b)=> gName(a).localeCompare(gName(b)));
+    sel.innerHTML = exts.map(ext=>`<option value="${ext}">${escapeHtml(gName(ext))}</option>`).join('');
+    if(cur && state.gestores[cur]) sel.value=cur;
+  }
+  function renderJust(){
+    fillJGestor();
+    const el=$('#justList'); if(!el) return;
+    const list = Array.isArray(state.config.justificaciones)?state.config.justificaciones:[];
+    if(!list.length){ el.innerHTML='<div class="just-empty">Sin justificaciones registradas. Agrega una para excluir días de la meta de un gestor (vacaciones, incapacidad, etc.).</div>'; return; }
+    const ordered = list.map((j,idx)=>({j,idx})).sort((a,b)=>String(b.j.from||'').localeCompare(String(a.j.from||'')));
+    el.innerHTML = ordered.map(({j,idx})=>{
+      const from=j.from?dateFmtHumanFull.format(toUTC(j.from)):'—';
+      const to=(j.to&&j.to!==j.from)?(' → '+dateFmtHumanFull.format(toUTC(j.to))):'';
+      const pct=(j.excusePct==null?100:j.excusePct);
+      return `<div class="just-row">
+        <span class="just-who">${escapeHtml(gName(j.ext))}</span>
+        <span class="just-when">${from}${to}</span>
+        <span class="just-type">${JUST_TYPES[j.type]||j.type||'—'} · <span class="just-pct">${pct}%</span></span>
+        <button class="gs-del" data-i="${idx}" title="Eliminar justificación">×</button>
+        ${j.note?`<span class="just-note">“${escapeHtml(j.note)}”</span>`:''}
+      </div>`;
+    }).join('');
+  }
+
+  function renderSupervisor(){ renderProgress(); renderAlerts(); renderGoalSched(); renderJust(); renderDerived(); }
 
   // Poblar selects del creador de KPIs.
   const opts = DK_FIELDS.map(f=>`<option value="${f.k}">${f.label}</option>`).join('');
@@ -4893,6 +5013,23 @@ initDb();
   });
   const dkCards=$('#derivedKpiCards');
   if(dkCards) dkCards.addEventListener('click', e=>{ const b=e.target.closest('.dk-del'); if(!b) return; state.config.derivedKpis=state.config.derivedKpis.filter(k=>k.id!==b.dataset.id); renderAll(); showToast('KPI eliminado.'); });
+
+  // Eventos: justificaciones.
+  const jAdd=$('#jAdd');
+  if(jAdd) jAdd.addEventListener('click', ()=>{
+    const ext=$('#jGestor').value; const from=$('#jFrom').value||''; let to=$('#jTo').value||from;
+    const type=$('#jType').value; let pct=parseInt($('#jPct').value,10); const note=$('#jNote').value.trim();
+    if(!ext){ showToast('Elige un gestor.'); return; }
+    if(!from){ showToast('Elige al menos la fecha "Desde".'); return; }
+    if(from && to && from>to){ showToast('La fecha "Desde" no puede ser posterior a "Hasta".'); return; }
+    if(!isFinite(pct)||pct<1) pct=100; if(pct>100) pct=100;
+    if(!Array.isArray(state.config.justificaciones)) state.config.justificaciones=[];
+    state.config.justificaciones.push({id:'j_'+Date.now(), ext, from, to:to||from, type, excusePct:pct, note:note||''});
+    $('#jFrom').value=''; $('#jTo').value=''; $('#jNote').value=''; $('#jPct').value='100';
+    renderAll(); showToast('Justificación agregada.');
+  });
+  const jList=$('#justList');
+  if(jList) jList.addEventListener('click', e=>{ const b=e.target.closest('.gs-del'); if(!b) return; state.config.justificaciones.splice(+b.dataset.i,1); renderAll(); showToast('Justificación eliminada.'); });
 
   // Enganchar al ciclo de render.
   const _ra = window.renderAll;
