@@ -4548,17 +4548,23 @@ initDb();
       else { cur.push(el); }
     });
 
+    const usedIds = {};
     groups.forEach((els, i)=>{
       const mod = document.createElement('section');
       mod.className = 'dash-mod';
-      const id = 'm'+i;
-      mod.dataset.mod = id;
-      const h = els.find(e=>e.querySelector && e.querySelector('h2')) || (els[0].querySelector ? els[0] : null);
       let label = 'Indicadores';
       const h2 = els.map(e=>e.querySelector && e.querySelector('h2')).find(Boolean);
       if (h2) label = h2.textContent.trim();
       else if (els[0].classList && els[0].classList.contains('kpis')) label = 'Indicadores principales';
       mod.dataset.label = label;
+      mod.dataset.ord = i;   // orden original, para "Restablecer diseño"
+      // ID ESTABLE por nombre (slug): agregar/quitar secciones no rompe el layout guardado,
+      // y cualquier layout viejo con ids 'm0..mN' simplemente se ignora (se ve todo en orden).
+      let base = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40) || ('mod-'+i);
+      let id = base, n=2;
+      while (usedIds[id]){ id = base+'-'+n; n++; }
+      usedIds[id] = true;
+      mod.dataset.mod = id;
 
       const bar = document.createElement('div');
       bar.className = 'mod-toolbar';
@@ -4695,7 +4701,7 @@ initDb();
     layout = { order: [], hidden: {} };
     saveLayout();
     // Reordena por id numérico original.
-    moduleEls().sort((a,b)=>parseInt(a.dataset.mod.slice(1))-parseInt(b.dataset.mod.slice(1)))
+    moduleEls().sort((a,b)=>(+a.dataset.ord||0)-(+b.dataset.ord||0))
                .forEach(m=>modZone.appendChild(m));
     applyLayout();
     showToast('Diseño restablecido.');
