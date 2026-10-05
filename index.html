@@ -1560,8 +1560,12 @@ function allDatesSorted(){
   return Array.from(new Set(Array.from(state.daily.values()).map(r=>r.date))).sort();
 }
 function lastUploadRange(){
-  if (!state.uploads.length) return null;
-  const latest = state.uploads.reduce((a,b)=> (a.uploadedAt > b.uploadedAt ? a : b));
+  // Solo los reportes de Issabel definen el período principal de la vista.
+  // Las cargas de celular son complementarias (se suman por gestor/día) y NO
+  // deben colapsar el dashboard a sus pocos días — por eso se ignoran aquí.
+  const main = state.uploads.filter(u => u.source !== 'phone');
+  if (!main.length) return null;
+  const latest = main.reduce((a,b)=> (a.uploadedAt > b.uploadedAt ? a : b));
   return [latest.dateMin, latest.dateMax];
 }
 function currentRangeBounds(){
