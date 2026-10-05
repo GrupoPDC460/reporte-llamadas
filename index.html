@@ -3110,13 +3110,15 @@ async function handleFile(file){
 
     if (!agg.size){ showToast('No se encontraron filas que coincidan con extensiones de gestores conocidos.'); return; }
 
-    // Este reporte va a reemplazar por completo el historial de Issabel. Antes de
-    // borrar todo, rescata cualquier aporte de "registro de celular" (gestores que
-    // también reportan llamadas desde su teléfono) para que ese reemplazo no se lo
-    // lleve por delante — se vuelve a sumar sobre los datos nuevos de Issabel.
+    // ACUMULAR POR FECHA (no borrar todo): este reporte reemplaza SOLO los días que
+    // trae (dMin..dMax) y CONSERVA todo lo que esté fuera de ese rango — por ejemplo
+    // los meses anteriores ya cargados. Así, al subir octubre NO se pierde septiembre.
+    // Antes de reemplazar el rango, rescata los aportes de "registro de celular" de
+    // esos mismos días para que la recarga de Issabel no se los lleve.
     state.daily.forEach((rec, key)=>{
       if (!rec.phone || !rec.phone.total) return;
       const [ext, date] = key.split('_');
+      if (date < dMin || date > dMax) return;   // fuera del rango del archivo: se conserva intacto
       if (agg.has(key)){
         applyPhoneDelta(agg.get(key), rec.phone, 1);
         agg.get(key).phone = rec.phone;
@@ -3128,16 +3130,15 @@ async function handleFile(file){
       }
     });
 
-    // Cada reporte semanal reemplaza por completo al anterior: no se acumula historial
-    // entre cargas. Se borran todos los registros previos (local y en la base) antes
-    // de escribir los del archivo recién subido (los aportes de celular ya quedaron
-    // rescatados arriba, dentro de agg).
-    const oldKeys = Array.from(state.daily.keys());
-    state.daily.clear();
-    if (state.db && oldKeys.length){
+    // Borra únicamente los registros DENTRO del rango del archivo (dMin..dMax) y
+    // conserva el resto (historial de otros meses). Los aportes de celular de ese
+    // rango ya quedaron rescatados arriba, dentro de agg.
+    const keysInRange = Array.from(state.daily.keys()).filter(k=>{ const d=k.split('_')[1]; return d>=dMin && d<=dMax; });
+    keysInRange.forEach(k=> state.daily.delete(k));
+    if (state.db && keysInRange.length){
       const CONC = 12;
-      for (let i=0;i<oldKeys.length;i+=CONC){
-        await Promise.all(oldKeys.slice(i,i+CONC).map(k=>
+      for (let i=0;i<keysInRange.length;i+=CONC){
+        await Promise.all(keysInRange.slice(i,i+CONC).map(k=>
           state.db.collection('daily_stats').doc(k).delete().catch(()=>{})
         ));
       }
