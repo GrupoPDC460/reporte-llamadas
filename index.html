@@ -1168,7 +1168,7 @@ body.capture-mode .capture-view{display:flex;}
       <div class="card-head">
         <h2>Ranking por cumplimiento de meta</h2>
         <span class="hint" id="goalRankHint">% de la meta diaria acumulada</span>
-        <button class="btn" id="btnCopyRank" style="margin-left:auto;" title="Copiar el ranking completo separado por equipos para compartir">
+        <button class="btn" id="btnCopyRank" style="margin-left:auto;" title="Copiar el ranking general completo (todos los gestores, con su equipo) para compartir">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
           Copiar
         </button>
@@ -2386,16 +2386,10 @@ function copyGoalRankingByTeam(){
   }).filter(r=>r.pct!==null);
 
   const range = `${dateFmtHumanFull.format(toUTC(min))} al ${dateFmtHumanFull.format(toUTC(max))}`;
-  const line = (r,i)=>{ const dif=Math.round(r.tot-r.meta); const ds=(dif>=0?'+':'')+fmtInt(dif); return `${i+1}. ${r.name} — ${Math.round(r.pct)}% (${ds} vs meta · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))})`; };
-  let txt = `📊 RANKING POR CUMPLIMIENTO DE META\n${range}\n% de meta diaria (variable por período) acumulada · sin fines de semana`;
-  const groups = [['chevere','🟢 TEAM CHEVERE'],['imparables','🟠 TEAM IMPARABLES']];
-  groups.forEach(([key,label])=>{
-    const list = rows.filter(r=>r.team===key).sort((a,b)=>b.pct-a.pct);
-    if(!list.length) return;
-    txt += `\n\n${label}\n` + list.map((r,i)=>line(r,i)).join('\n');
-  });
-  const otros = rows.filter(r=>r.team!=='chevere' && r.team!=='imparables').sort((a,b)=>b.pct-a.pct);
-  if(otros.length) txt += `\n\n• SIN EQUIPO\n` + otros.map((r,i)=>line(r,i)).join('\n');
+  const teamTag = t => t==='chevere' ? '🟢 Chevere' : t==='imparables' ? '🟠 Imparables' : '⚪ Sin equipo';
+  const line = (r,i)=>{ const dif=Math.round(r.tot-r.meta); const ds=(dif>=0?'+':'')+fmtInt(dif); return `${i+1}. ${r.name} ${teamTag(r.team)} — ${Math.round(r.pct)}% (${ds} vs meta · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))})`; };
+  const sorted = rows.slice().sort((a,b)=>b.pct-a.pct);   // ranking GENERAL (todos juntos), con el equipo visible por gestor
+  let txt = `📊 RANKING POR CUMPLIMIENTO DE META\n${range}\n% de meta diaria (variable por período) acumulada · sin fines de semana\n\n` + sorted.map((r,i)=>line(r,i)).join('\n');
 
   const doCopy = (t)=>{
     if(navigator.clipboard && navigator.clipboard.writeText){
