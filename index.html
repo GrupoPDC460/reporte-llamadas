@@ -1168,6 +1168,10 @@ body.capture-mode .capture-view{display:flex;}
       <div class="card-head">
         <h2>Ranking por cumplimiento de meta</h2>
         <span class="hint" id="goalRankHint">% de la meta diaria acumulada</span>
+        <button class="btn" id="btnCopyRank" style="margin-left:auto;" title="Copiar el ranking completo separado por equipos para compartir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          Copiar
+        </button>
       </div>
       <div id="goalRankList"></div>
     </div>
@@ -2368,6 +2372,43 @@ function renderPeriodCompliance(){
   el.innerHTML = `<div class="pc-title">Cumplimiento por gestor y período <span class="pc-hint">${escapeHtml(scopeLabel)} · verde ≥100% · sin fines de semana</span></div><div class="pc-table">${head}${body}</div>`;
 }
 
+function copyGoalRankingByTeam(){
+  const [min,max] = currentRangeBounds();
+  if(!min){ showToast('Sin datos para copiar.'); return; }
+  let dates=[]; let d=toUTC(min); const e=toUTC(max);
+  while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
+  dates = state.filterDay ? dates.filter(dt=>dt===state.filterDay) : dates.filter(dt=>!isWeekend(dt));
+  const exts = visibleExts();   // ranking COMPLETO del alcance actual
+  const rows = exts.map(ext=>{
+    let dias=0, tot=0, meta=0;
+    dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(!(r&&(r.total||0)>0)) return; if(isDayExcusedFull(ext,dt)) return; dias++; tot+=r.total; meta+=metaForDay(ext,dt); });
+    return {ext, name:gName(ext), team:gTeam(ext), pct: meta?tot/meta*100:null, tot, meta};
+  }).filter(r=>r.pct!==null);
+
+  const range = `${dateFmtHumanFull.format(toUTC(min))} al ${dateFmtHumanFull.format(toUTC(max))}`;
+  const line = (r,i)=>{ const dif=Math.round(r.tot-r.meta); const ds=(dif>=0?'+':'')+fmtInt(dif); return `${i+1}. ${r.name} — ${Math.round(r.pct)}% (${ds} vs meta · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))})`; };
+  let txt = `📊 RANKING POR CUMPLIMIENTO DE META\n${range}\n% de meta diaria (variable por período) acumulada · sin fines de semana`;
+  const groups = [['chevere','🟢 TEAM CHEVERE'],['imparables','🟠 TEAM IMPARABLES']];
+  groups.forEach(([key,label])=>{
+    const list = rows.filter(r=>r.team===key).sort((a,b)=>b.pct-a.pct);
+    if(!list.length) return;
+    txt += `\n\n${label}\n` + list.map((r,i)=>line(r,i)).join('\n');
+  });
+  const otros = rows.filter(r=>r.team!=='chevere' && r.team!=='imparables').sort((a,b)=>b.pct-a.pct);
+  if(otros.length) txt += `\n\n• SIN EQUIPO\n` + otros.map((r,i)=>line(r,i)).join('\n');
+
+  const doCopy = (t)=>{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(()=>showToast('Ranking copiado — pégalo en WhatsApp o correo.'), ()=>fallbackCopyText(t));
+    } else fallbackCopyText(t);
+  };
+  doCopy(txt);
+}
+function fallbackCopyText(t){
+  try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('Ranking copiado — pégalo en WhatsApp o correo.'); }
+  catch(err){ showToast('No se pudo copiar automáticamente.'); }
+}
+
 function renderGoalRanking(){
   const el = $('#goalRankList');
   const [min,max] = currentRangeBounds();
@@ -3525,6 +3566,7 @@ $('#phonePickerConfirm').addEventListener('click', async ()=>{
 });
 
 $('#btnExport').addEventListener('click', exportCsv);
+{ const _cr=document.getElementById('btnCopyRank'); if(_cr) _cr.addEventListener('click', copyGoalRankingByTeam); }
 $('#btnExportSummary').addEventListener('click', exportSummaryCsv);
 $('#btnSettings').addEventListener('click', openDrawer);
 $('#btnCloseDrawer').addEventListener('click', closeDrawer);
