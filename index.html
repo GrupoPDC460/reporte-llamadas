@@ -4,6 +4,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 /* ============================= TOKENS ============================= */
@@ -1171,6 +1172,10 @@ body.capture-mode .capture-view{display:flex;}
         <button class="btn" id="btnCopyRank" style="margin-left:auto;" title="Copiar el ranking general completo (todos los gestores, con su equipo) para compartir">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
           Copiar
+        </button>
+        <button class="btn primary" id="btnImgRank" title="Generar imagen (infografía) del ranking por equipos para compartir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M3 16l4-4 3 3 4-4 7 6"/></svg>
+          Imagen
         </button>
       </div>
       <div id="goalRankList"></div>
@@ -2403,6 +2408,91 @@ function fallbackCopyText(t){
   catch(err){ showToast('No se pudo copiar automáticamente.'); }
 }
 
+function buildRankingCard(che, imp, range){
+  const NAVY='#00216f', ORANGE='#ff5100';
+  function teamColumn(title, emoji, headerBg, list){
+    const medals=['#e8b53a','#b9c3cb','#cd7f45'];
+    const rowsHtml = list.length ? list.map((r,i)=>{
+      const pct=Math.round(r.pct);
+      const dif=Math.round(r.tot-r.meta);
+      const difStr=(dif>=0?'+':'')+fmtInt(dif);
+      const barW=Math.max(3, Math.min(pct,100));
+      const barColor = pct>=100 ? '#3aa76d' : pct>=50 ? '#f3a938' : '#e03131';
+      const medalBg = medals[i] || '#9aa7b2';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #eef1f4;">
+        <div style="width:26px;height:26px;border-radius:50%;background:${medalBg};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">${i+1}</div>
+        <div style="flex:1 1 auto;min-width:0;font-weight:800;color:${NAVY};font-size:12.5px;line-height:1.15;">${escapeHtml(r.name)}</div>
+        <div style="width:130px;flex:none;">
+          <div style="font-weight:800;color:${NAVY};font-size:15px;line-height:1;">${pct}%</div>
+          <div style="height:7px;border-radius:4px;background:#eef1f4;margin-top:4px;overflow:hidden;"><div style="height:100%;width:${barW}%;background:${barColor};border-radius:4px;"></div></div>
+        </div>
+        <div style="width:48px;flex:none;text-align:right;font-weight:800;font-size:12px;color:${dif>=0?'#2f9e44':'#e03131'};">${difStr}</div>
+        <div style="width:64px;flex:none;text-align:right;color:#8a97a3;font-size:11px;font-family:'Courier New',monospace;">${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))}</div>
+      </div>`;
+    }).join('') : '<div style="padding:20px;text-align:center;color:#8a97a3;font-size:12px;">Sin datos en este período.</div>';
+    return `<div style="flex:1 1 0;min-width:0;background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:10px;padding:13px 16px;background:${headerBg};">
+        <span style="font-size:22px;">${emoji}</span>
+        <span style="color:#fff;font-weight:800;font-size:18px;letter-spacing:.5px;">TEAM ${title}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;background:#f6f8fa;color:#8a97a3;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">
+        <div style="width:26px;flex:none;">#</div><div style="flex:1 1 auto;">Nombre</div>
+        <div style="width:130px;flex:none;">% de meta</div><div style="width:48px;flex:none;text-align:right;">Vs meta</div><div style="width:64px;flex:none;text-align:right;">Llam/Meta</div>
+      </div>
+      ${rowsHtml}
+    </div>`;
+  }
+  const el=document.createElement('div');
+  el.style.cssText=`position:fixed;left:-99999px;top:0;width:1000px;background:#eaf2fb;padding:26px;box-sizing:border-box;font-family:${(getComputedStyle(document.body).fontFamily||'Arial,sans-serif')};`;
+  el.innerHTML=`
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:54px;height:54px;border-radius:50%;background:${NAVY};display:flex;align-items:center;justify-content:center;font-size:27px;">📞</div>
+        <div style="font-weight:900;color:${NAVY};font-size:26px;line-height:1.02;letter-spacing:.5px;">RANKING POR<br>CUMPLIMIENTO DE META</div>
+      </div>
+      <div style="color:${ORANGE};font-weight:800;font-style:italic;font-size:20px;text-align:right;line-height:1.05;">¡Juntos<br>logramos más!</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
+      <span style="background:#dce9f7;color:${NAVY};font-weight:700;font-size:12px;padding:6px 13px;border-radius:20px;">📅 ${range}</span>
+      <span style="color:#8a97a3;font-size:11.5px;">🎯 % de meta diaria (variable por período) acumulada · sin fines de semana</span>
+    </div>
+    <div style="display:flex;gap:18px;align-items:flex-start;">
+      ${teamColumn('CHEVERE','👑','linear-gradient(90deg,#00216f,#0a3a9c)',che)}
+      ${teamColumn('IMPARABLES','🔥','linear-gradient(90deg,#ff5100,#ff7a33)',imp)}
+    </div>
+    <div style="text-align:center;color:${ORANGE};font-weight:800;font-style:italic;font-size:18px;margin-top:18px;">¡Tu esfuerzo se nota!</div>`;
+  return el;
+}
+async function generateRankingImage(){
+  if (typeof html2canvas==='undefined'){ showToast('La imagen se está preparando… intenta de nuevo en unos segundos.'); return; }
+  const [min,max]=currentRangeBounds(); if(!min){ showToast('Sin datos para la imagen.'); return; }
+  let dates=[]; let d=toUTC(min); const e=toUTC(max);
+  while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
+  dates = state.filterDay ? dates.filter(dt=>dt===state.filterDay) : dates.filter(dt=>!isWeekend(dt));
+  const rows = visibleExts().map(ext=>{
+    let tot=0, meta=0, dias=0;
+    dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(!(r&&(r.total||0)>0)) return; if(isDayExcusedFull(ext,dt)) return; dias++; tot+=r.total; meta+=metaForDay(ext,dt); });
+    return {ext, name:gName(ext), team:gTeam(ext), pct: meta?tot/meta*100:null, tot, meta, dias};
+  }).filter(r=>r.pct!==null);
+  const che=rows.filter(r=>r.team==='chevere').sort((a,b)=>b.pct-a.pct);
+  const imp=rows.filter(r=>r.team==='imparables').sort((a,b)=>b.pct-a.pct);
+  const range=`${dateFmtHumanFull.format(toUTC(min))} al ${dateFmtHumanFull.format(toUTC(max))}`;
+  const el=buildRankingCard(che,imp,range);
+  document.body.appendChild(el);
+  showToast('Generando imagen…');
+  try{
+    const canvas=await html2canvas(el,{scale:2,backgroundColor:null,logging:false,useCORS:true});
+    canvas.toBlob(blob=>{
+      if(!blob){ showToast('No se pudo generar la imagen.'); return; }
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=`ranking_cumplimiento_${min}_a_${max}.png`;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+      showToast('Imagen descargada — compártela en WhatsApp o correo.');
+    }, 'image/png');
+  }catch(err){ showToast('No se pudo generar la imagen.'); }
+  finally{ el.remove(); }
+}
+
 function renderGoalRanking(){
   const el = $('#goalRankList');
   const [min,max] = currentRangeBounds();
@@ -3561,6 +3651,7 @@ $('#phonePickerConfirm').addEventListener('click', async ()=>{
 
 $('#btnExport').addEventListener('click', exportCsv);
 { const _cr=document.getElementById('btnCopyRank'); if(_cr) _cr.addEventListener('click', copyGoalRankingByTeam); }
+{ const _ir=document.getElementById('btnImgRank'); if(_ir) _ir.addEventListener('click', generateRankingImage); }
 $('#btnExportSummary').addEventListener('click', exportSummaryCsv);
 $('#btnSettings').addEventListener('click', openDrawer);
 $('#btnCloseDrawer').addEventListener('click', closeDrawer);
