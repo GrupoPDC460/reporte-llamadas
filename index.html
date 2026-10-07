@@ -1022,6 +1022,9 @@ body.capture-mode .capture-view{display:flex;}
       <button data-range="30">Últimos 30 días</button>
       <button data-range="all">Todo el historial</button>
     </div>
+    <select class="pick" id="pickMonth" aria-label="Ver un mes" title="Ver solo un mes (evita mezclar meses)">
+      <option value="">📅 Ver un mes…</option>
+    </select>
     <select class="pick" id="pickTeam" aria-label="Filtrar por equipo">
       <option value="">Todos los equipos</option>
       <option value="chevere">🟢 Team Chevere</option>
@@ -1669,9 +1672,23 @@ function lastUploadRange(){
   const latest = main.reduce((a,b)=> (a.uploadedAt > b.uploadedAt ? a : b));
   return [latest.dateMin, latest.dateMax];
 }
+function monthsPresent(){
+  return Array.from(new Set(allDatesSorted().map(d=>d.slice(0,7)))).sort();
+}
+function monthLabel(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const t = new Intl.DateTimeFormat('es',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,1)));
+  return t.charAt(0).toUpperCase()+t.slice(1);
+}
 function currentRangeBounds(){
   const dates = allDatesSorted();
   if (!dates.length) return [null,null];
+  if (typeof state.range==='string' && state.range.startsWith('month:')){
+    const ym = state.range.slice(6);
+    const inMonth = dates.filter(d=>d.slice(0,7)===ym);
+    if (inMonth.length) return [inMonth[0], inMonth[inMonth.length-1]];
+    return [dates[0], dates[dates.length-1]];   // mes sin datos: cae a todo el historial
+  }
   if (state.range === 'all') return [dates[0], dates[dates.length-1]];
   if (state.range === 'last_upload'){
     const r = lastUploadRange();
@@ -1715,6 +1732,14 @@ function recordsIgnoringDay(){
 }
 
 function populateFilterOptions(){
+  const mSel = $('#pickMonth');
+  if (mSel){
+    const months = monthsPresent();
+    const cur = (typeof state.range==='string' && state.range.startsWith('month:')) ? state.range.slice(6) : '';
+    mSel.innerHTML = '<option value="">📅 Ver un mes…</option>' +
+      months.slice().reverse().map(m=>`<option value="${m}" ${m===cur?'selected':''}>${monthLabel(m)}</option>`).join('');
+    mSel.value = cur;
+  }
   const tSel = $('#pickTeam');
   if (tSel.value !== state.filterTeam) tSel.value = state.filterTeam;
 
@@ -3214,6 +3239,12 @@ function renderFootnote(){
 }
 
 function renderAll(){
+  // Por defecto la vista abre en el MES ACTUAL (el más reciente con datos), para no mezclar meses.
+  // Deja de aplicarse en cuanto el usuario elige otro período manualmente.
+  if (!state._userRange){
+    const ms = monthsPresent();
+    if (ms.length) state.range = 'month:'+ms[ms.length-1];
+  }
   $$('#rangeSeg button').forEach(b=> b.classList.toggle('active', b.dataset.range===state.range));
   populateFilterOptions();
   renderKPIs();
@@ -3369,7 +3400,7 @@ async function handleFile(file){
       rowsTotal, rowsMatched, rowsUnmatched, dateMin:dMin, dateMax:dMax, thresholdUsed: state.config.thresholdSeconds
     };
     state.uploads.push(uploadEntry);
-    state.range = 'last_upload';
+    state._userRange = true; state.range = 'last_upload';
 
     let uploadBlocked = false;
     if (state.db){
@@ -3658,8 +3689,10 @@ $('#btnCloseDrawer').addEventListener('click', closeDrawer);
 $('#overlay').addEventListener('click', closeDrawer);
 $('#toggleDetail').addEventListener('click', ()=>{ state.detail = !state.detail; $('#toggleDetail').textContent = state.detail ? 'ocultar contestadas / totales' : 'ver contestadas / totales'; renderMatrix(); });
 
+{ const _pm=document.getElementById('pickMonth');
+  if(_pm) _pm.addEventListener('change', ()=>{ state._userRange=true; state.range = _pm.value ? ('month:'+_pm.value) : 'last_upload'; state.filterDay=''; renderAll(); }); }
 $$('#rangeSeg button').forEach(btn=>{
-  btn.addEventListener('click', ()=>{ state.range = btn.dataset.range; state.filterDay=''; renderAll(); });
+  btn.addEventListener('click', ()=>{ state._userRange=true; state.range = btn.dataset.range; state.filterDay=''; renderAll(); });
 });
 
 $('#pickTeam').addEventListener('change', e=>{
@@ -4498,7 +4531,7 @@ initDb();
       if (!ok) return;
       if (!applyData(obj)){ showToast('El archivo no tiene el formato de base esperado.'); return; }
       try{ localStorage.setItem(DATA_KEY, JSON.stringify(snapshotData())); }catch(e){}
-      state.range = 'all';
+      state._userRange = true; state.range = 'all';
       renderAll();
       showToast('Base cargada correctamente.');
     }catch(e){ showToast('No se pudo leer el archivo .json de la base.'); }
