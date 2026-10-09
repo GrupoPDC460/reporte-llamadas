@@ -5466,32 +5466,32 @@ initDb();
     resumen:'Resumen general', equipo:'Actividad del equipo',
     cumplimiento:'Cumplimiento', contactabilidad:'Contactabilidad', admin:'Panel supervisor'
   };
-  var MOD_PAGE = {
-    'indicadores-principales':'resumen',
-    'panel-de-supervision':'admin',
-    'resumen-semanal':'equipo',
-    'top-3-por-equipo-mejor-contacto':'equipo',
-    'llamadas-por-canal-issabel-vs-celular':'equipo',
-    'llamadas-por-gestor':'equipo',
-    'llamadas-por-mercado':'equipo',
-    'ranking-y-actividad-del-equipo':'equipo',
-    'resumen-completo-de-llamadas':'equipo',
-    'duracion-de-llamada':'contactabilidad',
-    'detalle-de-duracion-de-llamada-por-gesto':'contactabilidad',
-    'cumplimiento-de-meta-diaria':'cumplimiento',
-    'defase-vs-meta-diaria-faltante-y-acumula':'cumplimiento',
-    'contactabilidad-por-gestor-y-dia':'contactabilidad'
-  };
+  // Cada sección se asigna a su página según los ELEMENTOS que contiene (ids estables),
+  // no por su título (los títulos cambian solos según los datos y los filtros).
+  var PAGE_MARKERS = [
+    ['admin',           ['supProgress','supAlerts','justList']],
+    ['cumplimiento',    ['complianceTable','defaseSvg']],
+    ['contactabilidad', ['contactTable','matrixTable','kpiAvgDur']],
+    ['equipo',          ['weeklySvg','top3Grid','channelSplit','gestorBarSvg','kpiMarketCount','rankList','summaryTable']],
+    ['resumen',         ['kpiEffective']]
+  ];
+  function pageOf(mod){
+    for (var i=0;i<PAGE_MARKERS.length;i++){
+      var ids = PAGE_MARKERS[i][1];
+      for (var j=0;j<ids.length;j++){ if (mod.querySelector('#'+ids[j])) return PAGE_MARKERS[i][0]; }
+    }
+    return 'resumen';
+  }
 
   function assignPages(){
     var mods = document.querySelectorAll('#modZone > .dash-mod');
-    mods.forEach(function(mod){ mod.dataset.page = MOD_PAGE[mod.dataset.mod] || 'resumen'; });
+    mods.forEach(function(mod){ mod.dataset.page = pageOf(mod); });
   }
 
   var currentPage = 'resumen';
   var pagesAssigned = false;
 
-  function showPage(page){
+  function showPage(page, noScroll){
     currentPage = page;
     if (!pagesAssigned){ assignPages(); pagesAssigned = true; }
     document.querySelectorAll('.sb-nav a[data-page]').forEach(function(a){
@@ -5507,7 +5507,7 @@ initDb();
         mod.style.display = (mp === page || mp === 'resumen') ? '' : 'none';
       }
     });
-    window.scrollTo({top:0, behavior:'smooth'});
+    if (!noScroll) window.scrollTo({top:0, behavior:'smooth'});
   }
 
   if (toggle) toggle.addEventListener('click', function(){
@@ -5549,10 +5549,9 @@ initDb();
         mod.style.display = 'none';
       }
     });
-    }
   };
 
-  setTimeout(function(){ assignPages(); pagesAssigned = true; }, 100);
+  setTimeout(function(){ assignPages(); pagesAssigned = true; showPage(currentPage, true); }, 150);
 })();
 </script>
 </body>
