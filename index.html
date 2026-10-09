@@ -5502,7 +5502,7 @@ initDb();
       if (mod.classList.contains('mod-hidden')) return;
       var mp = mod.dataset.page || 'resumen';
       if (page === 'resumen'){
-        mod.style.display = '';
+        mod.style.display = (mp === 'admin') ? 'none' : '';
       } else {
         mod.style.display = (mp === page || mp === 'resumen') ? '' : 'none';
       }
@@ -5540,12 +5540,15 @@ initDb();
   window.renderAll = function(){
     _renderAll.apply(this, arguments);
     if (!pagesAssigned){ assignPages(); pagesAssigned = true; }
-    if (currentPage !== 'resumen'){
-      document.querySelectorAll('#modZone > .dash-mod').forEach(function(mod){
-        if (mod.classList.contains('mod-hidden')) return;
-        var mp = mod.dataset.page || 'resumen';
-        if (mp !== 'resumen' && mp !== currentPage) mod.style.display = 'none';
-      });
+    document.querySelectorAll('#modZone > .dash-mod').forEach(function(mod){
+      if (mod.classList.contains('mod-hidden')) return;
+      var mp = mod.dataset.page || 'resumen';
+      if (currentPage === 'resumen'){
+        mod.style.display = (mp === 'admin') ? 'none' : '';
+      } else if (mp !== 'resumen' && mp !== currentPage){
+        mod.style.display = 'none';
+      }
+    });
     }
   };
 
