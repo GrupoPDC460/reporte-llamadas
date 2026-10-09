@@ -971,6 +971,62 @@ body.capture-mode .capture-view{display:flex;}
   .sidebar.expanded .sb-brand-text, .sidebar.expanded .sb-section, .sidebar.expanded .sb-nav a .sb-label, .sidebar.expanded .sb-toggle .sb-label{opacity:1; width:auto;}
 }
 
+
+/* ===== Panel supervisor: carga y respaldo ===== */
+.da-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px;}
+.da-group{border:1px solid var(--border-soft); border-radius:14px; padding:14px 16px; background:var(--surface-2);}
+.da-title{font-family:var(--font-display); font-weight:800; font-size:13.5px; color:var(--ink); margin-bottom:10px;}
+.da-btns{display:flex; flex-wrap:wrap; gap:8px;}
+.da-note{margin-top:10px; font-size:12px; line-height:1.5; color:var(--ink-mute);}
+.app-header .ah-actions .btn{padding:6px 11px;}
+body.tv-mode .sidebar, body.tv-mode .app-header, body.capture-mode .sidebar, body.capture-mode .app-header{display:none !important;}
+body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
+
+/* ===== Modo TV: pantallas de resumen ===== */
+.tv-kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:18px;}
+.tv-kpi{background:var(--tv-card); border:1px solid var(--tv-card-border); border-radius:18px; padding:18px 24px;}
+.tv-kpi-label{font-size:15px; color:var(--tv-ink-mute); text-transform:uppercase; letter-spacing:.06em; font-weight:700;}
+.tv-kpi-val{font-family:var(--font-display); font-weight:800; font-size:56px; color:var(--tv-ink); line-height:1.05; margin-top:6px; font-variant-numeric:tabular-nums;}
+.tv-kpi-val.good,.tv-big.good{color:#38e07f;} .tv-kpi-val.warn,.tv-big.warn{color:#ffd166;} .tv-kpi-val.crit,.tv-big.crit{color:#ff6f6f;}
+.tv-kpi-sub{font-size:16px; color:var(--tv-ink-soft); margin-top:6px;}
+.tv-chart-card{flex:1; min-height:0; display:flex; flex-direction:column; background:var(--tv-card); border:1px solid var(--tv-card-border); border-radius:18px; padding:16px 24px 12px;}
+.tv-chart-title{font-size:18px; font-weight:700; color:var(--tv-ink-soft); margin-bottom:4px;}
+.tv-bars{flex:1; min-height:0; display:flex; gap:6px; padding-top:30px;}
+.tv-bar-col{flex:1; min-width:0; display:flex; flex-direction:column;}
+.tv-bar-track{position:relative; flex:1; min-height:50px;}
+.tv-bar-fill{position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:72%; max-width:48px; height:0; border-radius:8px 8px 3px 3px; background:linear-gradient(180deg,var(--tv-accent),rgba(109,179,255,.35)); transition:height 1s cubic-bezier(.22,1,.36,1);}
+.tv-bar-fill.good{background:linear-gradient(180deg,#38e07f,rgba(56,224,127,.3));}
+.tv-bar-val{position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:4px; font-size:15px; font-weight:700; color:var(--tv-ink); white-space:nowrap; font-variant-numeric:tabular-nums;}
+.tv-bars.compact .tv-bar-val{display:none;}
+.tv-bar-lbl{font-size:14px; color:var(--tv-ink-mute); text-align:center; margin-top:6px; line-height:1.1;}
+.tv-bar-lbl small{display:block; font-size:11px; opacity:.8;}
+.tv-two-col{display:grid; grid-template-columns:1.55fr 1fr; gap:18px; flex:1; min-height:0;}
+.tv-side{display:flex; flex-direction:column; gap:14px; min-height:0;}
+.tv-top-card{flex:1; min-height:0; background:var(--tv-card); border:1px solid var(--tv-card-border); border-radius:18px; padding:14px 20px; display:flex; flex-direction:column;}
+.tv-top-row{display:grid; grid-template-columns:34px 1fr auto; gap:12px; align-items:center; padding:9px 0; border-top:1px solid var(--tv-card-border);}
+.tv-top-row:first-of-type{border-top:none;}
+.tv-top-pos{font-size:22px; text-align:center;}
+.tv-top-name{font-size:21px; font-weight:700; color:var(--tv-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.tv-top-sub{font-size:13.5px; color:var(--tv-ink-mute); font-weight:500;}
+.tv-top-val{font-family:var(--font-mono); font-size:24px; font-weight:800; color:var(--tv-accent); font-variant-numeric:tabular-nums;}
+.tv-big{font-family:var(--font-display); font-weight:800; font-size:76px; line-height:1; color:var(--tv-ink); font-variant-numeric:tabular-nums;}
+.tv-dur-wrap{display:flex; flex-direction:column; gap:16px; flex:1; min-height:0; justify-content:center;}
+.tv-dur-head{display:flex; align-items:baseline; gap:20px;}
+.tv-dur-row{display:grid; grid-template-columns:230px 1fr 230px; gap:18px; align-items:center;}
+.tv-dur-name{font-size:24px; font-weight:700; color:var(--tv-ink);}
+.tv-dur-track{height:30px; border-radius:15px; background:rgba(255,255,255,.07); overflow:hidden;}
+.tv-dur-fill{height:100%; width:0; border-radius:15px; background:var(--tv-accent); transition:width 1.1s cubic-bezier(.22,1,.36,1);}
+.tv-dur-fill.warn{background:#ffd166;} .tv-dur-fill.good{background:#38e07f;}
+.tv-dur-num{font-family:var(--font-mono); font-size:24px; font-weight:800; color:var(--tv-ink); text-align:right; font-variant-numeric:tabular-nums;}
+.tv-dur-num span{font-size:15px; color:var(--tv-ink-mute); font-weight:600; margin-left:6px;}
+.tv-empty{flex:1; display:flex; align-items:center; justify-content:center; font-size:24px; color:var(--tv-ink-mute);}
+
+/* Capas: paneles flotantes por encima del sidebar fijo */
+.overlay{z-index:110 !important;} .drawer{z-index:120 !important;} .phone-picker{z-index:121 !important;} .toast{z-index:130 !important;}
+
+/* Encabezado: se ajusta en pantallas angostas */
+.app-header{height:auto !important; min-height:var(--header-h); padding-top:8px !important; padding-bottom:8px !important; flex-wrap:wrap;}
+.app-header .ah-actions{flex-wrap:wrap; justify-content:flex-end;}
 </style>
 
 <div class="app-layout">
@@ -986,6 +1042,7 @@ body.capture-mode .capture-view{display:flex;}
     <li><a data-page="equipo"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sb-label">Actividad del equipo</span></a></li>
     <li><a data-page="cumplimiento"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg><span class="sb-label">Cumplimiento</span></a></li>
     <li><a data-page="contactabilidad"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.97.36 1.93.7 2.85a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.92.34 1.88.57 2.85.7A2 2 0 0 1 22 16.92z"/></svg><span class="sb-label">Contactabilidad</span></a></li>
+    <li><a id="sbTvMode"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg><span class="sb-label">Modo TV</span></a></li>
   </ul>
   <div class="sb-section">Administración</div>
   <ul class="sb-nav">
@@ -1000,7 +1057,21 @@ body.capture-mode .capture-view{display:flex;}
 <div class="main-area">
 <div class="app-header" id="appHeader">
   <span class="ah-breadcrumb">Grupo PDC / <b id="ahPageTitle">Resumen general</b></span>
-  <div class="ah-actions" id="ahActions"></div>
+  <div class="ah-actions" id="ahActions">
+  <span class="badge-count" id="liveBadge" style="font-size:12px; padding:5px 11px;">Panel en vivo · datos en este navegador</span>
+  <button class="btn ghost" id="btnTvMode" title="Abrir modo TV a pantalla completa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg>
+      Modo TV
+    </button>
+  <button class="btn ghost" id="btnCaptureView" title="Vista fija de todos los gestores, lista para capturar en una sola imagen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      Vista para capturar
+    </button>
+  <button class="btn ghost" id="btnThemeToggle" title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconSun" hidden><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconMoon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+</div>
 </div>
 
 <div class="topbar">
@@ -1012,53 +1083,6 @@ body.capture-mode .capture-view{display:flex;}
         <p id="teamMeta">Grupo PDC · Equipo de gestores · Issabel CDR</p>
       </div>
     </div>
-    <span class="badge-count" id="liveBadge" style="font-size:12px; padding:5px 11px;">Panel en vivo · datos en este navegador</span>
-    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden style="display:none;">
-    <input type="file" id="baseInput" accept=".json,application/json" hidden style="display:none;">
-    <input type="file" id="phoneFileInput" accept=".txt,text/plain" hidden style="display:none;">
-    <button class="btn primary" id="btnUpload">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M12 4l-5 5M12 4l5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-      Subir reporte semanal
-    </button>
-    <button class="btn" id="btnUploadPhone" title="Subir un registro de llamadas exportado de un celular (.txt) para un gestor específico">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/><path d="M12 14V7M12 7l-2.5 2.5M12 7l2.5 2.5"/></svg>
-      Subir registro (celular)
-    </button>
-    <button class="btn" id="btnExport">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity="0"/><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 19h16"/></svg>
-      CSV
-    </button>
-    <button class="btn" id="btnDownloadBase" title="Descargar toda la base como respaldo (.json)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-      Descargar base
-    </button>
-    <button class="btn" id="btnDownloadHtml" title="Descargar este panel como un HTML independiente, con los datos actualizados a este momento">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M12 12v6"/><path d="M9.5 15.5L12 18l2.5-2.5"/></svg>
-      Descargar HTML
-    </button>
-    <button class="btn" id="btnLoadBase" title="Cargar una base guardada (.json) — reemplaza los datos actuales">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
-      Cargar base
-    </button>
-    <button class="btn" id="btnEditLayout" title="Reordenar, ocultar o mostrar las cajitas y gráficos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16"/><path d="M4 12h10"/><path d="M4 19h16"/><path d="M18 9l3 3-3 3"/></svg>
-      <span id="editLayoutLabel">Editar diseño</span>
-    </button>
-    <button class="btn ghost" id="btnTvMode" title="Abrir modo TV a pantalla completa">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg>
-      Modo TV
-    </button>
-    <button class="btn ghost" id="btnCaptureView" title="Vista fija de todos los gestores, lista para capturar en una sola imagen">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-      Vista para capturar
-    </button>
-    <button class="btn ghost" id="btnThemeToggle" title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconSun" hidden><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconMoon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
-    <button class="btn ghost" id="btnSettings" title="Configuración" aria-label="Configuración">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>
-    </button>
   </div>
 </div>
 
@@ -1169,6 +1193,62 @@ body.capture-mode .capture-view{display:flex;}
   <div class="section-title">
     <h2>Panel de supervisión</h2>
     <span class="hint">metas variables · alertas · KPIs derivados · avance de cumplimiento</span>
+  </div>
+
+  <div class="card" id="dataAdminCard">
+    <div class="card-head">
+      <h2>Carga de datos, respaldo y configuración</h2>
+      <span class="hint">todo lo administrable en un solo lugar</span>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden style="display:none;">
+    <input type="file" id="baseInput" accept=".json,application/json" hidden style="display:none;">
+    <input type="file" id="phoneFileInput" accept=".txt,text/plain" hidden style="display:none;">
+    <div class="da-grid">
+      <div class="da-group">
+        <div class="da-title">1 · Subir reportes</div>
+        <div class="da-btns"><button class="btn primary" id="btnUpload">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M12 4l-5 5M12 4l5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      Subir reporte semanal
+    </button><button class="btn" id="btnUploadPhone" title="Subir un registro de llamadas exportado de un celular (.txt) para un gestor específico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/><path d="M12 14V7M12 7l-2.5 2.5M12 7l2.5 2.5"/></svg>
+      Subir registro (celular)
+    </button></div>
+        <div class="da-note"><b>Reporte semanal</b> (Issabel, .xlsx/.csv): reemplaza solo los días que trae y conserva el resto del historial. <b>Registro de celular</b> (.txt): se <b>suma</b> a las llamadas de Issabel del gestor que elijas.</div>
+      </div>
+      <div class="da-group">
+        <div class="da-title">2 · Base de datos y respaldo</div>
+        <div class="da-btns"><button class="btn" id="btnDownloadBase" title="Descargar toda la base como respaldo (.json)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      Descargar base
+    </button><button class="btn" id="btnLoadBase" title="Cargar una base guardada (.json) — reemplaza los datos actuales">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+      Cargar base
+    </button><button class="btn" id="btnExport">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity="0"/><path d="M12 3v12M12 15l-4-4M12 15l4-4"/><path d="M4 19h16"/></svg>
+      CSV
+    </button><button class="btn" id="btnDownloadHtml" title="Descargar este panel como un HTML independiente, con los datos actualizados a este momento">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M12 12v6"/><path d="M9.5 15.5L12 18l2.5-2.5"/></svg>
+      Descargar HTML
+    </button></div>
+        <div class="da-note"><b>Descargar base</b> guarda un respaldo completo (.json) — hazlo antes de cerrar un mes. <b>Cargar base</b> lo restaura. <b>CSV</b> exporta el resumen de lo que ves.</div>
+      </div>
+      <div class="da-group">
+        <div class="da-title">3 · Metas, justificaciones y vista</div>
+        <div class="da-btns">
+          <button class="btn" id="jumpGoals">Metas diarias</button>
+          <button class="btn" id="jumpJust">Justificaciones</button>
+          <button class="btn" id="jumpKpis">KPIs derivados</button>
+        </div>
+        <div class="da-btns" style="margin-top:8px;"><button class="btn" id="btnSettings" title="Configuración" aria-label="Configuración">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>
+      Configuración
+    </button><button class="btn" id="btnEditLayout" title="Reordenar, ocultar o mostrar las cajitas y gráficos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16"/><path d="M4 12h10"/><path d="M4 19h16"/><path d="M18 9l3 3-3 3"/></svg>
+      <span id="editLayoutLabel">Editar diseño</span>
+    </button></div>
+        <div class="da-note">Las <b>metas por período</b>, las <b>vacaciones / incapacidades / permisos</b> y los <b>KPIs derivados</b> están más abajo en esta misma página.</div>
+      </div>
+    </div>
   </div>
 
   <div class="card sup-progress-card">
@@ -3511,7 +3591,8 @@ async function handleFile(file){
       rowsTotal, rowsMatched, rowsUnmatched, dateMin:dMin, dateMax:dMax, thresholdUsed: state.config.thresholdSeconds
     };
     state.uploads.push(uploadEntry);
-    state._userRange = true; state.range = 'last_upload';
+    // Tras subir, la vista vuelve al MES ACTUAL (con todo lo acumulado), no a los pocos días del archivo.
+    state._userRange = false;
 
     let uploadBlocked = false;
     if (state.db){
@@ -3801,7 +3882,7 @@ $('#overlay').addEventListener('click', closeDrawer);
 $('#toggleDetail').addEventListener('click', ()=>{ state.detail = !state.detail; $('#toggleDetail').textContent = state.detail ? 'ocultar contestadas / totales' : 'ver contestadas / totales'; renderMatrix(); });
 
 { const _pm=document.getElementById('pickMonth');
-  if(_pm) _pm.addEventListener('change', ()=>{ state._userRange=true; state.range = _pm.value ? ('month:'+_pm.value) : 'last_upload'; state.filterDay=''; renderAll(); }); }
+  if(_pm) _pm.addEventListener('change', ()=>{ if (_pm.value){ state._userRange=true; state.range = 'month:'+_pm.value; } else { state._userRange=false; } state.filterDay=''; renderAll(); }); }
 $$('#rangeSeg button').forEach(btn=>{
   btn.addEventListener('click', ()=>{ state._userRange=true; state.range = btn.dataset.range; state.filterDay=''; renderAll(); });
 });
@@ -4257,6 +4338,12 @@ function tvMountAnimations(root){
     el.style.width = '0%';
     requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.style.width = w; }); });
   });
+  root.querySelectorAll('[data-height-target]').forEach(el=>{
+    const hh = el.getAttribute('data-height-target');
+    if (reduced){ el.style.height = hh; return; }
+    el.style.height = '0%';
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.style.height = hh; }); });
+  });
   const rankList = root.querySelector('.tv-rank-list');
   if (rankList) tvRunCameraTour(rankList);
 }
@@ -4285,10 +4372,130 @@ function tvLaunchConfetti(){
   setTimeout(()=>{ if (layer) layer.innerHTML = ''; }, 5200);
 }
 
-// Orden de la rotación: ranking de contactabilidad → volumen de llamadas de
-// hoy → avance de la meta → Chevere vs. Imparables.
-const TV_SCREENS = [renderTvRank, renderTvCalls, renderTvGoal, renderTvTeams];
-const TV_GOAL_SCREEN_IDX = 2;
+
+// ---------- Pantallas del Modo TV: resumen de TODO el dashboard (sin rankings de volumen de llamadas) ----------
+function tvScopeLabel(){
+  const [min,max] = currentRangeBounds();
+  return state.filterDay ? dateFmtHuman.format(toUTC(state.filterDay))
+    : (min ? `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}` : 'sin datos todavía');
+}
+function tvAggregate(){
+  const recs = filteredRecords();
+  const a = {total:0, answered:0, effective:0, talk:0, noAnswer:0, d1:0, d13:0, d3:0, active:new Set(), byDay:{}, byGestor:{}};
+  recs.forEach(r=>{
+    const t=r.total||0, an=r.answered||0, ef=r.effective||0;
+    a.total+=t; a.answered+=an; a.effective+=ef; a.talk+=(r.talk||0); a.noAnswer+=(r.noAnswer||0);
+    a.d1+=(r.durUnder1||0); a.d13+=(r.dur1to3||0); a.d3+=(r.durOver3||0);
+    if (t>0) a.active.add(r.ext);
+    const d = a.byDay[r.date] || (a.byDay[r.date]={total:0,answered:0,effective:0});
+    d.total+=t; d.answered+=an; d.effective+=ef;
+    const g = a.byGestor[r.ext] || (a.byGestor[r.ext]={total:0,answered:0,effective:0});
+    g.total+=t; g.answered+=an; g.effective+=ef;
+  });
+  a.days = Object.keys(a.byDay).filter(d=>a.byDay[d].total>0).sort();
+  return a;
+}
+// Cumplimiento de meta del período activo (misma regla que el panel: sin fines de semana,
+// sin días justificados completos, meta variable por período y por justificación parcial).
+function tvPeriodGoal(){
+  const scope = new Set(state.filterGestor ? [state.filterGestor] : visibleExts());
+  let total=0, metaSum=0;
+  filteredRecords().forEach(r=>{
+    if (!scope.has(r.ext) || !(r.total>0)) return;
+    if (!state.filterDay && isWeekend(r.date)) return;
+    if (isDayExcusedFull(r.ext, r.date)) return;
+    total += r.total; metaSum += metaForDay(r.ext, r.date);
+  });
+  return {total, metaSum, pct: metaSum ? total/metaSum*100 : null};
+}
+function tvDayLabelHtml(d, i, days){
+  const dd = d.slice(8);
+  const newMonth = i===0 || d.slice(0,7)!==days[i-1].slice(0,7);
+  if (!newMonth) return dd;
+  const mon = new Intl.DateTimeFormat('es',{month:'short',timeZone:'UTC'}).format(toUTC(d));
+  return `${dd}<small>${mon}</small>`;
+}
+function tvBarsHtml(items, cls){
+  const max = Math.max(...items.map(i=>i.value), 1);
+  return `<div class="tv-bars ${items.length>24?'compact':''}">` + items.map(it=>{
+    const hgt = Math.max((it.value/max)*100, it.value>0?3:0).toFixed(1);
+    return `<div class="tv-bar-col"><div class="tv-bar-track"><div class="tv-bar-fill ${cls||''}" data-height-target="${hgt}%"><span class="tv-bar-val">${it.text}</span></div></div><div class="tv-bar-lbl">${it.label}</div></div>`;
+  }).join('') + `</div>`;
+}
+
+function renderTvOverview(){
+  const a = tvAggregate(), g = tvPeriodGoal();
+  const scope = tvScopeLabel();
+  if (!a.total){
+    return `<div class="tv-screen-inner"><div class="tv-screen-title">Resumen de llamadas</div><div class="tv-screen-sub">${escapeHtml(scope)}</div><div class="tv-empty">Todavía no hay llamadas registradas.</div></div>`;
+  }
+  const rate = a.effective/a.total*100;
+  const st = g.pct===null ? '' : tvGoalStatusOf(g.pct);
+  const diff = g.pct===null ? null : Math.round(g.total-g.metaSum);
+  const goalSub = g.pct===null ? 'sin meta en el período' : (diff>=0 ? `+${fmtInt(diff)} sobre la meta` : `faltan ${fmtInt(-diff)} llamadas`);
+  const perDay = Math.round(a.total/Math.max(a.days.length,1));
+  const items = a.days.map((d,i)=>({label:tvDayLabelHtml(d,i,a.days), value:a.byDay[d].total, text:fmtInt(a.byDay[d].total)}));
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Resumen de llamadas</div><div class="tv-screen-sub">${escapeHtml(scope)}</div>
+    <div class="tv-kpi-grid">
+      <div class="tv-kpi"><div class="tv-kpi-label">Llamadas hechas</div><div class="tv-kpi-val" data-count="${a.total}">0</div><div class="tv-kpi-sub">${a.active.size} gestores activos · ${fmtInt(perDay)} por día</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-label">Contestadas</div><div class="tv-kpi-val" data-count="${a.answered}">0</div><div class="tv-kpi-sub">${pctStr(a.answered,a.total)} de las llamadas</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-label">Contactabilidad</div><div class="tv-kpi-val">${rate.toFixed(1)}%</div><div class="tv-kpi-sub">${fmtInt(a.effective)} contactos efectivos (&gt;60 s)</div></div>
+      <div class="tv-kpi"><div class="tv-kpi-label">Cumplimiento de meta</div><div class="tv-kpi-val ${st}">${g.pct===null?'–':`<span data-count="${Math.round(g.pct)}" data-suffix="%">0%</span>`}</div><div class="tv-kpi-sub">${goalSub}</div></div>
+    </div>
+    <div class="tv-chart-card"><div class="tv-chart-title">Llamadas hechas por día</div>${tvBarsHtml(items)}</div>
+  </div>`;
+}
+
+function renderTvContact(){
+  const a = tvAggregate();
+  const scope = tvScopeLabel();
+  if (!a.total){
+    return `<div class="tv-screen-inner"><div class="tv-screen-title">Contactabilidad</div><div class="tv-screen-sub">${escapeHtml(scope)}</div><div class="tv-empty">Todavía no hay llamadas registradas.</div></div>`;
+  }
+  const rate = a.effective/a.total*100;
+  const items = a.days.map((d,i)=>{ const x=a.byDay[d]; const r = x.total ? x.effective/x.total*100 : 0; return {label:tvDayLabelHtml(d,i,a.days), value:r, text:r.toFixed(1)+'%'}; });
+  const gest = Object.keys(a.byGestor).map(ext=>({ext, name:gName(ext), ...a.byGestor[ext]}));
+  const topAns = gest.filter(x=>x.answered>0).sort((x,y)=>y.answered-x.answered).slice(0,3);
+  const topRate = gest.filter(x=>x.total>=40).map(x=>({...x, rate:x.effective/x.total*100})).sort((x,y)=>y.rate-x.rate).slice(0,3);
+  const medals = ['🥇','🥈','🥉'];
+  const rows = (list, valFn, subFn)=> list.length ? list.map((x,i)=>`<div class="tv-top-row"><div class="tv-top-pos">${medals[i]}</div><div><div class="tv-top-name">${escapeHtml(x.name)}</div><div class="tv-top-sub">${subFn(x)}</div></div><div class="tv-top-val">${valFn(x)}</div></div>`).join('')
+    : '<div class="tv-top-sub" style="padding:10px 0;">Sin datos suficientes.</div>';
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Contactabilidad</div><div class="tv-screen-sub">${escapeHtml(scope)} · contacto efectivo = contestada con más de 60 s</div>
+    <div class="tv-two-col">
+      <div class="tv-chart-card">
+        <div style="display:flex; align-items:baseline; gap:18px;"><div class="tv-chart-title" style="margin:0;">Contactabilidad por día</div><div class="tv-big" style="font-size:44px;">${rate.toFixed(1)}%</div><div class="tv-kpi-sub" style="margin:0;">${fmtInt(a.effective)} de ${fmtInt(a.total)} llamadas</div></div>
+        ${tvBarsHtml(items,'good')}
+      </div>
+      <div class="tv-side">
+        <div class="tv-top-card"><div class="tv-chart-title">Más llamadas contestadas</div>${rows(topAns, x=>fmtInt(x.answered), x=>`${pctStr(x.effective,x.total)} de contactabilidad`)}</div>
+        <div class="tv-top-card"><div class="tv-chart-title">Mayor % de contactabilidad</div>${rows(topRate, x=>x.rate.toFixed(1)+'%', x=>`${fmtInt(x.effective)} de ${fmtInt(x.total)} llamadas`)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderTvDuration(){
+  const a = tvAggregate();
+  const scope = tvScopeLabel();
+  if (!a.answered){
+    return `<div class="tv-screen-inner"><div class="tv-screen-title">Duración de las llamadas</div><div class="tv-screen-sub">${escapeHtml(scope)}</div><div class="tv-empty">Todavía no hay llamadas contestadas.</div></div>`;
+  }
+  const aht = a.talk/a.answered;
+  const tracked = a.d1+a.d13+a.d3;
+  const sinContestar = Math.max(0, a.total-a.answered);
+  const row = (name, n, cls)=>`<div class="tv-dur-row"><div class="tv-dur-name">${name}</div><div class="tv-dur-track"><div class="tv-dur-fill ${cls}" data-width-target="${tracked?Math.max(n/tracked*100, n>0?2:0).toFixed(1):0}%"></div></div><div class="tv-dur-num">${fmtInt(n)}<span>${pctStr(n,tracked)}</span></div></div>`;
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">Duración de las llamadas</div><div class="tv-screen-sub">${escapeHtml(scope)} · llamadas contestadas</div>
+    <div class="tv-dur-wrap">
+      <div class="tv-dur-head"><div class="tv-big">${fmtDur(aht)}</div><div class="tv-kpi-sub" style="font-size:20px;">duración media de conversación (min:seg) · ${fmtInt(a.answered)} contestadas · ${fmtInt(sinContestar)} sin contestar (${pctStr(sinContestar,a.total)})</div></div>
+      ${tracked ? row('Menos de 1 min', a.d1,'warn') + row('De 1 a 3 min', a.d13,'good') + row('Más de 3 min', a.d3,'') : '<div class="tv-kpi-sub" style="font-size:20px;">El desglose por rango de duración no está disponible para los reportes de este período.</div>'}
+    </div>
+  </div>`;
+}
+
+// Orden de la rotación (resumen de todo el dashboard): llamadas hechas → contactabilidad
+// (gráfica + mejores) → avance de la meta → Chevere vs. Imparables → duración → ranking.
+const TV_SCREENS = [renderTvOverview, renderTvContact, renderTvGoal, renderTvTeams, renderTvDuration, renderTvRank];
+const TV_GOAL_SCREEN_IDX = TV_SCREENS.indexOf(renderTvGoal);
 let tvConfettiArmed = true;
 
 function renderTVScreen(){
@@ -5550,6 +5757,15 @@ initDb();
       }
     });
   };
+
+  // Modo TV desde el sidebar
+  var sbTv = document.getElementById('sbTvMode');
+  if (sbTv) sbTv.addEventListener('click', function(e){ e.preventDefault(); if (typeof startTvMode === 'function') startTvMode(); });
+  // Atajos dentro del Panel supervisor
+  function jumpTo(sel){ var el = document.querySelector(sel); if (!el) return; (el.closest('.card') || el).scrollIntoView({behavior:'smooth', block:'start'}); }
+  [['jumpGoals','#goalSchedList'],['jumpJust','#justList'],['jumpKpis','#derivedKpiCards']].forEach(function(p){
+    var b = document.getElementById(p[0]); if (b) b.addEventListener('click', function(){ jumpTo(p[1]); });
+  });
 
   setTimeout(function(){ assignPages(); pagesAssigned = true; showPage(currentPage, true); }, 150);
 })();
