@@ -1027,6 +1027,40 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 /* Encabezado: se ajusta en pantallas angostas */
 .app-header{height:auto !important; min-height:var(--header-h); padding-top:8px !important; padding-bottom:8px !important; flex-wrap:wrap;}
 .app-header .ah-actions{flex-wrap:wrap; justify-content:flex-end;}
+
+/* ===== Modo TV: cada gestor contra su meta ===== */
+.tv-gcols{display:grid; gap:1.6vw; flex:1; min-height:0;}
+.tv-gcol{display:flex; flex-direction:column; min-height:0; background:var(--tv-card); border:1px solid var(--tv-card-border); border-radius:1.8vh; padding:1.2vh 1.2vw;}
+.tv-ghead{display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding-bottom:.4vh;}
+.tv-ghead-name{font-family:var(--font-display); font-weight:800; font-size:clamp(20px,3.1vh,40px); letter-spacing:.02em; color:var(--tv-ink);}
+.tv-ghead.a .tv-ghead-name{color:var(--tv-team-a);} .tv-ghead.b .tv-ghead-name{color:var(--tv-team-b);}
+.tv-ghead-pct{font-family:var(--font-mono); font-weight:800; font-size:clamp(24px,3.6vh,48px);}
+.tv-ghead-pct.good,.tv-gpct.good{color:var(--tv-good);} .tv-ghead-pct.warn,.tv-gpct.warn{color:var(--tv-warn);} .tv-ghead-pct.crit,.tv-gpct.crit{color:var(--tv-crit);}
+.tv-ghead-sub{font-size:clamp(13px,1.8vh,22px); color:var(--tv-ink-mute); padding-bottom:.8vh; border-bottom:2px solid var(--tv-card-border);}
+.tv-grows{flex:1; min-height:0; display:flex; flex-direction:column;}
+.tv-grow{flex:1 1 0; min-height:0; display:grid; grid-template-columns:clamp(28px,4vh,54px) minmax(0,1fr) auto; gap:1vw; align-items:center; border-top:1px solid var(--tv-card-border);}
+.tv-grow:first-child{border-top:none;}
+.tv-gpos{font-family:var(--font-mono); font-weight:800; color:var(--tv-ink-mute); font-size:clamp(18px,2.7vh,34px); text-align:center;}
+.tv-gname{font-size:clamp(18px,2.8vh,36px); font-weight:700; color:var(--tv-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.tv-gtrack{height:clamp(6px,1vh,12px); background:rgba(255,255,255,.08); border-radius:6px; margin-top:.5vh; overflow:hidden;}
+.tv-gfill{height:100%; width:0; border-radius:6px; transition:width 1s cubic-bezier(.16,.84,.44,1);}
+.tv-gfill.good{background:var(--tv-good);} .tv-gfill.warn{background:var(--tv-warn);} .tv-gfill.crit{background:var(--tv-crit);}
+.tv-gnum{text-align:right; min-width:17vh;}
+.tv-gpct{font-family:var(--font-mono); font-weight:800; font-size:clamp(22px,3.5vh,46px); line-height:1;}
+.tv-gsub{font-size:clamp(13px,1.9vh,24px); color:var(--tv-ink-soft); margin-top:.3vh; font-variant-numeric:tabular-nums; white-space:nowrap;}
+
+/* ===== Modo TV: tipografía pensada para verse desde lejos (se escala con la altura de la pantalla) ===== */
+.tv-screen-title{font-size:clamp(30px,4.6vh,58px) !important;}
+.tv-screen-sub{font-size:clamp(16px,2.3vh,30px) !important;}
+.tv-kpi-label{font-size:clamp(15px,2.1vh,26px);} .tv-kpi-val{font-size:clamp(44px,7.4vh,96px);} .tv-kpi-sub{font-size:clamp(14px,2vh,26px);}
+.tv-chart-title{font-size:clamp(17px,2.4vh,30px);} .tv-bar-val{font-size:clamp(13px,1.9vh,24px);} .tv-bar-lbl{font-size:clamp(13px,1.8vh,22px);}
+.tv-top-name{font-size:clamp(18px,2.7vh,34px);} .tv-top-sub{font-size:clamp(13px,1.8vh,22px);} .tv-top-val{font-size:clamp(20px,3vh,40px);}
+.tv-big{font-size:clamp(48px,9vh,110px);}
+.tv-dur-name{font-size:clamp(20px,3vh,38px);} .tv-dur-num{font-size:clamp(20px,3vh,38px);} .tv-dur-num span{font-size:clamp(14px,2vh,24px);}
+.tv-goal-pct{font-size:clamp(110px,22vh,280px) !important;} .tv-goal-nums{font-size:clamp(26px,4vh,52px) !important;} .tv-goal-msg{font-size:clamp(20px,2.9vh,36px) !important;}
+.tv-goal-track{height:clamp(26px,4vh,48px) !important; max-width:min(1100px,80vw) !important;}
+.tv-rank-name{font-size:clamp(20px,2.9vh,38px) !important;} .tv-rank-val{font-size:clamp(22px,3.2vh,42px) !important;}
+.tv-team-name{font-size:clamp(26px,4vh,52px) !important;} .tv-team-pct,.tv-team-top{font-size:clamp(16px,2.4vh,30px) !important;}
 </style>
 
 <div class="app-layout">
@@ -1360,10 +1394,16 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
       <div class="period-compliance" id="periodCompliance"></div>
     </div>
     <div class="card">
-      <div class="card-head">
+      <div class="card-head" style="flex-wrap:wrap; gap:8px;">
         <h2>Ranking por cumplimiento de meta</h2>
         <span class="hint" id="goalRankHint">% de la meta diaria acumulada</span>
-        <button class="btn" id="btnCopyRank" style="margin-left:auto;" title="Copiar el ranking general completo (todos los gestores, con su equipo) para compartir">
+        <select class="pick" id="rankScope" title="Qué ranking se copia o se descarga como imagen" style="margin-left:auto; max-width:210px;">
+          <option value="period">Imagen/copia: período mostrado</option>
+          <option value="day">Imagen/copia: hoy / último día</option>
+          <option value="date">Imagen/copia: elegir fecha…</option>
+        </select>
+        <input type="date" id="rankScopeDate" hidden style="padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--ink); font-family:inherit;">
+        <button class="btn" id="btnCopyRank" title="Copiar el ranking general completo (todos los gestores, con su equipo) para compartir">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
           Copiar
         </button>
@@ -2593,25 +2633,90 @@ function renderPeriodCompliance(){
   el.innerHTML = `<div class="pc-title">Cumplimiento por gestor y período <span class="pc-hint">${escapeHtml(scopeLabel)} · verde ≥100% · sin fines de semana</span></div><div class="pc-table">${head}${body}</div>`;
 }
 
-function copyGoalRankingByTeam(){
-  const [min,max] = currentRangeBounds();
-  if(!min){ showToast('Sin datos para copiar.'); return; }
-  let dates=[]; let d=toUTC(min); const e=toUTC(max);
-  while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
-  dates = state.filterDay ? dates.filter(dt=>dt===state.filterDay) : dates.filter(dt=>!isWeekend(dt));
-  const exts = visibleExts();   // ranking COMPLETO del alcance actual
-  const rows = exts.map(ext=>{
-    let dias=0, tot=0, meta=0;
-    dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(!(r&&(r.total||0)>0)) return; if(isDayExcusedFull(ext,dt)) return; dias++; tot+=r.total; meta+=metaForDay(ext,dt); });
-    return {ext, name:gName(ext), team:gTeam(ext), pct: meta?tot/meta*100:null, tot, meta};
+// ---------- Cumplimiento de meta: cálculo ÚNICO (pantallas del TV, Copiar e Imagen) ----------
+const TV_DAY_FMT = new Intl.DateTimeFormat('es',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
+function capFirst(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+function periodWorkDates(){
+  const [min,max] = currentRangeBounds(); if(!min) return [];
+  const ds=[]; let d=toUTC(min); const e=toUTC(max);
+  while(d<=e){ ds.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
+  return state.filterDay ? ds.filter(x=>x===state.filterDay) : ds.filter(x=>!isWeekend(x));
+}
+// Día que se está midiendo: HOY si ya hay llamadas de hoy (día hábil); si no, el último día hábil con datos.
+function measuredDay(todayStr){
+  const today = todayStr || localDateStr(new Date());
+  const exts = visibleExts();
+  const hasData = d => exts.some(ext=>{ const r=getRec(ext+'_'+d); return r && (r.total||0)>0; });
+  let day = null;
+  if (!isWeekend(today) && hasData(today)) day = today;
+  else {
+    const ds = allDatesSorted().filter(d=>!isWeekend(d) && d<=today && hasData(d));
+    day = ds.length ? ds[ds.length-1] : null;
+  }
+  return day ? {day, isToday: day===today} : null;
+}
+// Para HOY (día en curso) cuentan también los gestores que trabajaron en los últimos días y todavía
+// no tienen llamadas: aparecen en 0% y se ve cuánto les falta. En días ya cerrados solo cuentan los que llamaron.
+function dayRoster(day){
+  const prev = allDatesSorted().filter(d=>!isWeekend(d) && d<day).slice(-5);
+  const set = new Set();
+  visibleExts().forEach(ext=>{
+    const r = getRec(ext+'_'+day);
+    if (r && (r.total||0)>0){ set.add(ext); return; }
+    if (prev.some(d=>{ const x=getRec(ext+'_'+d); return x && (x.total||0)>0; })) set.add(ext);
+  });
+  return set;
+}
+function goalRowsFor(dates, roster){
+  return visibleExts().map(ext=>{
+    let tot=0, meta=0;
+    dates.forEach(dt=>{
+      const r = getRec(ext+'_'+dt); const has = !!(r && (r.total||0)>0);
+      if (!has && !(roster && roster.has(ext))) return;
+      if (isDayExcusedFull(ext,dt)) return;
+      tot += has ? r.total : 0; meta += metaForDay(ext,dt);
+    });
+    return {ext, name:gName(ext), team:gTeam(ext), tot, meta, pct: meta ? tot/meta*100 : null};
   }).filter(r=>r.pct!==null);
+}
+// kind: 'period' (el período que muestran los filtros) | 'day' (hoy / último día cargado / una fecha elegida)
+function goalScope(kind, dateStr){
+  if (kind==='period'){
+    const [min,max] = currentRangeBounds(); if(!min) return null;
+    return {kind:'period', isDay:false, rows:goalRowsFor(periodWorkDates(), null),
+      label:`${dateFmtHumanFull.format(toUTC(min))} al ${dateFmtHumanFull.format(toUTC(max))}`,
+      short:`${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}`, fileTag:`${min}_a_${max}`};
+  }
+  let day, isToday;
+  const todayStr = localDateStr(new Date());
+  if (dateStr){ day = dateStr; isToday = (day===todayStr); }
+  else { const m = measuredDay(); if(!m) return null; day=m.day; isToday=m.isToday; }
+  const lbl = capFirst(TV_DAY_FMT.format(toUTC(day)).replace(',',''));
+  const dayTag = isToday ? 'Hoy' : (dateStr ? 'Fecha' : 'Último día cargado');
+  return {kind:'day', isDay:true, day, isToday, dayTag, rows:goalRowsFor([day], isToday ? dayRoster(day) : null),
+    label:lbl, short:lbl, fileTag:day};
+}
+function rankScopeFromUI(){
+  const sel = $('#rankScope'); const v = sel ? sel.value : 'period';
+  if (v==='period'){ const s=goalScope('period'); if(!s) showToast('Sin datos para el ranking.'); return s; }
+  if (v==='date'){
+    const d = $('#rankScopeDate') ? $('#rankScopeDate').value : '';
+    if (!d){ showToast('Elige la fecha del ranking.'); return null; }
+    return goalScope('day', d);
+  }
+  const s = goalScope('day'); if(!s) showToast('Todavía no hay llamadas para el ranking del día.'); return s;
+}
 
-  const range = `${dateFmtHumanFull.format(toUTC(min))} al ${dateFmtHumanFull.format(toUTC(max))}`;
+function copyGoalRankingByTeam(){
+  const sc = rankScopeFromUI(); if(!sc) return;
+  if(!sc.rows.length){ showToast('Sin datos para copiar en ese alcance.'); return; }
   const teamTag = t => t==='chevere' ? '🟢 Chevere' : t==='imparables' ? '🟠 Imparables' : '⚪ Sin equipo';
-  const line = (r,i)=>{ const dif=Math.round(r.tot-r.meta); const ds=(dif>=0?'+':'')+fmtInt(dif); return `${i+1}. ${r.name} ${teamTag(r.team)} — ${Math.round(r.pct)}% (${ds} vs meta · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))})`; };
-  const sorted = rows.slice().sort((a,b)=>b.pct-a.pct);   // ranking GENERAL (todos juntos), con el equipo visible por gestor
-  let txt = `📊 RANKING POR CUMPLIMIENTO DE META\n${range}\n% de meta diaria (variable por período) acumulada · sin fines de semana\n\n` + sorted.map((r,i)=>line(r,i)).join('\n');
-
+  const line = (r,i)=>{ const dif=Math.round(r.tot-r.meta); const ds = dif>=0 ? `+${fmtInt(dif)} sobre la meta` : `faltan ${fmtInt(-dif)}`; return `${i+1}. ${r.name} ${teamTag(r.team)} — ${Math.round(r.pct)}% (${ds} · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))})`; };
+  const sorted = sc.rows.slice().sort((a,b)=>b.pct-a.pct);   // ranking GENERAL (todos juntos), con el equipo visible por gestor
+  const head = sc.isDay
+    ? `📊 CUMPLIMIENTO DE META DEL DÍA\n${sc.dayTag}: ${sc.label}\n% de la meta diaria de ese día`
+    : `📊 RANKING POR CUMPLIMIENTO DE META\n${sc.label}\n% de meta diaria (variable por período) acumulada · sin fines de semana`;
+  const txt = head + '\n\n' + sorted.map((r,i)=>line(r,i)).join('\n');
   const doCopy = (t)=>{
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(t).then(()=>showToast('Ranking copiado — pégalo en WhatsApp o correo.'), ()=>fallbackCopyText(t));
@@ -2624,7 +2729,8 @@ function fallbackCopyText(t){
   catch(err){ showToast('No se pudo copiar automáticamente.'); }
 }
 
-function buildRankingCard(che, imp, range){
+function buildRankingCard(che, imp, range, opts){
+  opts = opts || {};
   const NAVY='#00216f', ORANGE='#ff5100';
   function teamColumn(title, emoji, headerBg, list){
     const medals=['#e8b53a','#b9c3cb','#cd7f45'];
@@ -2664,13 +2770,13 @@ function buildRankingCard(che, imp, range){
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:14px;">
         <div style="width:54px;height:54px;border-radius:50%;background:${NAVY};display:flex;align-items:center;justify-content:center;font-size:27px;">📞</div>
-        <div style="font-weight:900;color:${NAVY};font-size:26px;line-height:1.02;letter-spacing:.5px;">RANKING POR<br>CUMPLIMIENTO DE META</div>
+        <div style="font-weight:900;color:${NAVY};font-size:26px;line-height:1.02;letter-spacing:.5px;">${opts.day ? 'CUMPLIMIENTO DE<br>META DEL DÍA' : 'RANKING POR<br>CUMPLIMIENTO DE META'}</div>
       </div>
       <div style="color:${ORANGE};font-weight:800;font-style:italic;font-size:20px;text-align:right;line-height:1.05;">¡Juntos<br>logramos más!</div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
-      <span style="background:#dce9f7;color:${NAVY};font-weight:700;font-size:12px;padding:6px 13px;border-radius:20px;">📅 ${range}</span>
-      <span style="color:#8a97a3;font-size:11.5px;">🎯 % de meta diaria (variable por período) acumulada · sin fines de semana</span>
+      <span style="background:#dce9f7;color:${NAVY};font-weight:700;font-size:12px;padding:6px 13px;border-radius:20px;">📅 ${opts.day && opts.dayTag ? opts.dayTag+' · ' : ''}${range}</span>
+      <span style="color:#8a97a3;font-size:11.5px;">🎯 ${opts.day ? '% de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '% de meta diaria (variable por período) acumulada · sin fines de semana'}</span>
     </div>
     <div style="display:flex;gap:18px;align-items:flex-start;">
       ${teamColumn('CHEVERE','👑','linear-gradient(90deg,#00216f,#0a3a9c)',che)}
@@ -2681,19 +2787,11 @@ function buildRankingCard(che, imp, range){
 }
 async function generateRankingImage(){
   if (typeof html2canvas==='undefined'){ showToast('La imagen se está preparando… intenta de nuevo en unos segundos.'); return; }
-  const [min,max]=currentRangeBounds(); if(!min){ showToast('Sin datos para la imagen.'); return; }
-  let dates=[]; let d=toUTC(min); const e=toUTC(max);
-  while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
-  dates = state.filterDay ? dates.filter(dt=>dt===state.filterDay) : dates.filter(dt=>!isWeekend(dt));
-  const rows = visibleExts().map(ext=>{
-    let tot=0, meta=0, dias=0;
-    dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(!(r&&(r.total||0)>0)) return; if(isDayExcusedFull(ext,dt)) return; dias++; tot+=r.total; meta+=metaForDay(ext,dt); });
-    return {ext, name:gName(ext), team:gTeam(ext), pct: meta?tot/meta*100:null, tot, meta, dias};
-  }).filter(r=>r.pct!==null);
-  const che=rows.filter(r=>r.team==='chevere').sort((a,b)=>b.pct-a.pct);
-  const imp=rows.filter(r=>r.team==='imparables').sort((a,b)=>b.pct-a.pct);
-  const range=`${dateFmtHumanFull.format(toUTC(min))} al ${dateFmtHumanFull.format(toUTC(max))}`;
-  const el=buildRankingCard(che,imp,range);
+  const sc = rankScopeFromUI(); if(!sc) return;
+  if(!sc.rows.length){ showToast('Sin datos para la imagen en ese alcance.'); return; }
+  const che = sc.rows.filter(r=>r.team==='chevere').sort((a,b)=>b.pct-a.pct);
+  const imp = sc.rows.filter(r=>r.team==='imparables').sort((a,b)=>b.pct-a.pct);
+  const el = buildRankingCard(che, imp, sc.label, {day:sc.isDay, dayTag:sc.dayTag});
   document.body.appendChild(el);
   showToast('Generando imagen…');
   try{
@@ -2701,7 +2799,7 @@ async function generateRankingImage(){
     canvas.toBlob(blob=>{
       if(!blob){ showToast('No se pudo generar la imagen.'); return; }
       const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=`ranking_cumplimiento_${min}_a_${max}.png`;
+      const a=document.createElement('a'); a.href=url; a.download=`ranking_cumplimiento_${sc.fileTag}.png`;
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
       showToast('Imagen descargada — compártela en WhatsApp o correo.');
     }, 'image/png');
@@ -4087,49 +4185,72 @@ function renderTvCalls(){
 }
 
 let tvGoalLastPct = null;
-function renderTvGoal(){
-  // "Hoy" se calcula con la fecha local del navegador (la del televisor/computadora
-  // de la oficina), no en UTC, para que coincida con el día real que se está viviendo.
-  const todayStr = localDateStr(new Date());
-  const exts = visibleExts();
-  let total = 0, metaSum = 0, activeToday = 0;
-  exts.forEach(ext=>{
-    const r = getRec(ext+'_'+todayStr);
-    if (r && (r.total||0)>0 && !isDayExcusedFull(ext, todayStr)){ total += r.total; metaSum += metaForDay(ext, todayStr); activeToday++; }
-  });
-  let scopeLabel;
-  if (activeToday>0){
-    scopeLabel = 'Hoy · ' + dateFmtHuman.format(toUTC(todayStr));
-  } else {
-    // Sin datos de hoy todavía (por ejemplo, no se ha subido el reporte del día):
-    // se muestra el acumulado del período/filtros que estén activos en el panel.
-    const recs = filteredRecords();
-    const [min,max] = currentRangeBounds();
-    total = recs.reduce((s,r)=> s + (isDayExcusedFull(r.ext, r.date) ? 0 : (r.total||0)), 0);
-    let dates = [];
-    if (min){ let d=toUTC(min); const e=toUTC(max); while(d<=e){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); } }
-    dates = state.filterDay ? dates.filter(dt=>dt===state.filterDay) : dates.filter(dt=>!isWeekend(dt));
-    metaSum = 0;
-    exts.forEach(ext=> dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if (r && (r.total||0)>0 && !isDayExcusedFull(ext,dt)) metaSum += metaForDay(ext,dt); }));
-    scopeLabel = state.filterDay ? dateFmtHuman.format(toUTC(state.filterDay)) : (min ? `${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}` : 'sin datos aún');
-  }
-  const pct = metaSum ? (total/metaSum*100) : null;
-  tvGoalLastPct = pct;
-  const st = tvGoalStatusOf(pct);
-  const barWidth = pct===null ? 0 : Math.min(pct,100);
-  const diff = pct===null ? null : Math.round(total-metaSum);
-  const msg = pct===null ? 'Todavía no hay llamadas registradas.' : (diff>=0 ? `¡Meta cumplida! +${fmtInt(diff)} llamadas sobre lo esperado` : `Faltan ${fmtInt(Math.abs(diff))} llamadas para la meta`);
-  const msgClass = (pct!==null && pct>=100) ? 'celebrate' : '';
-  const pctHtml = pct===null
-    ? `<div class="tv-goal-pct">–</div>`
-    : `<div class="tv-goal-pct ${st}"><span data-count="${Math.round(pct)}" data-suffix="%">0%</span></div>`;
-  return `<div class="tv-screen-inner"><div class="tv-screen-title">Avance de la meta</div><div class="tv-screen-sub">${escapeHtml(scopeLabel)}</div>
+function tvGoalMarkup(o){
+  const st = tvGoalStatusOf(o.pct);
+  const barWidth = o.pct===null ? 0 : Math.min(o.pct,100);
+  const diff = o.pct===null ? null : Math.round(o.total-o.metaSum);
+  const msg = o.pct===null ? o.emptyMsg : (diff>=0 ? `¡Meta cumplida! +${fmtInt(diff)} llamadas sobre lo esperado` : `Faltan ${fmtInt(Math.abs(diff))} llamadas para la meta`);
+  const msgClass = (o.pct!==null && o.pct>=100) ? 'celebrate' : '';
+  const pctHtml = o.pct===null ? `<div class="tv-goal-pct">–</div>` : `<div class="tv-goal-pct ${st}"><span data-count="${Math.round(o.pct)}" data-suffix="%">0%</span></div>`;
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">${o.title}</div><div class="tv-screen-sub">${escapeHtml(o.sub)}</div>
     <div class="tv-goal-wrap">
       ${pctHtml}
-      <div class="tv-goal-nums"><span data-count="${total}">0</span> de <span data-count="${Math.round(metaSum)}">0</span> llamadas</div>
+      <div class="tv-goal-nums"><span data-count="${o.total}">0</span> de <span data-count="${Math.round(o.metaSum)}">0</span> llamadas</div>
       <div class="tv-goal-track"><div class="tv-goal-fill ${st}" data-width-target="${barWidth}%"></div></div>
       <div class="tv-goal-msg ${msgClass}">${msg}</div>
+      ${o.doneLine ? `<div class="tv-goal-msg">${o.doneLine}</div>` : ''}
     </div></div>`;
+}
+function tvGoalTotals(sc){
+  const rows = sc ? sc.rows : [];
+  const total = rows.reduce((s,r)=>s+r.tot,0), metaSum = rows.reduce((s,r)=>s+r.meta,0);
+  return {rows, total, metaSum, pct: metaSum ? total/metaSum*100 : null, done: rows.filter(r=>r.pct>=100).length};
+}
+// Avance de la meta del PERÍODO (el que muestran los filtros: por defecto el mes actual hasta el último día cargado).
+function renderTvGoal(){
+  const sc = goalScope('period'); const g = tvGoalTotals(sc);
+  tvGoalLastPct = g.pct;
+  return tvGoalMarkup({title:'Avance de la meta · período', sub: tvScopeLabel(), total:g.total, metaSum:g.metaSum, pct:g.pct,
+    doneLine: g.rows.length ? `${g.done} de ${g.rows.length} gestores ya cumplieron su meta del período` : '', emptyMsg:'Todavía no hay llamadas registradas.'});
+}
+// Avance de la meta del DÍA que se está midiendo (hoy; o el último día cargado si hoy aún no hay datos).
+function renderTvGoalToday(){
+  const sc = goalScope('day'); const g = tvGoalTotals(sc);
+  tvGoalLastPct = g.pct;
+  const isToday = !!(sc && sc.isToday);
+  return tvGoalMarkup({title: isToday ? 'Avance de la meta · hoy' : 'Avance de la meta · último día', sub: sc ? `${sc.dayTag} · ${sc.label}` : 'sin datos todavía',
+    total:g.total, metaSum:g.metaSum, pct:g.pct,
+    doneLine: g.rows.length ? `${g.done} de ${g.rows.length} gestores ya cumplieron su meta del día` : '', emptyMsg:'Todavía no hay llamadas registradas hoy.'});
+}
+// Ranking de cada persona contra SU meta: por equipo (como la imagen), con % y cuánto falta.
+function tvGoalRankHtml(sc, title){
+  if (!sc || !sc.rows.length){
+    return `<div class="tv-screen-inner"><div class="tv-screen-title">${title}</div><div class="tv-screen-sub">${escapeHtml(sc?sc.label:'sin datos todavía')}</div><div class="tv-empty">Todavía no hay llamadas registradas.</div></div>`;
+  }
+  const cols = [['chevere','👑','TEAM CHEVERE','a'],['imparables','🔥','TEAM IMPARABLES','b']];
+  const known = new Set(cols.map(c=>c[0]));
+  if (sc.rows.some(r=>!known.has(r.team))) cols.push(['__otro','•','SIN EQUIPO','']);
+  const rowHtml = (r,i)=>{
+    const st = tvGoalStatusOf(r.pct), dif = Math.round(r.tot-r.meta);
+    const sub = dif>=0 ? `+${fmtInt(dif)} sobre la meta` : `faltan ${fmtInt(-dif)}`;
+    const w = Math.min(Math.max(r.pct,2),100).toFixed(1);
+    return `<div class="tv-grow"><div class="tv-gpos">${i+1}</div><div class="tv-gbody"><div class="tv-gname">${escapeHtml(r.name)}</div><div class="tv-gtrack"><div class="tv-gfill ${st}" data-width-target="${w}%"></div></div></div><div class="tv-gnum"><div class="tv-gpct ${st}">${Math.round(r.pct)}%</div><div class="tv-gsub">${sub} · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))}</div></div></div>`;
+  };
+  const colHtml = ([key,emoji,label,cls])=>{
+    const list = sc.rows.filter(r=> key==='__otro' ? !known.has(r.team) : r.team===key).sort((a,b)=>b.pct-a.pct);
+    const tot = list.reduce((s,r)=>s+r.tot,0), meta = list.reduce((s,r)=>s+r.meta,0);
+    const tp = meta ? tot/meta*100 : null, st = tvGoalStatusOf(tp);
+    return `<div class="tv-gcol"><div class="tv-ghead ${cls}"><span class="tv-ghead-name">${emoji} ${label}</span><span class="tv-ghead-pct ${st}">${tp===null?'–':Math.round(tp)+'%'}</span></div>
+      <div class="tv-ghead-sub">${fmtInt(tot)} de ${fmtInt(Math.round(meta))} llamadas del equipo</div>
+      <div class="tv-grows">${list.length ? list.map(rowHtml).join('') : '<div class="tv-top-sub" style="padding:1vh 0;">Sin datos.</div>'}</div></div>`;
+  };
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">${title}</div><div class="tv-screen-sub">${escapeHtml(sc.isDay ? sc.dayTag+' · '+sc.label : sc.short)} · % de la meta · rojo = faltan llamadas, verde = sobre la meta</div>
+    <div class="tv-gcols" style="grid-template-columns:repeat(${cols.length},1fr);">${cols.map(colHtml).join('')}</div></div>`;
+}
+function renderTvGoalRank(){ return tvGoalRankHtml(goalScope('period'), 'Cumplimiento de meta por gestor · período'); }
+function renderTvGoalRankToday(){
+  const sc = goalScope('day');
+  return tvGoalRankHtml(sc, sc && sc.isToday ? 'Cumplimiento de hoy por gestor' : 'Cumplimiento del último día por gestor');
 }
 
 function renderTvTeams(){
@@ -4463,7 +4584,7 @@ function renderTvContact(){
   return `<div class="tv-screen-inner"><div class="tv-screen-title">Contactabilidad</div><div class="tv-screen-sub">${escapeHtml(scope)} · contacto efectivo = contestada con más de 60 s</div>
     <div class="tv-two-col">
       <div class="tv-chart-card">
-        <div style="display:flex; align-items:baseline; gap:18px;"><div class="tv-chart-title" style="margin:0;">Contactabilidad por día</div><div class="tv-big" style="font-size:44px;">${rate.toFixed(1)}%</div><div class="tv-kpi-sub" style="margin:0;">${fmtInt(a.effective)} de ${fmtInt(a.total)} llamadas</div></div>
+        <div style="display:flex; align-items:baseline; gap:18px;"><div class="tv-chart-title" style="margin:0;">Contactabilidad por día</div><div class="tv-big" style="font-size:clamp(34px,6vh,72px);">${rate.toFixed(1)}%</div><div class="tv-kpi-sub" style="margin:0;">${fmtInt(a.effective)} de ${fmtInt(a.total)} llamadas</div></div>
         ${tvBarsHtml(items,'good')}
       </div>
       <div class="tv-side">
@@ -4486,16 +4607,16 @@ function renderTvDuration(){
   const row = (name, n, cls)=>`<div class="tv-dur-row"><div class="tv-dur-name">${name}</div><div class="tv-dur-track"><div class="tv-dur-fill ${cls}" data-width-target="${tracked?Math.max(n/tracked*100, n>0?2:0).toFixed(1):0}%"></div></div><div class="tv-dur-num">${fmtInt(n)}<span>${pctStr(n,tracked)}</span></div></div>`;
   return `<div class="tv-screen-inner"><div class="tv-screen-title">Duración de las llamadas</div><div class="tv-screen-sub">${escapeHtml(scope)} · llamadas contestadas</div>
     <div class="tv-dur-wrap">
-      <div class="tv-dur-head"><div class="tv-big">${fmtDur(aht)}</div><div class="tv-kpi-sub" style="font-size:20px;">duración media de conversación (min:seg) · ${fmtInt(a.answered)} contestadas · ${fmtInt(sinContestar)} sin contestar (${pctStr(sinContestar,a.total)})</div></div>
-      ${tracked ? row('Menos de 1 min', a.d1,'warn') + row('De 1 a 3 min', a.d13,'good') + row('Más de 3 min', a.d3,'') : '<div class="tv-kpi-sub" style="font-size:20px;">El desglose por rango de duración no está disponible para los reportes de este período.</div>'}
+      <div class="tv-dur-head"><div class="tv-big">${fmtDur(aht)}</div><div class="tv-kpi-sub" style="font-size:clamp(16px,2.4vh,30px);">duración media de conversación (min:seg) · ${fmtInt(a.answered)} contestadas · ${fmtInt(sinContestar)} sin contestar (${pctStr(sinContestar,a.total)})</div></div>
+      ${tracked ? row('Menos de 1 min', a.d1,'warn') + row('De 1 a 3 min', a.d13,'good') + row('Más de 3 min', a.d3,'') : '<div class="tv-kpi-sub" style="font-size:clamp(16px,2.4vh,30px);">El desglose por rango de duración no está disponible para los reportes de este período.</div>'}
     </div>
   </div>`;
 }
 
-// Orden de la rotación (resumen de todo el dashboard): llamadas hechas → contactabilidad
-// (gráfica + mejores) → avance de la meta → Chevere vs. Imparables → duración → ranking.
-const TV_SCREENS = [renderTvOverview, renderTvContact, renderTvGoal, renderTvTeams, renderTvDuration, renderTvRank];
-const TV_GOAL_SCREEN_IDX = TV_SCREENS.indexOf(renderTvGoal);
+// Orden de la rotación (resumen de todo el dashboard): llamadas hechas → meta del período → meta de HOY →
+// cada gestor contra su meta (período y hoy) → contactabilidad → equipos → duración → ranking de contactadas.
+const TV_SCREENS = [renderTvOverview, renderTvGoal, renderTvGoalToday, renderTvGoalRank, renderTvGoalRankToday, renderTvContact, renderTvTeams, renderTvDuration, renderTvRank];
+const TV_GOAL_FNS = [renderTvGoal, renderTvGoalToday];
 let tvConfettiArmed = true;
 
 function renderTVScreen(){
@@ -4509,7 +4630,7 @@ function renderTVScreen(){
   if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('es-GT', {hour:'2-digit', minute:'2-digit'});
   // Confeti cuando la meta está cumplida o superada — una sola vez por
   // visita a esta pantalla, no en cada refresco en vivo mientras se queda ahí.
-  if (state.tvScreenIdx===TV_GOAL_SCREEN_IDX && tvGoalLastPct!==null && tvGoalLastPct>=100 && tvConfettiArmed){
+  if (TV_GOAL_FNS.includes(TV_SCREENS[state.tvScreenIdx % TV_SCREENS.length]) && tvGoalLastPct!==null && tvGoalLastPct>=100 && tvConfettiArmed){
     tvConfettiArmed = false;
     setTimeout(tvLaunchConfetti, 500);
   }
@@ -5758,6 +5879,12 @@ initDb();
     });
   };
 
+  // Alcance de Copiar / Imagen del ranking (período, hoy o una fecha)
+  var rs = document.getElementById('rankScope'), rd = document.getElementById('rankScopeDate');
+  if (rs && rd) rs.addEventListener('change', function(){
+    rd.hidden = (rs.value !== 'date');
+    if (rs.value === 'date' && !rd.value && typeof measuredDay === 'function'){ var m = measuredDay(); if (m) rd.value = m.day; }
+  });
   // Modo TV desde el sidebar
   var sbTv = document.getElementById('sbTvMode');
   if (sbTv) sbTv.addEventListener('click', function(e){ e.preventDefault(); if (typeof startTvMode === 'function') startTvMode(); });
