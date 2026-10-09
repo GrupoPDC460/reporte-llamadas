@@ -4,7 +4,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 /* ============================= TOKENS ============================= */
@@ -2747,82 +2746,129 @@ function fallbackCopyText(t){
   catch(err){ showToast('No se pudo copiar automáticamente.'); }
 }
 
-function buildRankingCard(che, imp, range, opts){
+// ---------- Imagen del ranking: se DIBUJA directamente en un lienzo (sin librerías externas ni internet) ----------
+function drawRankingCanvas(che, imp, range, opts){
   opts = opts || {};
   const NAVY='#00216f', ORANGE='#ff5100';
-  function teamColumn(title, emoji, headerBg, list){
-    const medals=['#e8b53a','#b9c3cb','#cd7f45'];
-    const rowsHtml = list.length ? list.map((r,i)=>{
-      const pct=Math.round(r.pct);
-      const dif=Math.round(r.tot-r.meta);
-      const difStr=(dif>=0?'+':'')+fmtInt(dif);
-      const barW=Math.max(3, Math.min(pct,100));
+  const SC=2, W=1000, PAD=26, GAP=18, ROW_H=46, HEAD_H=50, SUB_H=26;
+  const colW = (W - PAD*2 - GAP)/2;
+  // Fuente del tema; si el navegador la entrega sin resolver (var(...)) se usa el valor de la variable o una de respaldo.
+  let FONT = (document.body && getComputedStyle(document.body).fontFamily) || '';
+  if (!FONT || /var\(/.test(FONT)) FONT = (getComputedStyle(document.documentElement).getPropertyValue('--font-body') || '').trim();
+  if (!FONT || /var\(/.test(FONT)) FONT = "'IBM Plex Sans'";
+  FONT = FONT.split(',')[0].trim() + ', Arial, sans-serif';   // primera fuente del tema + respaldo: válido en cualquier motor
+  const nRows = Math.max(che.length, imp.length, 1);
+  const colH = HEAD_H + SUB_H + nRows*ROW_H + 8;
+  const colsY = PAD + 130;
+  const H = colsY + colH + 18 + 24 + PAD;
+  const canvas = document.createElement('canvas'); canvas.width = W*SC; canvas.height = H*SC;
+  const c = canvas.getContext('2d'); if (!c) return null;
+  c.scale(SC,SC);
+  // Solo "normal" y "bold": los pesos 800/900 no existen en todas las fuentes ni en todos los motores de lienzo.
+  const font = (size, weight, style, fam)=> `${style||'normal'} ${(weight||400)>=600 ? 'bold' : 'normal'} ${size}px ${fam||FONT}`;
+  const rr = (x,y,w,h,r)=>{ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); };
+  const text = (s,x,y,size,weight,color,align,style,fam)=>{ c.font=font(size,weight,style,fam); c.fillStyle=color; c.textAlign=align||'left'; c.textBaseline='alphabetic'; c.fillText(s,x,y); };
+  const wrap = (s,maxW,maxLines)=>{
+    c.font = font(12.5,800);
+    const words=String(s).split(/\s+/); const lines=[]; let cur='';
+    words.forEach(w=>{ const t=cur?cur+' '+w:w; if(!cur || c.measureText(t).width<=maxW) cur=t; else { lines.push(cur); cur=w; } });
+    if(cur) lines.push(cur);
+    if(lines.length>maxLines){ const keep=lines.slice(0,maxLines); let last=keep[maxLines-1]; while(last.length>1 && c.measureText(last+'…').width>maxW) last=last.slice(0,-1); keep[maxLines-1]=last+'…'; return keep; }
+    return lines;
+  };
+  // fondo
+  c.fillStyle='#eaf2fb'; c.fillRect(0,0,W,H);
+  // encabezado
+  c.fillStyle=NAVY; c.beginPath(); c.arc(PAD+27,PAD+27,27,0,Math.PI*2); c.fill();
+  text('📞',PAD+27,PAD+36,26,400,'#fff','center');
+  const titleLines = opts.day ? ['CUMPLIMIENTO DE','META DEL DÍA'] : ['RANKING POR','CUMPLIMIENTO DE META'];
+  text(titleLines[0],PAD+68,PAD+24,26,900,NAVY); text(titleLines[1],PAD+68,PAD+52,26,900,NAVY);
+  text('¡Juntos',W-PAD,PAD+22,20,800,ORANGE,'right','italic'); text('logramos más!',W-PAD,PAD+46,20,800,ORANGE,'right','italic');
+  // chip de fecha + nota
+  const chipTxt = `📅 ${opts.day && opts.dayTag ? opts.dayTag+' · ' : ''}${range}`;
+  c.font=font(12,700); const chipW=c.measureText(chipTxt).width+28;
+  c.fillStyle='#dce9f7'; rr(PAD,PAD+68,chipW,28,14); c.fill();
+  text(chipTxt,PAD+14,PAD+87,12,700,NAVY);
+  const note = opts.day ? '🎯 % de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '🎯 % de meta diaria (variable por período) acumulada · sin fines de semana';
+  text(note,PAD,PAD+114,11.5,400,'#8a97a3');
+  // columnas por equipo
+  const medals=['#e8b53a','#b9c3cb','#cd7f45'];
+  const teams=[{title:'CHEVERE',emoji:'👑',c1:NAVY,c2:'#0a3a9c',list:che},{title:'IMPARABLES',emoji:'🔥',c1:ORANGE,c2:'#ff7a33',list:imp}];
+  const nameW = colW - 14*2 - 26 - 130 - 48 - 64 - 32;
+  teams.forEach((tm,ti)=>{
+    const x0 = PAD + ti*(colW+GAP), y0 = colsY;
+    c.save(); c.shadowColor='rgba(0,0,0,.08)'; c.shadowBlur=10; c.shadowOffsetY=2; c.fillStyle='#fff'; rr(x0,y0,colW,colH,14); c.fill(); c.restore();
+    c.save(); rr(x0,y0,colW,colH,14); c.clip();
+    const g=c.createLinearGradient(x0,0,x0+colW,0); g.addColorStop(0,tm.c1); g.addColorStop(1,tm.c2);
+    c.fillStyle=g; c.fillRect(x0,y0,colW,HEAD_H);
+    text(tm.emoji,x0+16,y0+33,22,400,'#fff'); text('TEAM '+tm.title,x0+50,y0+32,18,800,'#fff');
+    c.fillStyle='#f6f8fa'; c.fillRect(x0,y0+HEAD_H,colW,SUB_H);
+    const hy=y0+HEAD_H+17, nameX=x0+14+26+8, pctX=nameX+nameW+8, vsR=pctX+130+8+48, callR=x0+colW-14;
+    text('#',x0+14,hy,9,700,'#8a97a3'); text('NOMBRE',nameX,hy,9,700,'#8a97a3'); text('% DE META',pctX,hy,9,700,'#8a97a3');
+    text('VS META',vsR,hy,9,700,'#8a97a3','right'); text('LLAM/META',callR,hy,9,700,'#8a97a3','right');
+    if(!tm.list.length) text('Sin datos en este período.',x0+colW/2,y0+HEAD_H+SUB_H+30,12,400,'#8a97a3','center');
+    tm.list.forEach((r,i)=>{
+      const ry=y0+HEAD_H+SUB_H+i*ROW_H, cy=ry+ROW_H/2;
+      c.fillStyle='#eef1f4'; c.fillRect(x0,ry+ROW_H-1,colW,1);
+      c.fillStyle=medals[i]||'#9aa7b2'; c.beginPath(); c.arc(x0+14+13,cy,13,0,Math.PI*2); c.fill();
+      text(String(i+1),x0+14+13,cy+4.5,12,800,'#fff','center');
+      const lines=wrap(r.name,nameW,2); const top=cy-(lines.length*14)/2+11;
+      lines.forEach((ln,k)=>text(ln,nameX,top+k*14,12.5,800,NAVY));
+      const pct=Math.round(r.pct), dif=Math.round(r.tot-r.meta);
+      const barW=Math.max(3,Math.min(pct,100));
       const barColor = pct>=100 ? '#3aa76d' : pct>=50 ? '#f3a938' : '#e03131';
-      const medalBg = medals[i] || '#9aa7b2';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #eef1f4;">
-        <div style="width:26px;height:26px;border-radius:50%;background:${medalBg};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">${i+1}</div>
-        <div style="flex:1 1 auto;min-width:0;font-weight:800;color:${NAVY};font-size:12.5px;line-height:1.15;">${escapeHtml(r.name)}</div>
-        <div style="width:130px;flex:none;">
-          <div style="font-weight:800;color:${NAVY};font-size:15px;line-height:1;">${pct}%</div>
-          <div style="height:7px;border-radius:4px;background:#eef1f4;margin-top:4px;overflow:hidden;"><div style="height:100%;width:${barW}%;background:${barColor};border-radius:4px;"></div></div>
-        </div>
-        <div style="width:48px;flex:none;text-align:right;font-weight:800;font-size:12px;color:${dif>=0?'#2f9e44':'#e03131'};">${difStr}</div>
-        <div style="width:64px;flex:none;text-align:right;color:#8a97a3;font-size:11px;font-family:'Courier New',monospace;">${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))}</div>
-      </div>`;
-    }).join('') : '<div style="padding:20px;text-align:center;color:#8a97a3;font-size:12px;">Sin datos en este período.</div>';
-    return `<div style="flex:1 1 0;min-width:0;background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);overflow:hidden;">
-      <div style="display:flex;align-items:center;gap:10px;padding:13px 16px;background:${headerBg};">
-        <span style="font-size:22px;">${emoji}</span>
-        <span style="color:#fff;font-weight:800;font-size:18px;letter-spacing:.5px;">TEAM ${title}</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;background:#f6f8fa;color:#8a97a3;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">
-        <div style="width:26px;flex:none;">#</div><div style="flex:1 1 auto;">Nombre</div>
-        <div style="width:130px;flex:none;">% de meta</div><div style="width:48px;flex:none;text-align:right;">Vs meta</div><div style="width:64px;flex:none;text-align:right;">Llam/Meta</div>
-      </div>
-      ${rowsHtml}
-    </div>`;
-  }
-  const el=document.createElement('div');
-  el.style.cssText=`position:fixed;left:-99999px;top:0;width:1000px;background:#eaf2fb;padding:26px;box-sizing:border-box;font-family:${(getComputedStyle(document.body).fontFamily||'Arial,sans-serif')};`;
-  el.innerHTML=`
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:54px;height:54px;border-radius:50%;background:${NAVY};display:flex;align-items:center;justify-content:center;font-size:27px;">📞</div>
-        <div style="font-weight:900;color:${NAVY};font-size:26px;line-height:1.02;letter-spacing:.5px;">${opts.day ? 'CUMPLIMIENTO DE<br>META DEL DÍA' : 'RANKING POR<br>CUMPLIMIENTO DE META'}</div>
-      </div>
-      <div style="color:${ORANGE};font-weight:800;font-style:italic;font-size:20px;text-align:right;line-height:1.05;">¡Juntos<br>logramos más!</div>
+      text(pct+'%',pctX,cy-2,15,800,NAVY);
+      c.fillStyle='#eef1f4'; rr(pctX,cy+5,130,7,3.5); c.fill();
+      c.fillStyle=barColor; rr(pctX,cy+5,130*barW/100,7,3.5); c.fill();
+      text((dif>=0?'+':'')+fmtInt(dif),vsR,cy+4.5,12,800,dif>=0?'#2f9e44':'#e03131','right');
+      text(fmtInt(r.tot)+'/'+fmtInt(Math.round(r.meta)),callR,cy+4,11,400,'#8a97a3','right','normal','"Courier New", monospace');
+    });
+    c.restore();
+  });
+  text('¡Tu esfuerzo se nota!',W/2,colsY+colH+36,18,800,ORANGE,'center','italic');
+  return canvas;
+}
+function showRankingPreview(canvas, blob, fileName){
+  const old = document.getElementById('rankImgModal'); if (old) old.remove();
+  const url = URL.createObjectURL(blob);
+  const m = document.createElement('div'); m.id='rankImgModal';
+  m.style.cssText='position:fixed;inset:0;z-index:140;background:rgba(10,12,15,.72);display:flex;align-items:center;justify-content:center;padding:20px;';
+  m.innerHTML = `<div style="background:var(--surface,#fff);border-radius:16px;max-width:min(1100px,96vw);max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+    <div style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-soft,#e3e8ee);flex-wrap:wrap;">
+      <b style="flex:1;min-width:160px;color:var(--ink,#111);">Imagen del ranking · ${escapeHtml(fileName)}</b>
+      <button class="btn primary" id="rimgDl">Descargar</button>
+      <button class="btn" id="rimgCopy">Copiar imagen</button>
+      <button class="btn" id="rimgClose">Cerrar</button>
     </div>
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;">
-      <span style="background:#dce9f7;color:${NAVY};font-weight:700;font-size:12px;padding:6px 13px;border-radius:20px;">📅 ${opts.day && opts.dayTag ? opts.dayTag+' · ' : ''}${range}</span>
-      <span style="color:#8a97a3;font-size:11.5px;">🎯 ${opts.day ? '% de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '% de meta diaria (variable por período) acumulada · sin fines de semana'}</span>
-    </div>
-    <div style="display:flex;gap:18px;align-items:flex-start;">
-      ${teamColumn('CHEVERE','👑','linear-gradient(90deg,#00216f,#0a3a9c)',che)}
-      ${teamColumn('IMPARABLES','🔥','linear-gradient(90deg,#ff5100,#ff7a33)',imp)}
-    </div>
-    <div style="text-align:center;color:${ORANGE};font-weight:800;font-style:italic;font-size:18px;margin-top:18px;">¡Tu esfuerzo se nota!</div>`;
-  return el;
+    <div style="overflow:auto;padding:12px;"><img alt="Ranking" src="${url}" style="display:block;max-width:100%;height:auto;border-radius:8px;"></div></div>`;
+  document.body.appendChild(m);
+  const close=()=>{ m.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); };
+  m.addEventListener('click',e=>{ if(e.target===m) close(); });
+  m.querySelector('#rimgClose').addEventListener('click',close);
+  m.querySelector('#rimgDl').addEventListener('click',()=>{ const a=document.createElement('a'); a.href=url; a.download=fileName; document.body.appendChild(a); a.click(); a.remove(); showToast('Imagen descargada: '+fileName); });
+  m.querySelector('#rimgCopy').addEventListener('click',async()=>{
+    try{ await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); showToast('Imagen copiada — pégala en WhatsApp o correo.'); }
+    catch(e){ showToast('Tu navegador no permite copiar la imagen; usa Descargar.'); }
+  });
 }
 async function generateRankingImage(){
-  if (typeof html2canvas==='undefined'){ showToast('La imagen se está preparando… intenta de nuevo en unos segundos.'); return; }
   const sc = rankScopeFromUI(); if(!sc) return;
   if(!sc.rows.length){ showToast('Sin datos para la imagen en ese alcance.'); return; }
   const che = sc.rows.filter(r=>r.team==='chevere').sort((a,b)=>b.pct-a.pct);
   const imp = sc.rows.filter(r=>r.team==='imparables').sort((a,b)=>b.pct-a.pct);
-  const el = buildRankingCard(che, imp, sc.label, {day:sc.isDay, dayTag:sc.dayTag});
-  document.body.appendChild(el);
-  showToast('Generando imagen…');
-  try{
-    const canvas=await html2canvas(el,{scale:2,backgroundColor:null,logging:false,useCORS:true});
-    canvas.toBlob(blob=>{
-      if(!blob){ showToast('No se pudo generar la imagen.'); return; }
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=`ranking_cumplimiento_${sc.fileTag}.png`;
-      document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
-      showToast('Imagen descargada — compártela en WhatsApp o correo.');
-    }, 'image/png');
-  }catch(err){ showToast('No se pudo generar la imagen.'); }
-  finally{ el.remove(); }
+  let canvas=null;
+  try{ canvas = drawRankingCanvas(che, imp, sc.label, {day:sc.isDay, dayTag:sc.dayTag}); }catch(err){ console.error('Imagen del ranking:', err); }
+  if(!canvas){ showToast('No se pudo dibujar la imagen en este navegador.'); return; }
+  const fileName = `ranking_cumplimiento_${sc.fileTag}.png`;
+  canvas.toBlob(blob=>{
+    if(!blob){ showToast('No se pudo generar el archivo de la imagen.'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    showToast('Imagen descargada: '+fileName);
+    showRankingPreview(canvas, blob, fileName);   // vista previa con Descargar / Copiar por si el navegador bloquea la descarga
+  }, 'image/png');
 }
 
 function renderGoalRanking(){
