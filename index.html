@@ -1061,6 +1061,13 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 .tv-goal-track{height:clamp(26px,4vh,48px) !important; max-width:min(1100px,80vw) !important;}
 .tv-rank-name{font-size:clamp(20px,2.9vh,38px) !important;} .tv-rank-val{font-size:clamp(22px,3.2vh,42px) !important;}
 .tv-team-name{font-size:clamp(26px,4vh,52px) !important;} .tv-team-pct,.tv-team-top{font-size:clamp(16px,2.4vh,30px) !important;}
+
+/* Cumplimiento por gestor (TV): menos texto por persona → letras más grandes */
+.tv-gname{font-size:clamp(20px,3.1vh,40px) !important;}
+.tv-gpct{font-size:clamp(26px,4.2vh,56px) !important;}
+.tv-gsub{font-size:clamp(15px,2.3vh,30px) !important; font-weight:700;}
+.tv-gsub.good{color:var(--tv-good);} .tv-gsub.warn{color:var(--tv-warn);} .tv-gsub.crit{color:var(--tv-crit);}
+.tv-gnum{min-width:16vh !important;}
 </style>
 
 <div class="app-layout">
@@ -4232,9 +4239,9 @@ function tvGoalRankHtml(sc, title){
   if (sc.rows.some(r=>!known.has(r.team))) cols.push(['__otro','•','SIN EQUIPO','']);
   const rowHtml = (r,i)=>{
     const st = tvGoalStatusOf(r.pct), dif = Math.round(r.tot-r.meta);
-    const sub = dif>=0 ? `+${fmtInt(dif)} sobre la meta` : `faltan ${fmtInt(-dif)}`;
+    const sub = dif>=0 ? `sobran ${fmtInt(dif)}` : `faltan ${fmtInt(-dif)}`;
     const w = Math.min(Math.max(r.pct,2),100).toFixed(1);
-    return `<div class="tv-grow"><div class="tv-gpos">${i+1}</div><div class="tv-gbody"><div class="tv-gname">${escapeHtml(r.name)}</div><div class="tv-gtrack"><div class="tv-gfill ${st}" data-width-target="${w}%"></div></div></div><div class="tv-gnum"><div class="tv-gpct ${st}">${Math.round(r.pct)}%</div><div class="tv-gsub">${sub} · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))}</div></div></div>`;
+    return `<div class="tv-grow"><div class="tv-gpos">${i+1}</div><div class="tv-gbody"><div class="tv-gname">${escapeHtml(r.name)}</div><div class="tv-gtrack"><div class="tv-gfill ${st}" data-width-target="${w}%"></div></div></div><div class="tv-gnum"><div class="tv-gpct ${st}">${Math.round(r.pct)}%</div><div class="tv-gsub ${st}">${sub}</div></div></div>`;
   };
   const colHtml = ([key,emoji,label,cls])=>{
     const list = sc.rows.filter(r=> key==='__otro' ? !known.has(r.team) : r.team===key).sort((a,b)=>b.pct-a.pct);
@@ -4244,7 +4251,7 @@ function tvGoalRankHtml(sc, title){
       <div class="tv-ghead-sub">${fmtInt(tot)} de ${fmtInt(Math.round(meta))} llamadas del equipo</div>
       <div class="tv-grows">${list.length ? list.map(rowHtml).join('') : '<div class="tv-top-sub" style="padding:1vh 0;">Sin datos.</div>'}</div></div>`;
   };
-  return `<div class="tv-screen-inner"><div class="tv-screen-title">${title}</div><div class="tv-screen-sub">${escapeHtml(sc.isDay ? sc.dayTag+' · '+sc.label : sc.short)} · % de la meta · rojo = faltan llamadas, verde = sobre la meta</div>
+  return `<div class="tv-screen-inner"><div class="tv-screen-title">${title}</div><div class="tv-screen-sub">${escapeHtml(sc.isDay ? sc.dayTag+' · '+sc.label : sc.short)} · % de la meta</div>
     <div class="tv-gcols" style="grid-template-columns:repeat(${cols.length},1fr);">${cols.map(colHtml).join('')}</div></div>`;
 }
 function renderTvGoalRank(){ return tvGoalRankHtml(goalScope('period'), 'Cumplimiento de meta por gestor · período'); }
