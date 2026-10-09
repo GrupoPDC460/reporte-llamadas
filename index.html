@@ -1078,6 +1078,9 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 .tv-grow .tv-gnum{display:flex; align-items:baseline; justify-content:flex-end; gap:.55em; min-width:0 !important; white-space:nowrap;}
 .tv-grow .tv-gpct{font-size:54cqh !important; line-height:1;}
 .tv-grow .tv-gsub{font-size:32cqh !important; line-height:1; margin-top:0 !important;}
+
+.gestor-row input.ext-in{width:64px !important;}
+.gestor-row input.ext-in:focus{outline:2px solid var(--accent); background:var(--surface);}
 </style>
 
 <div class="app-layout">
@@ -1649,6 +1652,7 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
   <div class="drawer-section">
     <h4>Gestores (<span id="gestorCount">0</span>)</h4>
     <div id="gestorList"></div>
+    <div class="field-hint">Puedes cambiar la <b>extensión</b>, el nombre y el equipo directamente en la lista. Al cambiar una extensión, todo el historial de esa persona (llamadas y justificaciones) pasa a la extensión nueva.</div>
     <div class="add-gestor">
       <input type="text" id="newExt" placeholder="Ext." class="mono" style="width:56px;">
       <input type="text" id="newName" class="name-add" placeholder="Nombre completo">
@@ -3955,17 +3959,71 @@ function teamOptionsHtml(selected){
     Object.entries(TEAMS).map(([k,label])=>`<option value="${k}" ${selected===k?'selected':''}>${label.replace('Team ','')}</option>`).join('');
 }
 
+// ---------- Cambiar la extensión de un gestor: TODO su historial pasa a la extensión nueva ----------
+// 1) planGestorExt valida y cuenta lo que se movería, SIN modificar nada.
+function planGestorExt(oldExt, newExtRaw){
+  const newExt = String(newExtRaw==null ? '' : newExtRaw).trim();
+  if (!state.gestores[oldExt]) return {ok:false, msg:'Ese gestor ya no existe.'};
+  if (!newExt) return {ok:false, msg:'La extensión no puede quedar vacía.'};
+  if (/[\s_]/.test(newExt)) return {ok:false, msg:'La extensión no puede llevar espacios ni guiones bajos.'};
+  if (newExt === oldExt) return {ok:true, same:true, oldExt, newExt, keys:[], just:0};
+  if (state.gestores[newExt]) return {ok:false, msg:`La extensión ${newExt} ya la tiene ${state.gestores[newExt].name}. Elige otra.`};
+  const keys = []; let clash = false;
+  state.daily.forEach((rec,k)=>{ if (k.startsWith(oldExt+'_')) keys.push(k); else if (k.startsWith(newExt+'_')) clash = true; });
+  if (clash) return {ok:false, msg:`Ya hay llamadas guardadas con la extensión ${newExt} (de un gestor eliminado). Elige otra extensión.`};
+  const just = (state.config.justificaciones||[]).filter(j=>j && j.ext===oldExt).length;
+  return {ok:true, same:false, oldExt, newExt, keys, just};
+}
+// 2) applyGestorExt mueve el historial: llamadas guardadas, justificaciones, filtro activo y el propio gestor.
+function applyGestorExt(plan){
+  const {oldExt, newExt} = plan; const pairs = [];
+  const g = state.gestores[oldExt];
+  plan.keys.forEach(k=>{
+    const rec = state.daily.get(k); const date = k.slice(oldExt.length+1);
+    state.daily.delete(k);
+    rec.ext = newExt; rec.name = g.name;
+    const nk = newExt+'_'+date; state.daily.set(nk, rec); pairs.push([k,nk]);
+  });
+  (state.config.justificaciones||[]).forEach(j=>{ if (j && j.ext===oldExt) j.ext = newExt; });
+  if (state.filterGestor === oldExt) state.filterGestor = newExt;
+  state.gestores[newExt] = g; delete state.gestores[oldExt];
+  return pairs;
+}
+
 function renderGestorList(){
   const el = $('#gestorList');
   const entries = Object.entries(state.gestores).sort((a,b)=>a[1].name.localeCompare(b[1].name));
   $('#gestorCount').textContent = entries.length;
   el.innerHTML = entries.map(([ext,g])=>`
     <div class="gestor-row" data-ext="${ext}">
-      <input class="ext-in mono" value="${escapeHtml(ext)}" disabled>
+      <input class="ext-in mono" value="${escapeHtml(ext)}" title="Extensión: puedes cambiarla; todo el historial se mueve a la nueva">
       <input class="name-in" value="${escapeHtml(g.name)}">
       <select class="team-in">${teamOptionsHtml(g.team)}</select>
       <button data-del="${ext}" title="Eliminar">×</button>
     </div>`).join('');
+  el.querySelectorAll('.ext-in').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const oldExt = inp.closest('.gestor-row').dataset.ext;
+      const plan = planGestorExt(oldExt, inp.value);
+      if (!plan.ok){ showToast(plan.msg); inp.value = oldExt; return; }
+      if (plan.same){ inp.value = oldExt; return; }
+      const nombre = state.gestores[oldExt].name;
+      const okGo = confirm(`¿Cambiar la extensión de ${nombre}\nde ${oldExt} a ${plan.newExt}?\n\nSe moverán ${plan.keys.length} registros diarios y ${plan.just} justificaciones a la extensión nueva.`);
+      if (!okGo){ inp.value = oldExt; return; }
+      const pairs = applyGestorExt(plan);
+      if (state.db){
+        const g = state.gestores[plan.newExt];
+        await state.db.collection('gestores').doc(plan.newExt).set({ext:plan.newExt, name:g.name, team:g.team||''}).catch(()=>{});
+        await state.db.collection('gestores').doc(oldExt).delete().catch(()=>{});
+        for (let i=0;i<pairs.length;i+=12){
+          await Promise.all(pairs.slice(i,i+12).map(([ok_,nk])=>
+            state.db.collection('daily_stats').doc(nk).set(state.daily.get(nk)).then(()=>state.db.collection('daily_stats').doc(ok_).delete()).catch(()=>{})));
+        }
+      }
+      renderGestorList(); renderAll();
+      showToast(`Extensión cambiada: ${oldExt} → ${plan.newExt} (${pairs.length} registros movidos)`);
+    });
+  });
   el.querySelectorAll('.name-in').forEach(inp=>{
     inp.addEventListener('change', async ()=>{
       const ext = inp.closest('.gestor-row').dataset.ext;
