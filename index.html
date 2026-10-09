@@ -1098,6 +1098,7 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
   <div class="sb-section">Administración</div>
   <ul class="sb-nav">
     <li><a data-page="admin"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.21V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v0a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg><span class="sb-label">Panel supervisor</span></a></li>
+    <li><a id="sbGestores"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-2-2"/></svg><span class="sb-label">Gestores y extensiones</span></a></li>
   </ul>
   <div class="sb-toggle" id="sbToggle">
     <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
@@ -1122,6 +1123,7 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconSun" hidden><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconMoon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
+  <button class="btn" id="btnSettingsHdr" title="Configuración, gestores y extensiones" aria-label="Configuración, gestores y extensiones"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.21V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v0a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg> Gestores y config.</button>
 </div>
 </div>
 
@@ -1290,7 +1292,7 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
           <button class="btn" id="jumpJust">Justificaciones</button>
           <button class="btn" id="jumpKpis">KPIs derivados</button>
         </div>
-        <div class="da-btns" style="margin-top:8px;"><button class="btn" id="btnSettings" title="Configuración" aria-label="Configuración">
+        <div class="da-btns" style="margin-top:8px;"><button class="btn primary" id="btnGestoresExt">Gestores y extensiones</button><button class="btn" id="btnSettings" title="Configuración" aria-label="Configuración">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>
       Configuración
     </button><button class="btn" id="btnEditLayout" title="Reordenar, ocultar o mostrar las cajitas y gráficos">
@@ -5948,6 +5950,14 @@ initDb();
   if (rs && rd) rs.addEventListener('change', function(){
     rd.hidden = (rs.value !== 'date');
     if (rs.value === 'date' && !rd.value && typeof measuredDay === 'function'){ var m = measuredDay(); if (m) rd.value = m.day; }
+  });
+  // Configuración / Gestores y extensiones: accesos directos (el panel y la lista ya existían)
+  function openGestores(){
+    if (typeof openDrawer === 'function') openDrawer();
+    setTimeout(function(){ var l = document.getElementById('gestorList'); var sec = l && l.closest('.drawer-section'); if (sec) sec.scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
+  }
+  [['sbGestores', openGestores], ['btnGestoresExt', openGestores], ['btnSettingsHdr', openGestores]].forEach(function(p){
+    var b = document.getElementById(p[0]); if (b) b.addEventListener('click', function(e){ e.preventDefault(); p[1](); });
   });
   // Modo TV desde el sidebar
   var sbTv = document.getElementById('sbTvMode');
