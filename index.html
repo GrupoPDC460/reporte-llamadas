@@ -1068,6 +1068,17 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 .tv-gsub{font-size:clamp(15px,2.3vh,30px) !important; font-weight:700;}
 .tv-gsub.good{color:var(--tv-good);} .tv-gsub.warn{color:var(--tv-warn);} .tv-gsub.crit{color:var(--tv-crit);}
 .tv-gnum{min-width:16vh !important;}
+
+/* Cumplimiento por gestor (TV): el texto se mide contra la ALTURA DE SU PROPIA FILA (unidades cqh),
+   así nunca se monta sobre la fila de abajo, sin importar cuántas personas haya ni el tamaño de la pantalla.
+   (Los tamaños en vh de arriba quedan como respaldo para navegadores muy viejos.) */
+.tv-grow{container-type:size; overflow:hidden;}
+.tv-grow .tv-gpos{font-size:40cqh !important;}
+.tv-grow .tv-gname{font-size:42cqh !important; line-height:1.05;}
+.tv-grow .tv-gtrack{height:9cqh !important; margin-top:6cqh !important;}
+.tv-grow .tv-gnum{display:flex; align-items:baseline; justify-content:flex-end; gap:.55em; min-width:0 !important; white-space:nowrap;}
+.tv-grow .tv-gpct{font-size:54cqh !important; line-height:1;}
+.tv-grow .tv-gsub{font-size:32cqh !important; line-height:1; margin-top:0 !important;}
 </style>
 
 <div class="app-layout">
@@ -4241,7 +4252,7 @@ function tvGoalRankHtml(sc, title){
     const st = tvGoalStatusOf(r.pct), dif = Math.round(r.tot-r.meta);
     const sub = dif>=0 ? `sobran ${fmtInt(dif)}` : `faltan ${fmtInt(-dif)}`;
     const w = Math.min(Math.max(r.pct,2),100).toFixed(1);
-    return `<div class="tv-grow"><div class="tv-gpos">${i+1}</div><div class="tv-gbody"><div class="tv-gname">${escapeHtml(r.name)}</div><div class="tv-gtrack"><div class="tv-gfill ${st}" data-width-target="${w}%"></div></div></div><div class="tv-gnum"><div class="tv-gpct ${st}">${Math.round(r.pct)}%</div><div class="tv-gsub ${st}">${sub}</div></div></div>`;
+    return `<div class="tv-grow"><div class="tv-gpos">${i+1}</div><div class="tv-gbody"><div class="tv-gname">${escapeHtml(r.name)}</div><div class="tv-gtrack"><div class="tv-gfill ${st}" data-width-target="${w}%"></div></div></div><div class="tv-gnum"><span class="tv-gpct ${st}">${Math.round(r.pct)}%</span><span class="tv-gsub ${st}">${sub}</span></div></div>`;
   };
   const colHtml = ([key,emoji,label,cls])=>{
     const list = sc.rows.filter(r=> key==='__otro' ? !known.has(r.team) : r.team===key).sort((a,b)=>b.pct-a.pct);
