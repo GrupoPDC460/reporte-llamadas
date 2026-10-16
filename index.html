@@ -1081,6 +1081,10 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 
 .gestor-row input.ext-in{width:64px !important;}
 .gestor-row input.ext-in:focus{outline:2px solid var(--accent); background:var(--surface);}
+
+.gestor-row.inactive{opacity:.55;}
+.gestor-row label.act-lbl{display:inline-flex; align-items:center; gap:3px; font-size:11px; color:var(--ink-mute); cursor:pointer; white-space:nowrap;}
+.gestor-row label.act-lbl input{width:auto; padding:0;}
 </style>
 
 <div class="app-layout">
@@ -1652,7 +1656,7 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
   <div class="drawer-section">
     <h4>Gestores (<span id="gestorCount">0</span>)</h4>
     <div id="gestorList"></div>
-    <div class="field-hint">Puedes cambiar la <b>extensión</b>, el nombre y el equipo directamente en la lista. Al cambiar una extensión, todo el historial de esa persona (llamadas y justificaciones) pasa a la extensión nueva.</div>
+    <div class="field-hint">Puedes cambiar la <b>extensión</b>, el nombre y el equipo directamente en la lista. Al cambiar una extensión, todo el historial de esa persona (llamadas y justificaciones) pasa a la extensión nueva. Desmarca <b>opera</b> cuando alguien deje de ser gestor: deja de aparecer en rankings, filtros, alertas y el Modo TV, y su historial se conserva.</div>
     <div class="add-gestor">
       <input type="text" id="newExt" placeholder="Ext." class="mono" style="width:56px;">
       <input type="text" id="newName" class="name-add" placeholder="Nombre completo">
@@ -1807,7 +1811,10 @@ SEED_DAILY.forEach(r => state.daily.set(r.ext+'_'+r.date, r));
 // ---------- Helpers de gestor/equipo ----------
 const gName = ext => (state.gestores[ext] && state.gestores[ext].name) || ('Ext. '+ext);
 const gTeam = ext => (state.gestores[ext] && state.gestores[ext].team) || '';
-const visibleExts = () => Object.keys(state.gestores).filter(ext => !state.filterTeam || gTeam(ext)===state.filterTeam);
+// Un gestor con activo:false YA NO OPERA como gestor (p. ej. pasó a un cargo administrativo): no aparece en
+// rankings, filtros, alertas ni listas del dashboard / Modo TV. Su historial se conserva intacto.
+const isActiveGestor = ext => !(state.gestores[ext] && state.gestores[ext].activo === false);
+const visibleExts = () => Object.keys(state.gestores).filter(ext => isActiveGestor(ext) && (!state.filterTeam || gTeam(ext)===state.filterTeam));
 // Alterna el filtro de gestor: si ya está seleccionado ese mismo, lo quita (vuelve a la lista completa).
 function setGestorFilter(ext){
   state.filterGestor = (state.filterGestor === ext) ? '' : ext;
@@ -2002,7 +2009,7 @@ function populateFilterOptions(){
   const exts = visibleExts().sort((a,b)=>gName(a).localeCompare(gName(b)));
   gSel.innerHTML = '<option value="">Todos los gestores</option>' +
     exts.map(ext=>`<option value="${ext}" ${ext===current?'selected':''}>${escapeHtml(gName(ext))}</option>`).join('');
-  if (current && !state.gestores[current]){ state.filterGestor=''; gSel.value=''; }
+  if (current && (!state.gestores[current] || !isActiveGestor(current))){ state.filterGestor=''; gSel.value=''; }
   if (current && state.filterTeam && gTeam(current)!==state.filterTeam){ state.filterGestor=''; gSel.value=''; }
 
   const cSel = $('#pickCountry');
@@ -2058,7 +2065,7 @@ function renderKPIs(){
     const base = baseRecords();
     const byAns = {};
     const byGestorTotal = {};
-    base.forEach(r=>{ byAns[r.ext] = (byAns[r.ext]||0) + (r.answered||0); byGestorTotal[r.ext] = (byGestorTotal[r.ext]||0) + (r.total||0); });
+    base.filter(r=>isActiveGestor(r.ext)).forEach(r=>{ byAns[r.ext] = (byAns[r.ext]||0) + (r.answered||0); byGestorTotal[r.ext] = (byGestorTotal[r.ext]||0) + (r.total||0); });
     const ranked = Object.entries(byAns).sort((a,b)=>b[1]-a[1]).map(([ext])=>ext);
     const idx = ranked.indexOf(state.filterGestor);
     const myTotal = byGestorTotal[state.filterGestor]||0;
@@ -2071,7 +2078,7 @@ function renderKPIs(){
   } else {
     const byGestor = {};
     const byGestorTotal = {};
-    recs.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + r.effective; byGestorTotal[r.ext] = (byGestorTotal[r.ext]||0) + (r.total||0); });
+    recs.filter(r=>isActiveGestor(r.ext)).forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + r.effective; byGestorTotal[r.ext] = (byGestorTotal[r.ext]||0) + (r.total||0); });
     const activeGestores = Object.keys(byGestor).filter(e=>byGestor[e]>0).length;
     const days = new Set(recs.map(r=>r.date)).size || 1;
     const avg = activeGestores ? (totalEff/(activeGestores*days)) : 0;
@@ -2086,7 +2093,7 @@ function renderKPIs(){
 
     let topExt=null, topVal=-1;
     const byAns={};
-    recs.forEach(r=>{ byAns[r.ext]=(byAns[r.ext]||0)+(r.answered||0); });
+    recs.filter(r=>isActiveGestor(r.ext)).forEach(r=>{ byAns[r.ext]=(byAns[r.ext]||0)+(r.answered||0); });
     Object.entries(byAns).forEach(([ext,v])=>{ if (v>topVal){topVal=v; topExt=ext;} });
     const topTotal = topExt ? (byGestorTotal[topExt]||0) : 0;
     $('#kpiLabel4').textContent = 'Mejor gestor (contacto)';
@@ -2142,15 +2149,15 @@ function renderRanking(){
   const byGestor = {};
   recs.forEach(r=>{ byGestor[r.ext] = (byGestor[r.ext]||0) + (r.answered||0); });
   let rows = visibleExts().map(ext => ({ext, name:gName(ext), val: byGestor[ext]||0}));
-  rows = rows.filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
+  rows = rows.sort((a,b)=> (b.val-a.val) || a.name.localeCompare(b.name,'es'));   // todo el equipo; quien no ha llamado queda al final en 0
 
-  if (!rows.length){ el.innerHTML = '<div class="rank-empty">Sin contestadas en este período.</div>'; return; }
+  if (!rows.length || !recs.length){ el.innerHTML = '<div class="rank-empty">Sin contestadas en este período.</div>'; return; }
   const max = Math.max(...rows.map(r=>r.val), 1);
   el.innerHTML = rows.map((r,i)=>{
-    const pct = Math.max((r.val/max)*100, 3);
+    const pct = r.val>0 ? Math.max((r.val/max)*100, 3) : 0;
     return `<div class="rank-row">
       <span class="rank-num">${i+1}</span>
-      <span class="rank-name" title="${escapeHtml(r.name)}" data-ext="${r.ext}">${i===0?'👑 ':''}${escapeHtml(r.name)}</span>
+      <span class="rank-name" title="${escapeHtml(r.name)}" data-ext="${r.ext}">${i===0 && r.val>0?'👑 ':''}${escapeHtml(r.name)}</span>
       <div class="rank-bar-track">
         <div class="rank-bar-fill ${i===0?'top':''}" style="width:${pct}%"></div>
       </div>
@@ -2678,27 +2685,17 @@ function measuredDay(todayStr){
   }
   return day ? {day, isToday: day===today} : null;
 }
-// Para HOY (día en curso) cuentan también los gestores que trabajaron en los últimos días y todavía
-// no tienen llamadas: aparecen en 0% y se ve cuánto les falta. En días ya cerrados solo cuentan los que llamaron.
-function dayRoster(day){
-  const prev = allDatesSorted().filter(d=>!isWeekend(d) && d<day).slice(-5);
-  const set = new Set();
-  visibleExts().forEach(ext=>{
-    const r = getRec(ext+'_'+day);
-    if (r && (r.total||0)>0){ set.add(ext); return; }
-    if (prev.some(d=>{ const x=getRec(ext+'_'+d); return x && (x.total||0)>0; })) set.add(ext);
-  });
-  return set;
-}
-function goalRowsFor(dates, roster){
+// Cumplimiento por persona en un conjunto de días: quien tiene llamadas cuenta sus días trabajados; quien NO tiene
+// ninguna en ese alcance aparece igual, en 0%, contra la meta completa de esos días (salvo días justificados completos).
+function goalRowsFor(dates){
   return visibleExts().map(ext=>{
-    let tot=0, meta=0;
+    let tot=0, meta=0, worked=0;
     dates.forEach(dt=>{
-      const r = getRec(ext+'_'+dt); const has = !!(r && (r.total||0)>0);
-      if (!has && !(roster && roster.has(ext))) return;
       if (isDayExcusedFull(ext,dt)) return;
-      tot += has ? r.total : 0; meta += metaForDay(ext,dt);
+      const r = getRec(ext+'_'+dt);
+      if (r && (r.total||0)>0){ tot += r.total; meta += metaForDay(ext,dt); worked++; }
     });
+    if (!worked) dates.forEach(dt=>{ if(!isDayExcusedFull(ext,dt)) meta += metaForDay(ext,dt); });
     return {ext, name:gName(ext), team:gTeam(ext), tot, meta, pct: meta ? tot/meta*100 : null};
   }).filter(r=>r.pct!==null);
 }
@@ -2706,7 +2703,7 @@ function goalRowsFor(dates, roster){
 function goalScope(kind, dateStr){
   if (kind==='period'){
     const [min,max] = currentRangeBounds(); if(!min) return null;
-    return {kind:'period', isDay:false, rows:goalRowsFor(periodWorkDates(), null),
+    return {kind:'period', isDay:false, rows:goalRowsFor(periodWorkDates()),
       label:`${dateFmtHumanFull.format(toUTC(min))} al ${dateFmtHumanFull.format(toUTC(max))}`,
       short:`${dateFmtHuman.format(toUTC(min))} – ${dateFmtHuman.format(toUTC(max))}`, fileTag:`${min}_a_${max}`};
   }
@@ -2716,7 +2713,7 @@ function goalScope(kind, dateStr){
   else { const m = measuredDay(); if(!m) return null; day=m.day; isToday=m.isToday; }
   const lbl = capFirst(TV_DAY_FMT.format(toUTC(day)).replace(',',''));
   const dayTag = isToday ? 'Hoy' : (dateStr ? 'Fecha' : 'Último día cargado');
-  return {kind:'day', isDay:true, day, isToday, dayTag, rows:goalRowsFor([day], isToday ? dayRoster(day) : null),
+  return {kind:'day', isDay:true, day, isToday, dayTag, rows:goalRowsFor([day]),
     label:lbl, short:lbl, fileTag:day};
 }
 function rankScopeFromUI(){
@@ -2902,10 +2899,13 @@ function renderGoalRanking(){
       if(isDayExcusedFull(ext, dates[idx])) return;   // día justificado completo: fuera de meta y llamadas
       diasTrabajados++; totalCalls += r.total; metaAcum += metaForDay(ext, dates[idx]);
     });
+    // Sin llamadas en este alcance (p. ej. hoy, o todo el período): aparece en 0% contra la meta completa
+    // de esos días (salvo los días justificados completos). Así aparece TODO el equipo.
+    if (!diasTrabajados){ dates.forEach(dt=>{ if(!isDayExcusedFull(ext,dt)) metaAcum += metaForDay(ext,dt); }); }
     const pct = metaAcum ? (totalCalls/metaAcum*100) : null;
     return {ext, name:gName(ext), pct, diasTrabajados, totalCalls, metaAcum};
   });
-  rows = rows.filter(r=>r.diasTrabajados>0 && r.pct!==null).sort((a,b)=>b.pct-a.pct);
+  rows = rows.filter(r=>r.pct!==null).sort((a,b)=> (b.pct-a.pct) || a.name.localeCompare(b.name,'es'));
 
   $('#goalRankHint').textContent = (hasSchedule ? '% de la meta diaria (variable por período) acumulada' : `% de la meta (${fmtInt(goal)}/día) acumulada en el período`) + ' · no incluye fines de semana';
 
@@ -3593,7 +3593,7 @@ function exportSummaryCsv(){
 }
 
 function renderFootnote(){
-  const totalGestores = Object.keys(state.gestores).length;
+  const totalGestores = Object.keys(state.gestores).filter(isActiveGestor).length;
   $('#footnote').innerHTML = `Fuente: exportaciones CDR de Issabel. Una llamada cuenta para la <b>contactabilidad</b> cuando su estado es <span class="mono">ANSWERED</span> y su duración es mayor a ${state.config.thresholdSeconds} segundos. ${totalGestores} gestores registrados. ${state.dbReady ? 'Los datos se guardan automáticamente y se comparten con todo el equipo.' : 'Los datos (reportes subidos, gestores y configuración) se guardan automáticamente en <b>este navegador</b>. Usa <b>Descargar base</b> para respaldarlos o llevarlos a otro equipo, y <b>Cargar base</b> para restaurarlos.'}`;
 }
 
@@ -3995,10 +3995,11 @@ function renderGestorList(){
   const entries = Object.entries(state.gestores).sort((a,b)=>a[1].name.localeCompare(b[1].name));
   $('#gestorCount').textContent = entries.length;
   el.innerHTML = entries.map(([ext,g])=>`
-    <div class="gestor-row" data-ext="${ext}">
+    <div class="gestor-row ${g.activo===false?'inactive':''}" data-ext="${ext}">
       <input class="ext-in mono" value="${escapeHtml(ext)}" title="Extensión: puedes cambiarla; todo el historial se mueve a la nueva">
       <input class="name-in" value="${escapeHtml(g.name)}">
       <select class="team-in">${teamOptionsHtml(g.team)}</select>
+      <label class="act-lbl" title="Desmárcalo cuando alguien deje de operar como gestor: deja de aparecer en rankings, filtros y alertas (su historial se conserva)"><input type="checkbox" class="act-in" ${g.activo===false?'':'checked'}> opera</label>
       <button data-del="${ext}" title="Eliminar">×</button>
     </div>`).join('');
   el.querySelectorAll('.ext-in').forEach(inp=>{
@@ -4022,6 +4023,17 @@ function renderGestorList(){
       }
       renderGestorList(); renderAll();
       showToast(`Extensión cambiada: ${oldExt} → ${plan.newExt} (${pairs.length} registros movidos)`);
+    });
+  });
+  el.querySelectorAll('.act-in').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      const ext = cb.closest('.gestor-row').dataset.ext; const g = state.gestores[ext]; if (!g) return;
+      const opera = cb.checked;
+      if (opera) delete g.activo; else g.activo = false;
+      if (!opera && state.filterGestor === ext) state.filterGestor = '';
+      if (state.db) await state.db.collection('gestores').doc(ext).set({ext, name:g.name, team:g.team||'', activo:opera}).catch(()=>{});
+      renderGestorList(); renderAll();
+      showToast(opera ? `${g.name} vuelve a aparecer como gestor.` : `${g.name} ya no aparece como gestor (su historial se conserva).`);
     });
   });
   el.querySelectorAll('.name-in').forEach(inp=>{
@@ -4068,7 +4080,7 @@ let pendingPhoneFile = null;
 function populatePhonePickerOptions(){
   const sel = $('#phonePickerSelect');
   if (!sel) return;
-  const exts = Object.keys(state.gestores).sort((a,b)=> gName(a).localeCompare(gName(b), 'es'));
+  const exts = Object.keys(state.gestores).filter(isActiveGestor).sort((a,b)=> gName(a).localeCompare(gName(b), 'es'));
   sel.innerHTML = exts.map(ext=>`<option value="${ext}">${escapeHtml(gName(ext))} (${ext})</option>`).join('');
 }
 function openPhonePicker(file){
@@ -4392,7 +4404,7 @@ function renderTvTeams(){
   const sum = totals.chevere + totals.imparables;
   const topOfTeam = teamKey => {
     let bestExt=null, bestVal=-1;
-    Object.keys(byGestor).forEach(ext=>{ if (gTeam(ext)===teamKey && byGestor[ext]>bestVal){ bestVal=byGestor[ext]; bestExt=ext; } });
+    Object.keys(byGestor).forEach(ext=>{ if (gTeam(ext)===teamKey && isActiveGestor(ext) && byGestor[ext]>bestVal){ bestVal=byGestor[ext]; bestExt=ext; } });
     return bestExt && bestVal>0 ? `${escapeHtml(gName(bestExt))} lidera (${fmtInt(bestVal)})` : 'Sin datos aún';
   };
   const shareA = sum ? (totals.chevere/sum*100) : 50;
@@ -4631,11 +4643,10 @@ function tvAggregate(){
     const t=r.total||0, an=r.answered||0, ef=r.effective||0;
     a.total+=t; a.answered+=an; a.effective+=ef; a.talk+=(r.talk||0); a.noAnswer+=(r.noAnswer||0);
     a.d1+=(r.durUnder1||0); a.d13+=(r.dur1to3||0); a.d3+=(r.durOver3||0);
-    if (t>0) a.active.add(r.ext);
+    if (t>0 && isActiveGestor(r.ext)) a.active.add(r.ext);
     const d = a.byDay[r.date] || (a.byDay[r.date]={total:0,answered:0,effective:0});
     d.total+=t; d.answered+=an; d.effective+=ef;
-    const g = a.byGestor[r.ext] || (a.byGestor[r.ext]={total:0,answered:0,effective:0});
-    g.total+=t; g.answered+=an; g.effective+=ef;
+    if (isActiveGestor(r.ext)){ const g = a.byGestor[r.ext] || (a.byGestor[r.ext]={total:0,answered:0,effective:0}); g.total+=t; g.answered+=an; g.effective+=ef; }
   });
   a.days = Object.keys(a.byDay).filter(d=>a.byDay[d].total>0).sort();
   return a;
@@ -5108,7 +5119,8 @@ initDb();
      etc.) con los datos actualizados, sin necesitar conexión a la base viva. */
   function seedGestoresNow(){
     return Object.keys(state.gestores).sort().map(ext => ({
-      ext, name: state.gestores[ext].name || '', team: state.gestores[ext].team || ''
+      ext, name: state.gestores[ext].name || '', team: state.gestores[ext].team || '',
+      ...(state.gestores[ext].activo === false ? {activo:false} : {})
     }));
   }
   function seedDailyNow(){
@@ -5688,7 +5700,7 @@ initDb();
   function fillJGestor(){
     const sel=$('#jGestor'); if(!sel) return;
     const cur = sel.value;
-    const exts = Object.keys(state.gestores).sort((a,b)=> gName(a).localeCompare(gName(b)));
+    const exts = Object.keys(state.gestores).filter(isActiveGestor).sort((a,b)=> gName(a).localeCompare(gName(b)));
     sel.innerHTML = exts.map(ext=>`<option value="${ext}">${escapeHtml(gName(ext))}</option>`).join('');
     if(cur && state.gestores[cur]) sel.value=cur;
   }
