@@ -1094,6 +1094,16 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 .up-reassign{border:1px solid var(--border); background:var(--surface-2); border-radius:7px; padding:5px 7px; font-size:12px; color:var(--ink); max-width:150px;}
 .btn.danger{color:#fff; background:var(--crit); border-color:transparent;}
 .btn.danger:hover{filter:brightness(.94);}
+
+.pc-summary{margin-top:6px; border:1px solid var(--border-soft); border-radius:12px; overflow:hidden;}
+.pc-line{display:flex; justify-content:space-between; gap:12px; padding:9px 14px; font-size:13px; border-top:1px solid var(--border-soft);}
+.pc-line:first-child{border-top:none;}
+.pc-line .pc-k{color:var(--ink-mute);}
+.pc-line .pc-v{font-weight:700; color:var(--ink); text-align:right;}
+.pc-line .pc-v.mono{font-family:var(--font-mono);}
+.pc-line.good .pc-v{color:#2f9e44;} .pc-line.warn .pc-v{color:var(--accent);}
+.pc-head{background:var(--surface-2); font-weight:800; color:var(--ink); font-size:13.5px; padding:10px 14px;}
+.pc-note{margin-top:10px; font-size:11.5px; color:var(--ink-mute); line-height:1.5;}
 </style>
 
 <div class="app-layout">
@@ -1694,6 +1704,15 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 </div>
 
 <div class="overlay" id="phoneOverlay"></div>
+<div class="phone-picker" id="phoneConfirm" style="max-width:460px;">
+  <h3>Confirmar carga de celular</h3>
+  <p class="field-hint">Revisa el resumen antes de guardar. Nada se guarda hasta que pulses <b>Aceptar</b>.</p>
+  <div id="phoneConfirmBody" class="pc-summary"></div>
+  <div class="phone-picker-actions">
+    <button class="btn" id="phoneConfirmCancel">Cancelar</button>
+    <button class="btn primary" id="phoneConfirmAccept">Aceptar y guardar</button>
+  </div>
+</div>
 <div class="phone-picker" id="phonePicker">
   <h3>¿De qué gestor es este registro?</h3>
   <p class="field-hint">Este archivo de celular no trae el nombre adentro — elige a quién pertenecen estas llamadas antes de guardarlas. Se suman a lo que ya tenga ese gestor (por ejemplo, del reporte de Issabel) sin borrar nada.</p>
@@ -3980,70 +3999,67 @@ function upsertPhoneContribution(ext, date, newPhone){
   state.daily.set(key, rec);
   return rec;
 }
+// Lee y ANALIZA el archivo de celular (sin guardar nada) para mostrar el resumen de confirmación.
+async function analyzePhoneFile(file, ext){
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let text;
+  if (bytes.length>=2 && bytes[0]===0xFF && bytes[1]===0xFE) text = new TextDecoder('utf-16le').decode(buf.slice(2));
+  else if (bytes.length>=2 && bytes[0]===0xFE && bytes[1]===0xFF) text = new TextDecoder('utf-16be').decode(buf.slice(2));
+  else text = new TextDecoder('utf-8').decode(buf);
+  const parsed = parsePhoneText(text);
+  if (!parsed.byDate.size) return {ok:false, reason:'No se encontraron llamadas salientes (type=2) en este archivo.'};
+  const pre = previewPhoneBatch(ext, parsed);
+  return {ok:true, file, ext, parsed, pre};
+}
+// GUARDA el lote ya confirmado.
+async function applyPhoneBatch(analysis){
+  const {file, ext, parsed} = analysis;
+  const batchId = nextPhoneBatchId();
+  let nuevasTot=0, dupTot=0; const touched=[];
+  parsed.byDate.forEach((calls, date)=>{ const r = addPhoneBatchToDay(ext, date, calls, batchId); nuevasTot+=r.nuevas; dupTot+=r.dup; touched.push(state.daily.get(ext+'_'+date)); });
+  if (nuevasTot===0){
+    showToast(`Nada que agregar: las ${fmtInt(dupTot)} llamadas de <b>${escapeHtml(file.name)}</b> ya estaban registradas para ${escapeHtml(gName(ext))}.`, 7000);
+    return;
+  }
+  const uploadEntry = {
+    id:batchId, filename:file.name, uploadedAt:new Date().toISOString(),
+    rowsTotal:parsed.rowsTotal, rowsMatched:parsed.rowsMatched, rowsUnmatched:parsed.rowsUnmatched,
+    callsNew:nuevasTot, callsDup:dupTot, dateMin:parsed.dMin, dateMax:parsed.dMax,
+    thresholdUsed: state.config.thresholdSeconds, source:'phone', ext, gestorName: gName(ext)
+  };
+  state.uploads.push(uploadEntry);
+  let uploadBlocked = false;
+  if (state.db){
+    const CONC = 12; let anyDenied = false;
+    for (let i=0;i<touched.length;i+=CONC){
+      const results = await Promise.allSettled(touched.slice(i,i+CONC).map(rec=>
+        state.db.collection('daily_stats').doc(rec.ext+'_'+rec.date).set(rec)));
+      if (results.some(r=>r.status==='rejected')) anyDenied = true;
+    }
+    const upOk = await dbWrite(state.db.collection('uploads').doc(uploadEntry.id).set(uploadEntry), null, null);
+    uploadBlocked = anyDenied || !upOk;
+  }
+  if (uploadBlocked){
+    showToast('Este enlace es de solo lectura: el registro se ve en tu pantalla pero no se guard\u00f3 en la base compartida.', 8000);
+  } else {
+    showToast(`Registro de celular de <b>${escapeHtml(gName(ext))}</b>: ${fmtInt(nuevasTot)} llamadas agregadas`+
+      `${dupTot?`, ${fmtInt(dupTot)} duplicadas omitidas`:''} (${parsed.dMin} a ${parsed.dMax}).`, 7500);
+  }
+  renderAll();
+  if (typeof renderUploadsAdmin==='function') renderUploadsAdmin();
+}
+// Compatibilidad: handlePhoneFile sigue existiendo (analiza y guarda directo, p. ej. en pruebas).
 async function handlePhoneFile(file, ext, opts){
   opts = opts || {};
   try{
-    const buf = await file.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let text;
-    if (bytes.length>=2 && bytes[0]===0xFF && bytes[1]===0xFE) text = new TextDecoder('utf-16le').decode(buf.slice(2));
-    else if (bytes.length>=2 && bytes[0]===0xFE && bytes[1]===0xFF) text = new TextDecoder('utf-16be').decode(buf.slice(2));
-    else text = new TextDecoder('utf-8').decode(buf);
-
-    const parsed = parsePhoneText(text);
-    if (!parsed.byDate.size){ showToast('No se encontraron llamadas salientes (type=2) en este archivo.'); return; }
-
-    const pre = previewPhoneBatch(ext, parsed);
-    if (pre.tocaDiasConCarga && !opts.confirmed){
-      const msg = `Segunda carga de celular de ${gName(ext)}\nLote: ${file.name}\n\n`+
-        `Este gestor ya tiene llamadas de celular en ${pre.diasConCarga} de esos d\u00edas.\n`+
-        `De este archivo: ${fmtInt(pre.nuevas)} llamadas NUEVAS y ${fmtInt(pre.dup)} ya registradas (no se contar\u00e1n dos veces).\n\n`+
-        `\u00bfAgregar solo las nuevas y sumarlas al total? (dos tel\u00e9fonos distintos se suman)`;
-      if (!confirm(msg)) { showToast('Carga cancelada.'); return; }
+    const a = await analyzePhoneFile(file, ext);
+    if (!a.ok){ showToast(a.reason); return; }
+    if (a.pre.tocaDiasConCarga && !opts.confirmed){
+      if (!confirm(`Segunda carga de celular de ${gName(ext)}\nLote: ${file.name}\n\n${fmtInt(a.pre.nuevas)} nuevas, ${fmtInt(a.pre.dup)} ya registradas.\n\n\u00bfAgregar solo las nuevas?`)) { showToast('Carga cancelada.'); return; }
     }
-
-    const batchId = nextPhoneBatchId();
-    let nuevasTot=0, dupTot=0; const touched=[];
-    parsed.byDate.forEach((calls, date)=>{ const r = addPhoneBatchToDay(ext, date, calls, batchId); nuevasTot+=r.nuevas; dupTot+=r.dup; touched.push(state.daily.get(ext+'_'+date)); });
-
-    if (nuevasTot===0){
-      showToast(`Nada que agregar: las ${fmtInt(dupTot)} llamadas de <b>${escapeHtml(file.name)}</b> ya estaban registradas para ${escapeHtml(gName(ext))}.`, 7000);
-      return;
-    }
-
-    const uploadEntry = {
-      id:batchId, filename:file.name, uploadedAt:new Date().toISOString(),
-      rowsTotal:parsed.rowsTotal, rowsMatched:parsed.rowsMatched, rowsUnmatched:parsed.rowsUnmatched,
-      callsNew:nuevasTot, callsDup:dupTot, dateMin:parsed.dMin, dateMax:parsed.dMax,
-      thresholdUsed: state.config.thresholdSeconds, source:'phone', ext, gestorName: gName(ext)
-    };
-    state.uploads.push(uploadEntry);
-
-    let uploadBlocked = false;
-    if (state.db){
-      const CONC = 12; let anyDenied = false;
-      for (let i=0;i<touched.length;i+=CONC){
-        const results = await Promise.allSettled(touched.slice(i,i+CONC).map(rec=>
-          state.db.collection('daily_stats').doc(rec.ext+'_'+rec.date).set(rec)));
-        if (results.some(r=>r.status==='rejected')) anyDenied = true;
-      }
-      const upOk = await dbWrite(state.db.collection('uploads').doc(uploadEntry.id).set(uploadEntry), null, null);
-      uploadBlocked = anyDenied || !upOk;
-    }
-
-    if (uploadBlocked){
-      showToast('Este enlace es de solo lectura: el registro se ve en tu pantalla pero no se guard\u00f3 en la base compartida.', 8000);
-    } else {
-      showToast(`Registro de celular de <b>${escapeHtml(gName(ext))}</b>: ${fmtInt(nuevasTot)} llamadas agregadas`+
-        `${dupTot?`, ${fmtInt(dupTot)} duplicadas omitidas`:''} (${parsed.dMin} a ${parsed.dMax}).`+
-        `${parsed.rowsUnmatched?` ${parsed.rowsUnmatched} filas eran recibidas/perdidas y no se contaron.`:''}`, 7500);
-    }
-    renderAll();
-    if (typeof renderUploadsAdmin==='function') renderUploadsAdmin();
-  }catch(err){
-    console.error(err);
-    showToast('No se pudo leer el archivo de registro de celular.');
-  }
+    await applyPhoneBatch(a);
+  }catch(err){ console.error(err); showToast('No se pudo leer el archivo de registro de celular.'); }
 }
 // ---------- Exportar CSV ----------
 // Funciona tanto dentro de Claude (usa la capacidad "downloads") como en un archivo
@@ -4238,11 +4254,47 @@ $('#phoneFileInput').addEventListener('change', e=>{
 });
 $('#phonePickerCancel').addEventListener('click', closePhonePicker);
 $('#phoneOverlay').addEventListener('click', closePhonePicker);
+let pendingAnalysis = null;
+function openPhoneConfirm(a){
+  pendingAnalysis = a;
+  const dias = Array.from(a.parsed.byDate.keys()).sort();
+  const efectivas = Array.from(a.parsed.byDate.values()).reduce((s,calls)=>{ const seen=new Set(); let e=0; calls.forEach(c=>{const k=phoneCallSig(c); if(seen.has(k))return; seen.add(k); if(c.dur>state.config.thresholdSeconds) e++;}); return s+e; },0);
+  const rango = a.parsed.dMin===a.parsed.dMax ? a.parsed.dMin : `${a.parsed.dMin} a ${a.parsed.dMax}`;
+  const dupLine = a.pre.dup>0
+    ? `<div class="pc-line warn"><span class="pc-k">Ya registradas (no se repiten)</span><span class="pc-v mono">${fmtInt(a.pre.dup)}</span></div>`
+    : '';
+  const segunda = a.pre.tocaDiasConCarga
+    ? `<div class="pc-note">⚠️ <b>${escapeHtml(gName(a.ext))}</b> ya tiene llamadas de celular en ${a.pre.diasConCarga} de estos días. Se agregan solo las <b>nuevas</b> (los dos teléfonos se suman; las repetidas no se cuentan dos veces).</div>`
+    : `<div class="pc-note">Primera carga de celular de este gestor para estos días. Se suman a lo que ya tenga de Issabel.</div>`;
+  $('#phoneConfirmBody').innerHTML =
+    `<div class="pc-head">${escapeHtml(gName(a.ext))}</div>`+
+    `<div class="pc-line"><span class="pc-k">Archivo</span><span class="pc-v" title="${escapeHtml(a.file.name)}" style="max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(a.file.name)}</span></div>`+
+    `<div class="pc-line"><span class="pc-k">Período del archivo</span><span class="pc-v mono">${rango}</span></div>`+
+    `<div class="pc-line"><span class="pc-k">Días con llamadas</span><span class="pc-v">${dias.length}</span></div>`+
+    `<div class="pc-line"><span class="pc-k">Llamadas salientes en el archivo</span><span class="pc-v mono">${fmtInt(a.parsed.rowsMatched)}</span></div>`+
+    `<div class="pc-line good"><span class="pc-k">Se van a agregar (nuevas)</span><span class="pc-v mono">${fmtInt(a.pre.nuevas)}</span></div>`+
+    dupLine+
+    `<div class="pc-line"><span class="pc-k">De esas, contacto efectivo (&gt;${state.config.thresholdSeconds}s)</span><span class="pc-v mono">${fmtInt(efectivas)}</span></div>`+
+    (a.parsed.rowsUnmatched?`<div class="pc-line"><span class="pc-k">Recibidas/perdidas (no cuentan)</span><span class="pc-v mono">${fmtInt(a.parsed.rowsUnmatched)}</span></div>`:'')+
+    segunda;
+  $('#phoneConfirm').classList.add('show'); $('#phoneOverlay').classList.add('show');
+}
+function closePhoneConfirm(){ pendingAnalysis=null; $('#phoneConfirm').classList.remove('show'); if(!$('#phonePicker').classList.contains('show')) $('#phoneOverlay').classList.remove('show'); }
+
 $('#phonePickerConfirm').addEventListener('click', async ()=>{
   const ext = $('#phonePickerSelect').value;
   const file = pendingPhoneFile;
-  closePhonePicker();
-  if (file && ext) await handlePhoneFile(file, ext);
+  if (!file || !ext) return;
+  $('#phonePicker').classList.remove('show');
+  let a;
+  try{ a = await analyzePhoneFile(file, ext); }catch(e){ showToast('No se pudo leer el archivo de celular.'); $('#phoneOverlay').classList.remove('show'); return; }
+  if (!a.ok){ showToast(a.reason); $('#phoneOverlay').classList.remove('show'); return; }
+  openPhoneConfirm(a);
+});
+$('#phoneConfirmCancel').addEventListener('click', ()=>{ closePhoneConfirm(); showToast('Carga cancelada.'); });
+$('#phoneConfirmAccept').addEventListener('click', async ()=>{
+  const a = pendingAnalysis; closePhoneConfirm();
+  if (a) await applyPhoneBatch(a);
 });
 
 $('#btnExport').addEventListener('click', exportCsv);
