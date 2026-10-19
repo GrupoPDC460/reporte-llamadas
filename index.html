@@ -1085,6 +1085,15 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 .gestor-row.inactive{opacity:.55;}
 .gestor-row label.act-lbl{display:inline-flex; align-items:center; gap:3px; font-size:11px; color:var(--ink-mute); cursor:pointer; white-space:nowrap;}
 .gestor-row label.act-lbl input{width:auto; padding:0;}
+
+.up-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--border-soft); flex-wrap:wrap;}
+.up-row:first-child{border-top:none;}
+.up-main{flex:1; min-width:180px;}
+.up-file{font-weight:700; color:var(--ink); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:420px;}
+.up-sub{font-size:11.5px; color:var(--ink-mute); margin-top:2px;}
+.up-reassign{border:1px solid var(--border); background:var(--surface-2); border-radius:7px; padding:5px 7px; font-size:12px; color:var(--ink); max-width:150px;}
+.btn.danger{color:#fff; background:var(--crit); border-color:transparent;}
+.btn.danger:hover{filter:brightness(.94);}
 </style>
 
 <div class="app-layout">
@@ -1253,6 +1262,16 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
   <div class="section-title">
     <h2>Panel de supervisión</h2>
     <span class="hint">metas variables · alertas · KPIs derivados · avance de cumplimiento</span>
+  </div>
+
+  
+  <div class="card" id="phoneUploadsCard">
+    <div class="card-head">
+      <h2>Cargas de celular</h2>
+      <span class="hint">reasigna (si subiste con el gestor equivocado) o elimina una carga; las llamadas se recalculan</span>
+    </div>
+    <div id="phoneUploadsList"></div>
+    <div class="field-hint" style="margin-top:8px;">Cada archivo de celular es un <b>lote</b>. Si un gestor usó <b>dos teléfonos</b> el mismo día, sube los dos archivos: se <b>suman</b> y las llamadas repetidas (misma fecha, hora y número) no se cuentan dos veces. Aquí puedes <b>reasignar</b> un lote a otro gestor o <b>eliminarlo</b>.</div>
   </div>
 
   <div class="card" id="dataAdminCard">
@@ -3807,6 +3826,147 @@ function applyPhoneDelta(rec, phone, sign){
 // ya había de otras fuentes. Si ya existía un aporte de celular anterior para
 // ese mismo día (por ejemplo, se vuelve a subir el archivo corregido), primero
 // se quita el aporte viejo y luego se agrega el nuevo — así nunca se duplica.
+// ===================== Celular: llamadas individuales, lotes y deduplicación =====================
+let __phoneBatchSeq = 0;
+function nextPhoneBatchId(){ return 'u_'+Date.now()+'_'+(++__phoneBatchSeq); }
+function phoneCallSig(c){ return c.ts+'|'+c.num+'|'+c.dur; }
+function parsePhoneText(text){
+  const lineRe = /Row:\s*\d+\s+date=(\d+),\s*number=([+0-9]+),\s*duration=(\d+),\s*type=(\d+)/;
+  const byDate = new Map(); let rowsTotal=0, rowsMatched=0, rowsUnmatched=0, dMin=null, dMax=null;
+  text.split(/\r?\n/).forEach(line=>{
+    const m = lineRe.exec(line); if(!m) return;
+    rowsTotal++;
+    const ts=Number(m[1]), num=m[2], dur=Number(m[3]), type=Number(m[4]);
+    if (type!==2){ rowsUnmatched++; return; }
+    rowsMatched++;
+    const date = dateFmt.format(new Date(ts));
+    if(!dMin||date<dMin) dMin=date; if(!dMax||date>dMax) dMax=date;
+    if(!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date).push({ts, num, dur});
+  });
+  return {byDate, rowsTotal, rowsMatched, rowsUnmatched, dMin, dMax};
+}
+function phoneContributionFromCalls(calls){
+  const p = zeroPhoneContribution(); const seen = new Set();
+  calls.forEach(c=>{ const s=phoneCallSig(c); if(seen.has(s)) return; seen.add(s);
+    p.total++;
+    if (c.dur>0){ p.answered++; p.talk+=c.dur; if (c.dur>state.config.thresholdSeconds) p.effective++;
+      if (c.dur<60) p.durUnder1++; else if (c.dur<180) p.dur1to3++; else p.durOver3++; }
+    else p.noAnswer++;
+  });
+  return p;
+}
+function rebuildDayFromPhoneCalls(ext, date){
+  const key = ext+'_'+date; const rec = state.daily.get(key); if(!rec) return null;
+  const calls = rec.phoneCalls || [];
+  const oldPhone = rec.phone || zeroPhoneContribution();
+  const newPhone = phoneContributionFromCalls(calls);
+  applyPhoneDelta(rec, oldPhone, -1);
+  applyPhoneDelta(rec, newPhone, 1);
+  rec.phone = newPhone;
+  if (!calls.length){ delete rec.phoneCalls; delete rec.phone; }
+  state.daily.set(key, rec);
+  return rec;
+}
+function addPhoneBatchToDay(ext, date, calls, batchId){
+  const key = ext+'_'+date;
+  let rec = state.daily.get(key);
+  if(!rec){ rec = {ext, name:gName(ext), date, total:0, answered:0, effective:0, talk:0, noAnswer:0, busy:0, other:0, durUnder1:0, dur1to3:0, durOver3:0, byCountry:{}}; state.daily.set(key, rec); }
+  if(!rec.phoneCalls) rec.phoneCalls = [];
+  const seen = new Set(rec.phoneCalls.map(phoneCallSig));
+  let nuevas=0, dup=0;
+  calls.forEach(c=>{ const s=phoneCallSig(c); if(seen.has(s)){ dup++; return; } seen.add(s); rec.phoneCalls.push({ts:c.ts, num:c.num, dur:c.dur, b:batchId}); nuevas++; });
+  rebuildDayFromPhoneCalls(ext, date);
+  return {nuevas, dup};
+}
+function previewPhoneBatch(ext, parsed){
+  let nuevas=0, dup=0, diasConCarga=0;
+  parsed.byDate.forEach((calls, date)=>{
+    const rec = state.daily.get(ext+'_'+date);
+    const seen = new Set((rec && rec.phoneCalls ? rec.phoneCalls : []).map(phoneCallSig));
+    if (seen.size) diasConCarga++;
+    const local = new Set();
+    calls.forEach(c=>{ const s=phoneCallSig(c); if(seen.has(s)||local.has(s)) dup++; else { local.add(s); nuevas++; } });
+  });
+  return {nuevas, dup, diasConCarga, tocaDiasConCarga: diasConCarga>0};
+}
+// ---- Administración de cargas de celular: eliminar y reasignar un lote ----
+function phoneUploadsList(){
+  return (state.uploads||[]).filter(u=>u && u.source==='phone').slice().sort((a,b)=> String(b.uploadedAt).localeCompare(String(a.uploadedAt)));
+}
+function removePhoneBatch(batchId){
+  const touched=[], emptied=[];
+  Array.from(state.daily.keys()).forEach(key=>{
+    const rec = state.daily.get(key);
+    if(!rec || !rec.phoneCalls || !rec.phoneCalls.length) return;
+    const antes = rec.phoneCalls.length;
+    rec.phoneCalls = rec.phoneCalls.filter(c=>c.b!==batchId);
+    if (rec.phoneCalls.length===antes) return;
+    rebuildDayFromPhoneCalls(rec.ext, rec.date);
+    const r2 = state.daily.get(key);
+    if ((r2.total||0)<=0 && !(r2.phoneCalls&&r2.phoneCalls.length)){ state.daily.delete(key); emptied.push(key); }
+    else touched.push(key);
+  });
+  return {touched, emptied};
+}
+async function deletePhoneUpload(batchId){
+  const up = (state.uploads||[]).find(u=>u.id===batchId); if(!up) return;
+  if (!confirm(`Eliminar la carga de celular de ${up.gestorName||gName(up.ext)}\nLote: ${up.filename}\n(${up.dateMin} a ${up.dateMax})\n\nSe quitarán sus llamadas y se recalcularán esos días. Esto no se puede deshacer.`)) return;
+  const {touched, emptied} = removePhoneBatch(batchId);
+  state.uploads = state.uploads.filter(u=>u.id!==batchId);
+  if (state.db){
+    for (const k of touched) await state.db.collection('daily_stats').doc(k).set(state.daily.get(k)).catch(()=>{});
+    for (const k of emptied) await state.db.collection('daily_stats').doc(k).delete().catch(()=>{});
+    await state.db.collection('uploads').doc(batchId).delete().catch(()=>{});
+  }
+  renderAll(); renderUploadsAdmin();
+  showToast(`Carga eliminada: ${escapeHtml(up.filename)} (${fmtInt((up.callsNew!=null?up.callsNew:up.rowsMatched)||0)} llamadas).`);
+}
+async function reassignPhoneUpload(batchId, newExt){
+  const up = (state.uploads||[]).find(u=>u.id===batchId); if(!up) return;
+  if (up.ext===newExt){ showToast('Ya pertenece a ese gestor.'); return; }
+  if (!state.gestores[newExt]){ showToast('Gestor no válido.'); return; }
+  const callsByDate = new Map();
+  Array.from(state.daily.values()).forEach(rec=>{
+    if (rec.ext!==up.ext || !rec.phoneCalls) return;
+    const mine = rec.phoneCalls.filter(c=>c.b===batchId);
+    if (mine.length) callsByDate.set(rec.date, mine.map(c=>({ts:c.ts, num:c.num, dur:c.dur})));
+  });
+  if (!confirm(`Reasignar la carga ${up.filename}\nde ${up.gestorName||gName(up.ext)} \u2192 ${gName(newExt)}\n\nSe mover\u00e1n sus llamadas a ${gName(newExt)} (las que ya existan ah\u00ed no se duplican).`)) return;
+  const {touched, emptied} = removePhoneBatch(batchId);
+  const touchedNew=[];
+  callsByDate.forEach((calls, date)=>{ addPhoneBatchToDay(newExt, date, calls, batchId); touchedNew.push(newExt+'_'+date); });
+  up.ext = newExt; up.gestorName = gName(newExt);
+  if (state.db){
+    for (const k of touched) await state.db.collection('daily_stats').doc(k).set(state.daily.get(k)).catch(()=>{});
+    for (const k of emptied) await state.db.collection('daily_stats').doc(k).delete().catch(()=>{});
+    for (const k of touchedNew) await state.db.collection('daily_stats').doc(k).set(state.daily.get(k)).catch(()=>{});
+    await state.db.collection('uploads').doc(batchId).set(up).catch(()=>{});
+  }
+  renderAll(); renderUploadsAdmin();
+  showToast(`Carga reasignada a ${escapeHtml(gName(newExt))}.`);
+}
+function renderUploadsAdmin(){
+  const el = document.getElementById('phoneUploadsList'); if(!el) return;
+  const list = phoneUploadsList();
+  if(!list.length){ el.innerHTML = '<div class="just-empty">A\u00fan no hay cargas de celular registradas.</div>'; return; }
+  const optsFor = sel => Object.keys(state.gestores).filter(isActiveGestor).sort((a,b)=>gName(a).localeCompare(gName(b),'es'))
+     .map( e=>`<option value="${e}" ${e===sel?'selected':''}>${escapeHtml(gName(e))}</option>`).join('');
+  el.innerHTML = list.map(u=>{
+    const calls = (u.callsNew!=null) ? u.callsNew : (u.rowsMatched||0);
+    const dupTxt = u.callsDup ? ` \u00b7 ${fmtInt(u.callsDup)} dup. omitidas` : '';
+    const when = u.uploadedAt ? new Date(u.uploadedAt).toLocaleDateString('es-GT',{day:'2-digit',month:'short'}) : '';
+    return `<div class="up-row" data-id="${u.id}">
+      <div class="up-main"><div class="up-file" title="${escapeHtml(u.filename||'')}">${escapeHtml(u.filename||'(sin nombre)')}</div>
+        <div class="up-sub">${escapeHtml(u.gestorName||gName(u.ext))} \u00b7 ${u.dateMin} a ${u.dateMax} \u00b7 ${fmtInt(calls)} llamadas${dupTxt} \u00b7 subido ${when}</div></div>
+      <select class="up-reassign" title="Reasignar a otro gestor">${optsFor(u.ext)}</select>
+      <button class="btn danger up-del" title="Eliminar esta carga">Eliminar</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.up-del').forEach(b=> b.addEventListener('click', ()=> deletePhoneUpload(b.closest('.up-row').dataset.id)));
+  el.querySelectorAll('.up-reassign').forEach(s=> s.addEventListener('change', ()=> reassignPhoneUpload(s.closest('.up-row').dataset.id, s.value)));
+}
+
 function upsertPhoneContribution(ext, date, newPhone){
   const key = ext+'_'+date;
   const existing = state.daily.get(key);
@@ -3820,7 +3980,8 @@ function upsertPhoneContribution(ext, date, newPhone){
   state.daily.set(key, rec);
   return rec;
 }
-async function handlePhoneFile(file, ext){
+async function handlePhoneFile(file, ext, opts){
+  opts = opts || {};
   try{
     const buf = await file.arrayBuffer();
     const bytes = new Uint8Array(buf);
@@ -3829,56 +3990,41 @@ async function handlePhoneFile(file, ext){
     else if (bytes.length>=2 && bytes[0]===0xFE && bytes[1]===0xFF) text = new TextDecoder('utf-16be').decode(buf.slice(2));
     else text = new TextDecoder('utf-8').decode(buf);
 
-    const lineRe = /Row:\s*\d+\s+date=(\d+),\s*number=([+0-9]+),\s*duration=(\d+),\s*type=(\d+)/;
-    const byDate = new Map();
-    let rowsTotal=0, rowsMatched=0, rowsUnmatched=0, dMin=null, dMax=null;
+    const parsed = parsePhoneText(text);
+    if (!parsed.byDate.size){ showToast('No se encontraron llamadas salientes (type=2) en este archivo.'); return; }
 
-    text.split(/\r?\n/).forEach(line=>{
-      const m = lineRe.exec(line);
-      if (!m) return;
-      rowsTotal++;
-      const epochMs = Number(m[1]);
-      const durSec = Number(m[3]);
-      const type = Number(m[4]);
-      if (type !== 2){ rowsUnmatched++; return; } // solo llamadas salientes (hechas por el gestor)
-      rowsMatched++;
-      const dateStr = dateFmt.format(new Date(epochMs)); // fecha local (Guatemala)
-      if (!dMin || dateStr<dMin) dMin=dateStr;
-      if (!dMax || dateStr>dMax) dMax=dateStr;
-      if (!byDate.has(dateStr)) byDate.set(dateStr, zeroPhoneContribution());
-      const d = byDate.get(dateStr);
-      d.total++;
-      if (durSec > 0){
-        d.answered++; d.talk += durSec;
-        if (durSec > state.config.thresholdSeconds) d.effective++;
-        if (durSec < 60) d.durUnder1++;
-        else if (durSec < 180) d.dur1to3++;
-        else d.durOver3++;
-      } else {
-        d.noAnswer++;
-      }
-    });
+    const pre = previewPhoneBatch(ext, parsed);
+    if (pre.tocaDiasConCarga && !opts.confirmed){
+      const msg = `Segunda carga de celular de ${gName(ext)}\nLote: ${file.name}\n\n`+
+        `Este gestor ya tiene llamadas de celular en ${pre.diasConCarga} de esos d\u00edas.\n`+
+        `De este archivo: ${fmtInt(pre.nuevas)} llamadas NUEVAS y ${fmtInt(pre.dup)} ya registradas (no se contar\u00e1n dos veces).\n\n`+
+        `\u00bfAgregar solo las nuevas y sumarlas al total? (dos tel\u00e9fonos distintos se suman)`;
+      if (!confirm(msg)) { showToast('Carga cancelada.'); return; }
+    }
 
-    if (!byDate.size){ showToast('No se encontraron llamadas salientes (type=2) en este archivo.'); return; }
+    const batchId = nextPhoneBatchId();
+    let nuevasTot=0, dupTot=0; const touched=[];
+    parsed.byDate.forEach((calls, date)=>{ const r = addPhoneBatchToDay(ext, date, calls, batchId); nuevasTot+=r.nuevas; dupTot+=r.dup; touched.push(state.daily.get(ext+'_'+date)); });
 
-    const touched = [];
-    byDate.forEach((phone, date)=> touched.push(upsertPhoneContribution(ext, date, phone)));
+    if (nuevasTot===0){
+      showToast(`Nada que agregar: las ${fmtInt(dupTot)} llamadas de <b>${escapeHtml(file.name)}</b> ya estaban registradas para ${escapeHtml(gName(ext))}.`, 7000);
+      return;
+    }
 
     const uploadEntry = {
-      id:'u_'+Date.now(), filename:file.name, uploadedAt:new Date().toISOString(),
-      rowsTotal, rowsMatched, rowsUnmatched, dateMin:dMin, dateMax:dMax,
+      id:batchId, filename:file.name, uploadedAt:new Date().toISOString(),
+      rowsTotal:parsed.rowsTotal, rowsMatched:parsed.rowsMatched, rowsUnmatched:parsed.rowsUnmatched,
+      callsNew:nuevasTot, callsDup:dupTot, dateMin:parsed.dMin, dateMax:parsed.dMax,
       thresholdUsed: state.config.thresholdSeconds, source:'phone', ext, gestorName: gName(ext)
     };
     state.uploads.push(uploadEntry);
 
     let uploadBlocked = false;
     if (state.db){
-      const CONC = 12;
-      let anyDenied = false;
+      const CONC = 12; let anyDenied = false;
       for (let i=0;i<touched.length;i+=CONC){
         const results = await Promise.allSettled(touched.slice(i,i+CONC).map(rec=>
-          state.db.collection('daily_stats').doc(rec.ext+'_'+rec.date).set(rec)
-        ));
+          state.db.collection('daily_stats').doc(rec.ext+'_'+rec.date).set(rec)));
         if (results.some(r=>r.status==='rejected')) anyDenied = true;
       }
       const upOk = await dbWrite(state.db.collection('uploads').doc(uploadEntry.id).set(uploadEntry), null, null);
@@ -3886,17 +4032,19 @@ async function handlePhoneFile(file, ext){
     }
 
     if (uploadBlocked){
-      showToast('Este enlace es de solo lectura: el registro se ve en tu pantalla pero no se guardó en la base compartida.', 8000);
+      showToast('Este enlace es de solo lectura: el registro se ve en tu pantalla pero no se guard\u00f3 en la base compartida.', 8000);
     } else {
-      showToast(`Registro de celular de <b>${escapeHtml(gName(ext))}</b> procesado: ${fmtInt(rowsMatched)} llamadas salientes (${dMin} a ${dMax}).${rowsUnmatched?` ${rowsUnmatched} filas eran llamadas recibidas/perdidas/rechazadas y no se contaron.`:''}`, 7500);
+      showToast(`Registro de celular de <b>${escapeHtml(gName(ext))}</b>: ${fmtInt(nuevasTot)} llamadas agregadas`+
+        `${dupTot?`, ${fmtInt(dupTot)} duplicadas omitidas`:''} (${parsed.dMin} a ${parsed.dMax}).`+
+        `${parsed.rowsUnmatched?` ${parsed.rowsUnmatched} filas eran recibidas/perdidas y no se contaron.`:''}`, 7500);
     }
     renderAll();
-  } catch(err){
+    if (typeof renderUploadsAdmin==='function') renderUploadsAdmin();
+  }catch(err){
     console.error(err);
     showToast('No se pudo leer el archivo de registro de celular.');
   }
 }
-
 // ---------- Exportar CSV ----------
 // Funciona tanto dentro de Claude (usa la capacidad "downloads") como en un archivo
 // HTML independiente abierto directamente en el navegador (descarga normal vía Blob).
@@ -5715,7 +5863,7 @@ initDb();
     }).join('');
   }
 
-  function renderSupervisor(){ renderProgress(); renderAlerts(); renderGoalSched(); renderJust(); renderDerived(); }
+  function renderSupervisor(){ renderProgress(); renderAlerts(); renderGoalSched(); renderJust(); renderDerived(); if(typeof renderUploadsAdmin==="function") renderUploadsAdmin(); }
 
   // Poblar selects del creador de KPIs.
   const opts = DK_FIELDS.map(f=>`<option value="${f.k}">${f.label}</option>`).join('');
