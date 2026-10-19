@@ -1387,6 +1387,7 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
           <option value="vacaciones">🌴 Vacaciones</option>
           <option value="incapacidad">🏥 Incapacidad</option>
           <option value="permiso">📋 Permiso</option>
+          <option value="asueto">🏖️ Asueto</option>
           <option value="issabel">⚠️ Issabel caído</option>
           <option value="otro">📝 Otro</option>
         </select>
@@ -1776,7 +1777,7 @@ function goalForDate(dateStr){
 // excusePct: 100 = día totalmente excusado (no cuenta para la meta) ; 1..99 = parcial (meta reducida ese %).
 // CLAVE DE SEGURIDAD: si no hay justificaciones, excusePctFor=0 → metaFactorFor=1 → metaForDay=goalForDate,
 // así que todos los cálculos quedan idénticos a hoy hasta que se registre una justificación.
-const JUST_TYPES = {vacaciones:'🌴 Vacaciones', incapacidad:'🏥 Incapacidad', permiso:'📋 Permiso', issabel:'⚠️ Issabel caído', otro:'📝 Otro'};
+const JUST_TYPES = {vacaciones:'🌴 Vacaciones', incapacidad:'🏥 Incapacidad', permiso:'📋 Permiso', asueto:'🏖️ Asueto', issabel:'⚠️ Issabel caído', otro:'📝 Otro'};
 function excusePctFor(ext, dateStr){
   const list = (state.config && state.config.justificaciones) || [];
   let max = 0;
