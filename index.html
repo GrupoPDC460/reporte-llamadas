@@ -1422,18 +1422,12 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
     <div class="card">
       <div class="card-head" style="flex-wrap:wrap; gap:8px;">
         <h2>Ranking por cumplimiento de meta</h2>
-        <span class="hint" id="goalRankHint">% de la meta diaria acumulada</span>
-        <select class="pick" id="rankScope" title="Qué ranking se copia o se descarga como imagen" style="margin-left:auto; max-width:210px;">
-          <option value="period">Imagen/copia: período mostrado</option>
-          <option value="day">Imagen/copia: hoy / último día</option>
-          <option value="date">Imagen/copia: elegir fecha…</option>
-        </select>
-        <input type="date" id="rankScopeDate" hidden style="padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--ink); font-family:inherit;">
-        <button class="btn" id="btnCopyRank" title="Copiar el ranking general completo (todos los gestores, con su equipo) para compartir">
+        <span class="hint" id="goalRankHint">Copiar/Imagen usan el filtro de fecha de arriba: día, mes o período</span>
+        <button class="btn" id="btnCopyRank" style="margin-left:auto;" title="Copiar el ranking general completo (todos los gestores, con su equipo) para compartir">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
           Copiar
         </button>
-        <button class="btn primary" id="btnImgRank" title="Generar imagen (infografía) del ranking por equipos para compartir">
+        <button class="btn primary" id="btnImgRank" title="Ver la imagen del ranking (mes, día o período, según el filtro de arriba) para copiarla o descargarla">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M3 16l4-4 3 3 4-4 7 6"/></svg>
           Imagen
         </button>
@@ -2709,22 +2703,20 @@ function goalScope(kind, dateStr){
   }
   let day, isToday;
   const todayStr = localDateStr(new Date());
-  if (dateStr){ day = dateStr; isToday = (day===todayStr); }
-  else { const m = measuredDay(); if(!m) return null; day=m.day; isToday=m.isToday; }
-  const lbl = capFirst(TV_DAY_FMT.format(toUTC(day)).replace(',',''));
-  const dayTag = isToday ? 'Hoy' : (dateStr ? 'Fecha' : 'Último día cargado');
+  if (dateStr){ day = dateStr; }
+  else if (state.filterDay){ day = state.filterDay; }      // el día elegido en el filtro de arriba
+  else { const m = measuredDay(); if(!m) return null; day=m.day; }   // (Modo TV) el último día cargado
+  isToday = (day===todayStr);
+  const lbl = capFirst(TV_DAY_FMT.format(toUTC(day)).replace(',',''));   // ej. "Jueves 16 de octubre"
+  const dayTag = isToday ? 'Hoy' : 'Día';
   return {kind:'day', isDay:true, day, isToday, dayTag, rows:goalRowsFor([day]),
     label:lbl, short:lbl, fileTag:day};
 }
 function rankScopeFromUI(){
-  const sel = $('#rankScope'); const v = sel ? sel.value : 'period';
-  if (v==='period'){ const s=goalScope('period'); if(!s) showToast('Sin datos para el ranking.'); return s; }
-  if (v==='date'){
-    const d = $('#rankScopeDate') ? $('#rankScopeDate').value : '';
-    if (!d){ showToast('Elige la fecha del ranking.'); return null; }
-    return goalScope('day', d);
-  }
-  const s = goalScope('day'); if(!s) showToast('Todavía no hay llamadas para el ranking del día.'); return s;
+  // Sigue el filtro de fechas de arriba: si hay un día elegido, sale ESE día; si no, el período mostrado (mes o rango).
+  const s = goalScope(state.filterDay ? 'day' : 'period');
+  if(!s) showToast('Sin datos para el ranking en el período mostrado.');
+  return s;
 }
 
 function copyGoalRankingByTeam(){
@@ -2831,16 +2823,17 @@ function drawRankingCanvas(che, imp, range, opts){
   text('¡Tu esfuerzo se nota!',W/2,colsY+colH+36,18,800,ORANGE,'center','italic');
   return canvas;
 }
-function showRankingPreview(canvas, blob, fileName){
+function showRankingPreview(canvas, blob, fileName, sc){
   const old = document.getElementById('rankImgModal'); if (old) old.remove();
   const url = URL.createObjectURL(blob);
   const m = document.createElement('div'); m.id='rankImgModal';
   m.style.cssText='position:fixed;inset:0;z-index:140;background:rgba(10,12,15,.72);display:flex;align-items:center;justify-content:center;padding:20px;';
+  const scopeTxt = sc ? (sc.isDay ? (sc.dayTag==='Hoy'?'Hoy · ':'')+sc.label : sc.label) : '';
   m.innerHTML = `<div style="background:var(--surface,#fff);border-radius:16px;max-width:min(1100px,96vw);max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4);">
     <div style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-soft,#e3e8ee);flex-wrap:wrap;">
-      <b style="flex:1;min-width:160px;color:var(--ink,#111);">Imagen del ranking · ${escapeHtml(fileName)}</b>
-      <button class="btn primary" id="rimgDl">Descargar</button>
-      <button class="btn" id="rimgCopy">Copiar imagen</button>
+      <div style="flex:1;min-width:160px;"><b style="color:var(--ink,#111);">Imagen del ranking</b>${scopeTxt?`<div style="font-size:12px;color:var(--ink-mute,#667);">${escapeHtml(scopeTxt)}</div>`:''}</div>
+      <button class="btn primary" id="rimgCopy">Copiar imagen</button>
+      <button class="btn" id="rimgDl">Descargar</button>
       <button class="btn" id="rimgClose">Cerrar</button>
     </div>
     <div style="overflow:auto;padding:12px;"><img alt="Ranking" src="${url}" style="display:block;max-width:100%;height:auto;border-radius:8px;"></div></div>`;
@@ -2849,10 +2842,12 @@ function showRankingPreview(canvas, blob, fileName){
   m.addEventListener('click',e=>{ if(e.target===m) close(); });
   m.querySelector('#rimgClose').addEventListener('click',close);
   m.querySelector('#rimgDl').addEventListener('click',()=>{ const a=document.createElement('a'); a.href=url; a.download=fileName; document.body.appendChild(a); a.click(); a.remove(); showToast('Imagen descargada: '+fileName); });
-  m.querySelector('#rimgCopy').addEventListener('click',async()=>{
-    try{ await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); showToast('Imagen copiada — pégala en WhatsApp o correo.'); }
-    catch(e){ showToast('Tu navegador no permite copiar la imagen; usa Descargar.'); }
-  });
+  const copyImg = async (silent)=>{
+    try{ await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); showToast('Imagen copiada — pégala en WhatsApp o correo.'); return true; }
+    catch(e){ if(!silent) showToast('Tu navegador no permite copiar la imagen automáticamente; usa Descargar.'); return false; }
+  };
+  m.querySelector('#rimgCopy').addEventListener('click',()=>copyImg(false));
+  copyImg(true);   // intenta copiar al abrir; si el navegador lo bloquea, queda el botón Copiar
 }
 async function generateRankingImage(){
   const sc = rankScopeFromUI(); if(!sc) return;
@@ -2865,12 +2860,8 @@ async function generateRankingImage(){
   const fileName = `ranking_cumplimiento_${sc.fileTag}.png`;
   canvas.toBlob(blob=>{
     if(!blob){ showToast('No se pudo generar el archivo de la imagen.'); return; }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=fileName;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
-    showToast('Imagen descargada: '+fileName);
-    showRankingPreview(canvas, blob, fileName);   // vista previa con Descargar / Copiar por si el navegador bloquea la descarga
+    // No se descarga sola: se muestra para copiarla; el botón Descargar la baja si la necesitas.
+    showRankingPreview(canvas, blob, fileName, sc);
   }, 'image/png');
 }
 
@@ -6015,12 +6006,6 @@ initDb();
     });
   };
 
-  // Alcance de Copiar / Imagen del ranking (período, hoy o una fecha)
-  var rs = document.getElementById('rankScope'), rd = document.getElementById('rankScopeDate');
-  if (rs && rd) rs.addEventListener('change', function(){
-    rd.hidden = (rs.value !== 'date');
-    if (rs.value === 'date' && !rd.value && typeof measuredDay === 'function'){ var m = measuredDay(); if (m) rd.value = m.day; }
-  });
   // Configuración / Gestores y extensiones: accesos directos (el panel y la lista ya existían)
   function openGestores(){
     if (typeof openDrawer === 'function') openDrawer();
