@@ -1136,6 +1136,16 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
 .wk-cell.wk-exc{color:var(--ink-mute);}
 .wk-cell.wk-current{box-shadow:inset 0 0 0 2px var(--accent);}
 .wk-table th.wk-current{background:var(--accent-wash,rgba(109,179,255,.15)); color:var(--ink);}
+
+.wk-top{display:flex; align-items:center; justify-content:center; gap:4px;}
+.wk-nums{font-size:11px; color:var(--ink-soft); font-variant-numeric:tabular-nums; margin-top:1px; opacity:.9;}
+.wk-days{display:flex; gap:3px; justify-content:center; margin-top:4px;}
+.wd{font-size:10px; font-weight:800; width:15px; height:15px; line-height:15px; text-align:center; border-radius:3px; box-sizing:border-box;}
+.wd-ok{background:#2f9e44; color:#fff;}
+.wd-bad{background:#e03131; color:#fff;}
+.wd-exc{background:var(--border); color:var(--surface);}
+.wd-none{background:transparent; color:var(--ink-mute); border:1px dashed var(--border);}
+.wd-pend{background:transparent; color:var(--border); border:1px solid transparent;}
 </style>
 
 <div class="app-layout">
@@ -1664,7 +1674,7 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
   </div>
   <div class="card">
     <div class="wk-scroll"><div id="weekStratTable"></div></div>
-    <div class="wk-legend"><span class="wk-lg wk-ok">✅ cumplió (≥100%)</span><span class="wk-lg wk-mid">entre 80 y 99%</span><span class="wk-lg wk-bad">❌ menos de 80%</span><span class="wk-lg wk-exc">— semana justificada</span></div>
+    <div class="wk-legend"><span class="wk-lg wk-ok">✅ cumplió (≥100%)</span><span class="wk-lg wk-mid">entre 80 y 99%</span><span class="wk-lg wk-bad">❌ menos de 80%</span><span class="wk-lg wk-exc">— semana justificada</span></div><div class="wk-legend" style="margin-top:4px;">Abajo de cada celda, los días <b>L M X J V</b>: <span style="color:#2f9e44;font-weight:700;">verde</span>=cumplió el día · <span style="color:#e03131;font-weight:700;">rojo</span>=por debajo · <span style="color:var(--ink-mute);">punteado</span>=sin reporte · gris=justificado</div>
   </div>
 
   <div class="section-title">
@@ -3477,7 +3487,7 @@ function renderWeeklyCompliance(){
   if(!min){ el.innerHTML = '<div class="rank-empty">Sin datos todavía.</div>'; return; }
   const today = localDateStr(new Date());
   const hi = (max < today) ? max : today;
-  const allExts = visibleExts();                      // para decidir si un día "cuenta" (equipo trabajó)
+  const allExts = visibleExts();
   const exts = state.filterGestor ? [state.filterGestor] : allExts;
   const dayCounts = [];
   { let d = toUTC(min); const e = toUTC(hi);
@@ -3487,25 +3497,44 @@ function renderWeeklyCompliance(){
     }
   }
   if(!dayCounts.length){ el.innerHTML = '<div class="rank-empty">Sin llamadas en este alcance.</div>'; return; }
+  const daySet = new Set(dayCounts);
   const weeksMap = new Map();
   dayCounts.forEach(ds=>{ const w = weekStartStr(ds); if(!weeksMap.has(w)) weeksMap.set(w, []); weeksMap.get(w).push(ds); });
   const weeks = Array.from(weeksMap.keys()).sort();
   const currentWeek = weekStartStr(today);
   const curIdx = weeks.indexOf(currentWeek);
-  function cell(ext, wdays, isCurrent){
+  const DL = ['L','M','X','J','V'];                    // lun mar mié jue vie
+  function weekDates(mon){ const out=[], base=toUTC(mon); for(let i=0;i<5;i++){ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); out.push(dateFmtUTC.format(d)); } return out; }
+  function cell(ext, wdays, mon, isCurrent){
     let meta=0, actual=0, worked=0;
     wdays.forEach(ds=>{
-      if(isDayExcusedFull(ext, ds)) return;            // día justificado al 100%: no suma meta
+      if(isDayExcusedFull(ext, ds)) return;
       meta += metaForDay(ext, ds);
       const r = getRec(ext+'_'+ds);
       if(r && (r.total||0)>0){ actual += r.total; worked++; }
     });
-    return {meta, actual, pct: meta>0 ? actual/meta*100 : null, worked, nDays:wdays.length, isCurrent};
+    const perDay = weekDates(mon).map((ds,i)=>{
+      if(ds < min || ds > hi) return {l:DL[i], st:'pend', ds};         // fuera de rango o día futuro
+      if(isDayExcusedFull(ext, ds)) return {l:DL[i], st:'exc', ds};    // justificado (asueto, incapacidad...)
+      if(!daySet.has(ds)) return {l:DL[i], st:'none', ds};            // el equipo no trabajó / sin reporte
+      const md = metaForDay(ext, ds);
+      const r = getRec(ext+'_'+ds); const calls = r ? (r.total||0) : 0;
+      return {l:DL[i], st:(md<=0 || calls>=md) ? 'ok' : 'bad', ds, calls, md};
+    });
+    return {meta, actual, pct: meta>0 ? actual/meta*100 : null, worked, nDays:wdays.length, perDay, isCurrent};
   }
+  const dayTip = d=>{
+    if(d.st==='ok') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2713 cumpli\u00f3 el d\u00eda`;
+    if(d.st==='bad') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2717 por debajo`;
+    if(d.st==='exc') return `${d.ds}: justificado (no cuenta)`;
+    if(d.st==='none') return `${d.ds}: sin reporte cargado`;
+    return `${d.ds}: pendiente`;
+  };
+  const daysHtml = c => `<div class="wk-days">${c.perDay.map(d=>`<span class="wd wd-${d.st}" title="${dayTip(d)}">${d.l}</span>`).join('')}</div>`;
   const teams = [['chevere','👑 Chevere'],['imparables','🔥 Imparables']];
   const rowsHtml = [];
   teams.forEach(([key,label])=>{
-    let list = exts.filter(ext=>gTeam(ext)===key).map(ext=>({ext, name:gName(ext), cells: weeks.map(w=>cell(ext, weeksMap.get(w), w===currentWeek))}));
+    let list = exts.filter(ext=>gTeam(ext)===key).map(ext=>({ext, name:gName(ext), cells: weeks.map(w=>cell(ext, weeksMap.get(w), w, w===currentWeek))}));
     if(!list.length) return;
     list.sort((a,b)=>{
       if(curIdx>=0){ const va=a.cells[curIdx].pct==null?Infinity:a.cells[curIdx].pct, vb=b.cells[curIdx].pct==null?Infinity:b.cells[curIdx].pct; if(va!==vb) return va-vb; }
@@ -3514,12 +3543,12 @@ function renderWeeklyCompliance(){
     rowsHtml.push(`<tr class="wk-team"><td colspan="${weeks.length+1}">${label}</td></tr>`);
     list.forEach(r=>{
       const tds = r.cells.map(c=>{
-        if(c.pct==null) return `<td class="wk-cell wk-exc" title="Semana justificada (sin meta)">\u2014</td>`;
+        const cur = c.isCurrent ? ' wk-current' : '';
+        if(c.pct==null) return `<td class="wk-cell wk-exc${cur}" title="Semana justificada (sin meta)"><div class="wk-top">\u2014</div>${daysHtml(c)}</td>`;
         const cumplio = c.pct>=100;
         const cls = cumplio ? 'wk-ok' : (c.pct>=80 ? 'wk-mid' : 'wk-bad');
-        const cur = c.isCurrent ? ' wk-current' : '';
         const tip = `${fmtInt(c.actual)} de ${fmtInt(Math.round(c.meta))} llamadas \u00b7 trabaj\u00f3 ${c.worked}/${c.nDays} d\u00edas`+(c.isCurrent?' \u00b7 en curso (parcial)':'');
-        return `<td class="wk-cell ${cls}${cur}" title="${tip}"><span class="wk-pct">${Math.round(c.pct)}%</span><span class="wk-mark">${cumplio?'\u2705':'\u274c'}</span></td>`;
+        return `<td class="wk-cell ${cls}${cur}" title="${tip}"><div class="wk-top"><span class="wk-pct">${Math.round(c.pct)}%</span><span class="wk-mark">${cumplio?'\u2705':'\u274c'}</span></div><div class="wk-nums">${fmtInt(c.actual)}/${fmtInt(Math.round(c.meta))}</div>${daysHtml(c)}</td>`;
       }).join('');
       rowsHtml.push(`<tr><td class="wk-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td>${tds}</tr>`);
     });
