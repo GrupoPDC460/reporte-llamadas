@@ -1104,6 +1104,16 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 .pc-line.good .pc-v{color:#2f9e44;} .pc-line.warn .pc-v{color:var(--accent);}
 .pc-head{background:var(--surface-2); font-weight:800; color:var(--ink); font-size:13.5px; padding:10px 14px;}
 .pc-note{margin-top:10px; font-size:11.5px; color:var(--ink-mute); line-height:1.5;}
+
+.up-head{cursor:pointer; user-select:none;}
+.up-head .up-chevron{margin-left:auto; color:var(--ink-mute); transition:transform .2s;}
+.up-head[aria-expanded="true"] .up-chevron{transform:rotate(180deg);}
+.up-count{font-size:12px; color:var(--ink-mute); font-weight:600;}
+#phoneUploadsBody.up-collapsed{display:none;}
+.up-toolbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:4px 0 8px;}
+.up-filt{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-mute);}
+.up-filt select{border:1px solid var(--border); background:var(--surface-2); border-radius:8px; padding:6px 9px; font-size:12.5px; color:var(--ink); max-width:230px;}
+.up-shown{font-size:11.5px; color:var(--ink-mute); margin-left:auto; font-variant-numeric:tabular-nums;}
 </style>
 
 <div class="app-layout">
@@ -1276,11 +1286,20 @@ body.tv-mode .main-area, body.capture-mode .main-area{margin-left:0 !important;}
 
   
   <div class="card" id="phoneUploadsCard">
-    <div class="card-head">
-      <h2>Cargas de celular</h2>
+    <div class="card-head up-head" id="phoneUploadsToggle" role="button" tabindex="0" aria-expanded="false">
+      <h2>Cargas de celular <span class="up-count" id="phoneUploadsCount"></span></h2>
       <span class="hint">reasigna (si subiste con el gestor equivocado) o elimina una carga; las llamadas se recalculan</span>
+      <svg class="up-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
     </div>
-    <div id="phoneUploadsList"></div>
+    <div id="phoneUploadsBody" class="up-collapsed">
+      <div class="up-toolbar">
+        <label class="up-filt"><span>Gestor</span>
+          <select id="phoneUploadsFilter"><option value="">Todos los gestores</option></select>
+        </label>
+        <span class="up-shown" id="phoneUploadsShown"></span>
+      </div>
+      <div id="phoneUploadsList"></div>
+    </div>
     <div class="field-hint" style="margin-top:8px;">Cada archivo de celular es un <b>lote</b>. Si un gestor usó <b>dos teléfonos</b> el mismo día, sube los dos archivos: se <b>suman</b> y las llamadas repetidas (misma fecha, hora y número) no se cuentan dos veces. Aquí puedes <b>reasignar</b> un lote a otro gestor o <b>eliminarlo</b>.</div>
   </div>
 
@@ -3967,9 +3986,29 @@ async function reassignPhoneUpload(batchId, newExt){
   showToast(`Carga reasignada a ${escapeHtml(gName(newExt))}.`);
 }
 function renderUploadsAdmin(){
+  initUploadsAdminUI();
   const el = document.getElementById('phoneUploadsList'); if(!el) return;
-  const list = phoneUploadsList();
-  if(!list.length){ el.innerHTML = '<div class="just-empty">A\u00fan no hay cargas de celular registradas.</div>'; return; }
+  const all = phoneUploadsList();
+  // contador en el encabezado
+  const cEl = document.getElementById('phoneUploadsCount'); if(cEl) cEl.textContent = all.length ? `(${all.length})` : '';
+  // poblar el filtro por gestor con los gestores QUE TIENEN cargas (conservando la selección)
+  const fSel = document.getElementById('phoneUploadsFilter');
+  if (fSel){
+    const prev = fSel.value;
+    const exts = Array.from(new Set(all.map(u=>u.ext))).sort((a,b)=>gName(a).localeCompare(gName(b),'es'));
+    fSel.innerHTML = '<option value="">Todos los gestores</option>' +
+      exts.map(e=>`<option value="${e}">${escapeHtml(gName(e))} (${all.filter(u=>u.ext===e).length})</option>`).join('');
+    fSel.value = exts.includes(prev) ? prev : '';
+  }
+  const filterExt = fSel ? fSel.value : '';
+  const list = filterExt ? all.filter(u=>u.ext===filterExt) : all;
+
+  const shEl = document.getElementById('phoneUploadsShown');
+  if (shEl) shEl.textContent = !all.length ? '' : (filterExt ? `${list.length} de ${all.length} cargas` : `${all.length} cargas`);
+
+  if(!all.length){ el.innerHTML = '<div class="just-empty">A\u00fan no hay cargas de celular registradas.</div>'; return; }
+  if(!list.length){ el.innerHTML = '<div class="just-empty">Este gestor no tiene cargas de celular.</div>'; return; }
+
   const optsFor = sel => Object.keys(state.gestores).filter(isActiveGestor).sort((a,b)=>gName(a).localeCompare(gName(b),'es'))
      .map( e=>`<option value="${e}" ${e===sel?'selected':''}>${escapeHtml(gName(e))}</option>`).join('');
   el.innerHTML = list.map(u=>{
@@ -3985,6 +4024,19 @@ function renderUploadsAdmin(){
   }).join('');
   el.querySelectorAll('.up-del').forEach(b=> b.addEventListener('click', ()=> deletePhoneUpload(b.closest('.up-row').dataset.id)));
   el.querySelectorAll('.up-reassign').forEach(s=> s.addEventListener('change', ()=> reassignPhoneUpload(s.closest('.up-row').dataset.id, s.value)));
+}
+// Colapsar/expandir la sección y enganchar el filtro (una sola vez).
+function initUploadsAdminUI(){
+  const head = document.getElementById('phoneUploadsToggle');
+  const body = document.getElementById('phoneUploadsBody');
+  const fSel = document.getElementById('phoneUploadsFilter');
+  if (head && body && !head.dataset.wired){
+    head.dataset.wired = '1';
+    const toggle = ()=>{ const open = body.classList.toggle('up-collapsed')===false; head.setAttribute('aria-expanded', open?'true':'false'); };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+  }
+  if (fSel && !fSel.dataset.wired){ fSel.dataset.wired='1'; fSel.addEventListener('change', ()=> renderUploadsAdmin()); }
 }
 
 function upsertPhoneContribution(ext, date, newPhone){
