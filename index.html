@@ -1149,6 +1149,10 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
 
 .wd-extra{background:#4c5fd5; color:#fff;}
 .wk-extra{display:block; font-size:10px; color:#4c5fd5; font-weight:700; margin-top:1px;}
+
+.sup-tabs{display:flex; flex-wrap:wrap; gap:4px; margin:0 0 16px; width:fit-content; max-width:100%;}
+.sup-tabs button{white-space:nowrap;}
+@media (max-width:700px){ .sup-tabs{width:100%;} .sup-tabs button{flex:1 1 auto;} }
 </style>
 
 <div class="app-layout">
@@ -1318,27 +1322,74 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
     <h2>Panel de supervisión</h2>
     <span class="hint">metas variables · alertas · KPIs derivados · avance de cumplimiento</span>
   </div>
-
-  
-  <div class="card" id="phoneUploadsCard">
-    <div class="card-head up-head" id="phoneUploadsToggle" role="button" tabindex="0" aria-expanded="false">
-      <h2>Cargas de celular <span class="up-count" id="phoneUploadsCount"></span></h2>
-      <span class="hint">reasigna (si subiste con el gestor equivocado) o elimina una carga; las llamadas se recalculan</span>
-      <svg class="up-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
-    </div>
-    <div id="phoneUploadsBody" class="up-collapsed">
-      <div class="up-toolbar">
-        <label class="up-filt"><span>Gestor</span>
-          <select id="phoneUploadsFilter"><option value="">Todos los gestores</option></select>
-        </label>
-        <span class="up-shown" id="phoneUploadsShown"></span>
-      </div>
-      <div id="phoneUploadsList"></div>
-    </div>
-    <div class="field-hint" style="margin-top:8px;">Cada archivo de celular es un <b>lote</b>. Si un gestor usó <b>dos teléfonos</b> el mismo día, sube los dos archivos: se <b>suman</b> y las llamadas repetidas (misma fecha, hora y número) no se cuentan dos veces. Aquí puedes <b>reasignar</b> un lote a otro gestor o <b>eliminarlo</b>.</div>
+  <div class="seg sup-tabs" id="supTabs" role="tablist" aria-label="Secciones del panel supervisor">
+    <button data-suptab="avance" role="tab">📈 Avance y alertas</button>
+    <button data-suptab="metas" role="tab">🎯 Metas y justificaciones</button>
+    <button data-suptab="cargas" role="tab">📤 Cargas y datos</button>
+    <button data-suptab="kpis" role="tab">📊 KPIs</button>
+    <button data-suptab="todo" role="tab">☰ Ver todo</button>
   </div>
 
-  <div class="card" id="dataAdminCard">
+  <div class="card sup-progress-card" data-suptab-card="avance">
+    <div class="card-head">
+      <h2>Avance de cumplimiento</h2>
+      <span class="hint" id="supProgHint"></span>
+    </div>
+    <div id="supProgress"></div>
+  </div>
+
+  <div class="card" data-suptab-card="avance">
+      <div class="card-head">
+        <h2>Alertas del supervisor</h2>
+        <span class="hint" id="supAlertHint"></span>
+      </div>
+      <div id="supAlerts"></div>
+    </div>
+
+  <div class="sup-grid" data-suptab-card="metas">
+    <div class="card">
+      <div class="card-head">
+        <h2>Metas diarias por período</h2>
+        <span class="hint">meta variable de toques por rango de fechas</span>
+      </div>
+      <div id="goalSchedList"></div>
+      <div class="sup-form" id="goalSchedForm">
+        <div class="sup-field"><label>Desde</label><input type="date" id="gsFrom"></div>
+        <div class="sup-field"><label>Hasta</label><input type="date" id="gsTo"></div>
+        <div class="sup-field" style="max-width:110px;"><label>Meta/día</label><input type="number" id="gsGoal" min="1" step="1" placeholder="Ej. 60"></div>
+        <button class="btn primary" id="gsAdd" style="align-self:flex-end;">Agregar</button>
+      </div>
+      <div class="field-hint" id="goalSchedHint" style="margin-top:8px;"></div>
+    </div>
+    <div class="card">
+    <div class="card-head">
+      <h2>Justificaciones / ajustes de meta</h2>
+      <span class="hint">excluye días de la meta de un gestor: vacaciones, incapacidad, permiso, Issabel caído u otro</span>
+    </div>
+    <div id="justList"></div>
+    <div class="sup-form" id="justForm">
+      <div class="sup-field" style="min-width:160px;"><label>Gestor</label><select id="jGestor" class="pick" style="max-width:none;"></select></div>
+      <div class="sup-field"><label>Desde</label><input type="date" id="jFrom"></div>
+      <div class="sup-field"><label>Hasta</label><input type="date" id="jTo"></div>
+      <div class="sup-field" style="min-width:150px;"><label>Motivo</label>
+        <select id="jType" class="pick" style="max-width:none;">
+          <option value="vacaciones">🌴 Vacaciones</option>
+          <option value="incapacidad">🏥 Incapacidad</option>
+          <option value="permiso">📋 Permiso</option>
+          <option value="asueto">🏖️ Asueto</option>
+          <option value="issabel">⚠️ Issabel caído</option>
+          <option value="otro">📝 Otro</option>
+        </select>
+      </div>
+      <div class="sup-field" style="max-width:120px;"><label>% excusado</label><input type="number" id="jPct" min="1" max="100" step="1" value="100"></div>
+      <div class="sup-field" style="min-width:150px;"><label>Nota (opcional)</label><input type="text" id="jNote" placeholder="detalle"></div>
+      <button class="btn primary" id="jAdd" style="align-self:flex-end;">Agregar</button>
+    </div>
+    <div class="field-hint" style="margin-top:8px;"><b>100%</b> = el día no cuenta para su meta (vacaciones/incapacidad completas). <b>Menos de 100%</b> = parcial (ej. 50% = media jornada). Aplica al rango Desde–Hasta para ese gestor, y se refleja en todas las tarjetas de cumplimiento.</div>
+  </div>
+  </div>
+
+  <div class="card" id="dataAdminCard" data-suptab-card="cargas">
     <div class="card-head">
       <h2>Carga de datos, respaldo y configuración</h2>
       <span class="hint">todo lo administrable en un solo lugar</span>
@@ -1394,66 +1445,25 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
     </div>
   </div>
 
-  <div class="card sup-progress-card">
-    <div class="card-head">
-      <h2>Avance de cumplimiento</h2>
-      <span class="hint" id="supProgHint"></span>
+  <div class="card" id="phoneUploadsCard" data-suptab-card="cargas">
+    <div class="card-head up-head" id="phoneUploadsToggle" role="button" tabindex="0" aria-expanded="false">
+      <h2>Cargas de celular <span class="up-count" id="phoneUploadsCount"></span></h2>
+      <span class="hint">reasigna (si subiste con el gestor equivocado) o elimina una carga; las llamadas se recalculan</span>
+      <svg class="up-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
     </div>
-    <div id="supProgress"></div>
+    <div id="phoneUploadsBody" class="up-collapsed">
+      <div class="up-toolbar">
+        <label class="up-filt"><span>Gestor</span>
+          <select id="phoneUploadsFilter"><option value="">Todos los gestores</option></select>
+        </label>
+        <span class="up-shown" id="phoneUploadsShown"></span>
+      </div>
+      <div id="phoneUploadsList"></div>
+    </div>
+    <div class="field-hint" style="margin-top:8px;">Cada archivo de celular es un <b>lote</b>. Si un gestor usó <b>dos teléfonos</b> el mismo día, sube los dos archivos: se <b>suman</b> y las llamadas repetidas (misma fecha, hora y número) no se cuentan dos veces. Aquí puedes <b>reasignar</b> un lote a otro gestor o <b>eliminarlo</b>.</div>
   </div>
 
-  <div class="sup-grid">
-    <div class="card">
-      <div class="card-head">
-        <h2>Alertas del supervisor</h2>
-        <span class="hint" id="supAlertHint"></span>
-      </div>
-      <div id="supAlerts"></div>
-    </div>
-    <div class="card">
-      <div class="card-head">
-        <h2>Metas diarias por período</h2>
-        <span class="hint">meta variable de toques por rango de fechas</span>
-      </div>
-      <div id="goalSchedList"></div>
-      <div class="sup-form" id="goalSchedForm">
-        <div class="sup-field"><label>Desde</label><input type="date" id="gsFrom"></div>
-        <div class="sup-field"><label>Hasta</label><input type="date" id="gsTo"></div>
-        <div class="sup-field" style="max-width:110px;"><label>Meta/día</label><input type="number" id="gsGoal" min="1" step="1" placeholder="Ej. 60"></div>
-        <button class="btn primary" id="gsAdd" style="align-self:flex-end;">Agregar</button>
-      </div>
-      <div class="field-hint" id="goalSchedHint" style="margin-top:8px;"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <h2>Justificaciones / ajustes de meta</h2>
-      <span class="hint">excluye días de la meta de un gestor: vacaciones, incapacidad, permiso, Issabel caído u otro</span>
-    </div>
-    <div id="justList"></div>
-    <div class="sup-form" id="justForm">
-      <div class="sup-field" style="min-width:160px;"><label>Gestor</label><select id="jGestor" class="pick" style="max-width:none;"></select></div>
-      <div class="sup-field"><label>Desde</label><input type="date" id="jFrom"></div>
-      <div class="sup-field"><label>Hasta</label><input type="date" id="jTo"></div>
-      <div class="sup-field" style="min-width:150px;"><label>Motivo</label>
-        <select id="jType" class="pick" style="max-width:none;">
-          <option value="vacaciones">🌴 Vacaciones</option>
-          <option value="incapacidad">🏥 Incapacidad</option>
-          <option value="permiso">📋 Permiso</option>
-          <option value="asueto">🏖️ Asueto</option>
-          <option value="issabel">⚠️ Issabel caído</option>
-          <option value="otro">📝 Otro</option>
-        </select>
-      </div>
-      <div class="sup-field" style="max-width:120px;"><label>% excusado</label><input type="number" id="jPct" min="1" max="100" step="1" value="100"></div>
-      <div class="sup-field" style="min-width:150px;"><label>Nota (opcional)</label><input type="text" id="jNote" placeholder="detalle"></div>
-      <button class="btn primary" id="jAdd" style="align-self:flex-end;">Agregar</button>
-    </div>
-    <div class="field-hint" style="margin-top:8px;"><b>100%</b> = el día no cuenta para su meta (vacaciones/incapacidad completas). <b>Menos de 100%</b> = parcial (ej. 50% = media jornada). Aplica al rango Desde–Hasta para ese gestor, y se refleja en todas las tarjetas de cumplimiento.</div>
-  </div>
-
-  <div class="card">
+  <div class="card" data-suptab-card="kpis">
     <div class="card-head">
       <h2>KPIs derivados de las llamadas</h2>
       <span class="hint" id="derivedHint">crea tus propios indicadores</span>
@@ -6411,7 +6421,24 @@ initDb();
   var sbTv = document.getElementById('sbTvMode');
   if (sbTv) sbTv.addEventListener('click', function(e){ e.preventDefault(); if (typeof startTvMode === 'function') startTvMode(); });
   // Atajos dentro del Panel supervisor
-  function jumpTo(sel){ var el = document.querySelector(sel); if (!el) return; (el.closest('.card') || el).scrollIntoView({behavior:'smooth', block:'start'}); }
+  // Pestañas del Panel supervisor: una sección a la vez (se recuerda la última abierta)
+  var SUP_KEY='sup_tab_v1';
+  function showSupTab(tab){
+    var valid=['avance','metas','cargas','kpis','todo']; if(valid.indexOf(tab)<0) tab='avance';
+    document.querySelectorAll('[data-suptab-card]').forEach(function(c){ c.style.display = (tab==='todo' || c.getAttribute('data-suptab-card')===tab) ? '' : 'none'; });
+    document.querySelectorAll('#supTabs button').forEach(function(b){ var on=b.dataset.suptab===tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on?'true':'false'); });
+    try{ localStorage.setItem(SUP_KEY, tab); }catch(e){}
+  }
+  window.showSupTab = showSupTab;
+  document.querySelectorAll('#supTabs button').forEach(function(b){ b.addEventListener('click', function(){ showSupTab(b.dataset.suptab); }); });
+  (function(){ var t=null; try{ t=localStorage.getItem(SUP_KEY); }catch(e){} showSupTab(t||'avance'); })();
+  function jumpTo(sel){
+    var el = document.querySelector(sel); if (!el) return;
+    var holder = el.closest('[data-suptab-card]');
+    if (holder){ var cur = (function(){ try{ return localStorage.getItem(SUP_KEY); }catch(e){ return null; } })();
+      if (cur!=='todo') showSupTab(holder.getAttribute('data-suptab-card')); }
+    (el.closest('.card') || el).scrollIntoView({behavior:'smooth', block:'start'});
+  }
   [['jumpGoals','#goalSchedList'],['jumpJust','#justList'],['jumpKpis','#derivedKpiCards']].forEach(function(p){
     var b = document.getElementById(p[0]); if (b) b.addEventListener('click', function(){ jumpTo(p[1]); });
   });
