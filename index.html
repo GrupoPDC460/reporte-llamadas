@@ -1146,6 +1146,9 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
 .wd-exc{background:var(--border); color:var(--surface);}
 .wd-none{background:transparent; color:var(--ink-mute); border:1px dashed var(--border);}
 .wd-pend{background:transparent; color:var(--border); border:1px solid transparent;}
+
+.wd-extra{background:#4c5fd5; color:#fff;}
+.wk-extra{display:block; font-size:10px; color:#4c5fd5; font-weight:700; margin-top:1px;}
 </style>
 
 <div class="app-layout">
@@ -1670,11 +1673,11 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
 
   <div class="section-title">
     <h2>Cumplimiento por semana de estrategia</h2>
-    <span class="hint">por persona, cada semana (lun–vie) contra la meta de <b>esa</b> semana (suma de la meta diaria de los días que el equipo trabajó, menos lo justificado) · ✅ = llegó al 100% · la semana actual va marcada <b>en curso</b> · ordenado por la semana en curso (los que van cortos, arriba)</span>
+    <span class="hint">por persona: el <b>%</b> es el total de la semana (lun–vie <b>+ sábado/domingo</b>, que suman sin meta extra) contra la meta de esa semana (meta diaria × días trabajados, menos lo justificado) · ✅ = llegó al 100% · las letras L M X J V dicen si cumplió <b>cada día</b> · la semana actual va <b>en curso</b></span>
   </div>
   <div class="card">
     <div class="wk-scroll"><div id="weekStratTable"></div></div>
-    <div class="wk-legend"><span class="wk-lg wk-ok">✅ cumplió (≥100%)</span><span class="wk-lg wk-mid">entre 80 y 99%</span><span class="wk-lg wk-bad">❌ menos de 80%</span><span class="wk-lg wk-exc">— semana justificada</span></div><div class="wk-legend" style="margin-top:4px;">Abajo de cada celda, los días <b>L M X J V</b>: <span style="color:#2f9e44;font-weight:700;">verde</span>=cumplió el día · <span style="color:#e03131;font-weight:700;">rojo</span>=por debajo · <span style="color:var(--ink-mute);">punteado</span>=sin reporte · gris=justificado</div>
+    <div class="wk-legend"><span class="wk-lg wk-ok">✅ cumplió (≥100%)</span><span class="wk-lg wk-mid">entre 80 y 99%</span><span class="wk-lg wk-bad">❌ menos de 80%</span><span class="wk-lg wk-exc">— semana justificada</span></div><div class="wk-legend" style="margin-top:4px;">Abajo de cada celda, los días <b>L M X J V</b>: <span style="color:#2f9e44;font-weight:700;">verde</span>=cumplió el día · <span style="color:#e03131;font-weight:700;">rojo</span>=por debajo · <span style="color:var(--ink-mute);">punteado</span>=sin reporte · gris=justificado · <span style="color:#4c5fd5;font-weight:700;">S/D azul</span>=llamadas de sábado/domingo (suman a la semana)</div>
   </div>
 
   <div class="section-title">
@@ -3498,6 +3501,18 @@ function renderWeeklyCompliance(){
   }
   if(!dayCounts.length){ el.innerHTML = '<div class="rank-empty">Sin llamadas en este alcance.</div>'; return; }
   const daySet = new Set(dayCounts);
+  // Llamadas de SÁBADO/DOMINGO: no tienen meta, pero SUMAN al resultado de su semana (días extra).
+  const weekendBy = new Map();   // semana -> ext -> {calls, days:[{ds,calls}]}
+  { let d = toUTC(min); const e = toUTC(hi);
+    while(d<=e){ const ds = dateFmtUTC.format(d);
+      if(isWeekend(ds)){
+        exts.forEach(ext=>{ const r=getRec(ext+'_'+ds); const t=r?(r.total||0):0; if(t<=0) return;
+          const w=weekStartStr(ds); if(!weekendBy.has(w)) weekendBy.set(w,new Map()); const m=weekendBy.get(w);
+          if(!m.has(ext)) m.set(ext,{calls:0,days:[]}); const o=m.get(ext); o.calls+=t; o.days.push({ds,calls:t}); });
+      }
+      d.setUTCDate(d.getUTCDate()+1);
+    }
+  }
   const weeksMap = new Map();
   dayCounts.forEach(ds=>{ const w = weekStartStr(ds); if(!weeksMap.has(w)) weeksMap.set(w, []); weeksMap.get(w).push(ds); });
   const weeks = Array.from(weeksMap.keys()).sort();
@@ -3521,7 +3536,9 @@ function renderWeeklyCompliance(){
       const r = getRec(ext+'_'+ds); const calls = r ? (r.total||0) : 0;
       return {l:DL[i], st:(md<=0 || calls>=md) ? 'ok' : 'bad', ds, calls, md};
     });
-    return {meta, actual, pct: meta>0 ? actual/meta*100 : null, worked, nDays:wdays.length, perDay, isCurrent};
+    const we = (weekendBy.get(mon)||new Map()).get(ext) || {calls:0, days:[]};
+    const total = actual + we.calls;
+    return {meta, actual, extra:we.calls, extraDays:we.days, total, pct: meta>0 ? total/meta*100 : null, worked, nDays:wdays.length, perDay, isCurrent};
   }
   const dayTip = d=>{
     if(d.st==='ok') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2713 cumpli\u00f3 el d\u00eda`;
@@ -3530,7 +3547,9 @@ function renderWeeklyCompliance(){
     if(d.st==='none') return `${d.ds}: sin reporte cargado`;
     return `${d.ds}: pendiente`;
   };
-  const daysHtml = c => `<div class="wk-days">${c.perDay.map(d=>`<span class="wd wd-${d.st}" title="${dayTip(d)}">${d.l}</span>`).join('')}</div>`;
+  const extraChips = c => (c.extraDays||[]).map(x=>{ const sat = toUTC(x.ds).getUTCDay()===6;
+    return `<span class="wd wd-extra" title="${x.ds}: ${fmtInt(x.calls)} llamadas extra (${sat?'s\u00e1bado':'domingo'}) \u00b7 suman a la semana">${sat?'S':'D'}</span>`; }).join('');
+  const daysHtml = c => `<div class="wk-days">${c.perDay.map(d=>`<span class="wd wd-${d.st}" title="${dayTip(d)}">${d.l}</span>`).join('')}${extraChips(c)}</div>`;
   const teams = [['chevere','👑 Chevere'],['imparables','🔥 Imparables']];
   const rowsHtml = [];
   teams.forEach(([key,label])=>{
@@ -3544,11 +3563,11 @@ function renderWeeklyCompliance(){
     list.forEach(r=>{
       const tds = r.cells.map(c=>{
         const cur = c.isCurrent ? ' wk-current' : '';
-        if(c.pct==null) return `<td class="wk-cell wk-exc${cur}" title="Semana justificada (sin meta)"><div class="wk-top">\u2014</div>${daysHtml(c)}</td>`;
+        if(c.pct==null) return `<td class="wk-cell wk-exc${cur}" title="Semana justificada (sin meta)"><div class="wk-top">\u2014</div>${c.extra?`<div class="wk-nums"><span class="wk-extra">+${fmtInt(c.extra)} fin de sem.</span></div>`:''}${daysHtml(c)}</td>`;
         const cumplio = c.pct>=100;
         const cls = cumplio ? 'wk-ok' : (c.pct>=80 ? 'wk-mid' : 'wk-bad');
-        const tip = `${fmtInt(c.actual)} de ${fmtInt(Math.round(c.meta))} llamadas \u00b7 trabaj\u00f3 ${c.worked}/${c.nDays} d\u00edas`+(c.isCurrent?' \u00b7 en curso (parcial)':'');
-        return `<td class="wk-cell ${cls}${cur}" title="${tip}"><div class="wk-top"><span class="wk-pct">${Math.round(c.pct)}%</span><span class="wk-mark">${cumplio?'\u2705':'\u274c'}</span></div><div class="wk-nums">${fmtInt(c.actual)}/${fmtInt(Math.round(c.meta))}</div>${daysHtml(c)}</td>`;
+        const tip = `Lun\u2013Vie: ${fmtInt(c.actual)}`+(c.extra?` \u00b7 fin de semana: +${fmtInt(c.extra)}`:'')+` \u00b7 total ${fmtInt(c.total)} de ${fmtInt(Math.round(c.meta))} llamadas \u00b7 trabaj\u00f3 ${c.worked}/${c.nDays} d\u00edas`+(c.isCurrent?' \u00b7 en curso (parcial)':'');
+        return `<td class="wk-cell ${cls}${cur}" title="${tip}"><div class="wk-top"><span class="wk-pct">${Math.round(c.pct)}%</span><span class="wk-mark">${cumplio?'\u2705':'\u274c'}</span></div><div class="wk-nums">${fmtInt(c.total)}/${fmtInt(Math.round(c.meta))}${c.extra?`<span class="wk-extra">+${fmtInt(c.extra)} fin de sem.</span>`:''}</div>${daysHtml(c)}</td>`;
       }).join('');
       rowsHtml.push(`<tr><td class="wk-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td>${tds}</tr>`);
     });
