@@ -1153,6 +1153,16 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
 .sup-tabs{display:flex; flex-wrap:wrap; gap:4px; margin:0 0 16px; width:fit-content; max-width:100%;}
 .sup-tabs button{white-space:nowrap;}
 @media (max-width:700px){ .sup-tabs{width:100%;} .sup-tabs button{flex:1 1 auto;} }
+
+.just-form-box{border:1px solid var(--border-soft); border-radius:12px; padding:12px 14px; background:var(--surface-2); margin-bottom:12px;}
+.just-form-box.editing{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-wash,rgba(109,179,255,.18));}
+.just-form-title{font-weight:800; font-size:13px; color:var(--ink); margin-bottom:6px;}
+.just-hist{border-top:1px solid var(--border-soft); padding-top:4px;}
+.just-hist-head{margin-bottom:0 !important; padding:6px 0;}
+#justHistBody.just-collapsed{display:none;}
+.just-edit{background:none; border:none; cursor:pointer; font-size:13px; padding:2px 4px; opacity:.75;}
+.just-edit:hover{opacity:1;}
+.just-row.editing{background:var(--accent-wash,rgba(109,179,255,.12)); border-radius:8px;}
 </style>
 
 <div class="app-layout">
@@ -1366,7 +1376,8 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
       <h2>Justificaciones / ajustes de meta</h2>
       <span class="hint">excluye días de la meta de un gestor: vacaciones, incapacidad, permiso, Issabel caído u otro</span>
     </div>
-    <div id="justList"></div>
+    <div class="just-form-box" id="justFormBox">
+      <div class="just-form-title" id="justFormTitle">➕ Nueva justificación</div>
     <div class="sup-form" id="justForm">
       <div class="sup-field" style="min-width:160px;"><label>Gestor</label><select id="jGestor" class="pick" style="max-width:none;"></select></div>
       <div class="sup-field"><label>Desde</label><input type="date" id="jFrom"></div>
@@ -1384,8 +1395,23 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
       <div class="sup-field" style="max-width:120px;"><label>% excusado</label><input type="number" id="jPct" min="1" max="100" step="1" value="100"></div>
       <div class="sup-field" style="min-width:150px;"><label>Nota (opcional)</label><input type="text" id="jNote" placeholder="detalle"></div>
       <button class="btn primary" id="jAdd" style="align-self:flex-end;">Agregar</button>
+      <button class="btn" id="jCancelEdit" style="align-self:flex-end;" hidden>Cancelar edición</button>
     </div>
     <div class="field-hint" style="margin-top:8px;"><b>100%</b> = el día no cuenta para su meta (vacaciones/incapacidad completas). <b>Menos de 100%</b> = parcial (ej. 50% = media jornada). Aplica al rango Desde–Hasta para ese gestor, y se refleja en todas las tarjetas de cumplimiento.</div>
+    </div>
+    <div class="just-hist">
+      <div class="card-head up-head just-hist-head" id="justHistToggle" role="button" tabindex="0" aria-expanded="false">
+        <h2 style="font-size:14px;">Historial de justificaciones <span class="up-count" id="justCount"></span></h2>
+        <svg class="up-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div id="justHistBody" class="just-collapsed">
+        <div class="up-toolbar">
+          <label class="up-filt"><span>Gestor</span><select id="justFilter"><option value="">Todos los gestores</option></select></label>
+          <span class="up-shown" id="justShown"></span>
+        </div>
+        <div id="justList"></div>
+      </div>
+    </div>
   </div>
   </div>
 
@@ -6098,21 +6124,37 @@ initDb();
     sel.innerHTML = exts.map(ext=>`<option value="${ext}">${escapeHtml(gName(ext))}</option>`).join('');
     if(cur && state.gestores[cur]) sel.value=cur;
   }
+  let justEditId = null;   // clave de la justificación en edición (null = nueva)
+  function justKey(j, idx){ return (j && j.id!=null) ? String(j.id) : ('idx:'+idx); }
   function renderJust(){
     fillJGestor();
     const el=$('#justList'); if(!el) return;
     const list = Array.isArray(state.config.justificaciones)?state.config.justificaciones:[];
-    if(!list.length){ el.innerHTML='<div class="just-empty">Sin justificaciones registradas. Agrega una para excluir días de la meta de un gestor (vacaciones, incapacidad, etc.).</div>'; return; }
-    const ordered = list.map((j,idx)=>({j,idx})).sort((a,b)=>String(b.j.from||'').localeCompare(String(a.j.from||'')));
-    el.innerHTML = ordered.map(({j,idx})=>{
+    const cEl=$('#justCount'); if(cEl) cEl.textContent = list.length ? `(${list.length})` : '';
+    const fSel=$('#justFilter');
+    if(fSel){
+      const prev=fSel.value;
+      const exts=Array.from(new Set(list.map(j=>j.ext))).sort((a,b)=>gName(a).localeCompare(gName(b),'es'));
+      fSel.innerHTML='<option value="">Todos los gestores</option>'+exts.map(x=>`<option value="${x}">${escapeHtml(gName(x))} (${list.filter(j=>j.ext===x).length})</option>`).join('');
+      fSel.value = exts.includes(prev)?prev:'';
+    }
+    const fx = fSel ? fSel.value : '';
+    const shown = list.map((j,idx)=>({j,idx})).filter(o=>!fx || o.j.ext===fx)
+      .sort((a,b)=>String(b.j.from||'').localeCompare(String(a.j.from||'')));
+    const sh=$('#justShown'); if(sh) sh.textContent = !list.length ? '' : (fx ? `${shown.length} de ${list.length}` : `${list.length} registradas`);
+    if(!list.length){ el.innerHTML='<div class="just-empty">Sin justificaciones registradas.</div>'; return; }
+    if(!shown.length){ el.innerHTML='<div class="just-empty">Este gestor no tiene justificaciones.</div>'; return; }
+    el.innerHTML = shown.map(({j,idx})=>{
+      const k=justKey(j,idx);
       const from=j.from?dateFmtHumanFull.format(toUTC(j.from)):'—';
       const to=(j.to&&j.to!==j.from)?(' → '+dateFmtHumanFull.format(toUTC(j.to))):'';
       const pct=(j.excusePct==null?100:j.excusePct);
-      return `<div class="just-row">
+      return `<div class="just-row${justEditId===k?' editing':''}" data-k="${escapeHtml(k)}">
         <span class="just-who">${escapeHtml(gName(j.ext))}</span>
         <span class="just-when">${from}${to}</span>
         <span class="just-type">${JUST_TYPES[j.type]||j.type||'—'} · <span class="just-pct">${pct}%</span></span>
-        <button class="gs-del" data-i="${idx}" title="Eliminar justificación">×</button>
+        <button class="just-edit" data-k="${escapeHtml(k)}" title="Editar esta justificación">✏️</button>
+        <button class="gs-del" data-k="${escapeHtml(k)}" title="Eliminar justificación">×</button>
         ${j.note?`<span class="just-note">“${escapeHtml(j.note)}”</span>`:''}
       </div>`;
     }).join('');
@@ -6149,7 +6191,20 @@ initDb();
   const dkCards=$('#derivedKpiCards');
   if(dkCards) dkCards.addEventListener('click', e=>{ const b=e.target.closest('.dk-del'); if(!b) return; state.config.derivedKpis=state.config.derivedKpis.filter(k=>k.id!==b.dataset.id); renderAll(); showToast('KPI eliminado.'); });
 
-  // Eventos: justificaciones.
+  // Eventos: justificaciones (formulario independiente + historial desplegable con edición).
+  function findJust(k){
+    const list = state.config.justificaciones || [];
+    if (String(k).startsWith('idx:')){ const i = +String(k).slice(4); return {i, j:list[i]}; }
+    const i = list.findIndex(j=>String(j.id)===String(k)); return {i, j:list[i]};
+  }
+  function resetJustForm(){
+    justEditId = null;
+    $('#jFrom').value=''; $('#jTo').value=''; $('#jNote').value=''; $('#jPct').value='100';
+    $('#jAdd').textContent='Agregar';
+    const c=$('#jCancelEdit'); if(c) c.hidden=true;
+    const t=$('#justFormTitle'); if(t) t.textContent='➕ Nueva justificación';
+    const b=$('#justFormBox'); if(b) b.classList.remove('editing');
+  }
   const jAdd=$('#jAdd');
   if(jAdd) jAdd.addEventListener('click', ()=>{
     const ext=$('#jGestor').value; const from=$('#jFrom').value||''; let to=$('#jTo').value||from;
@@ -6159,12 +6214,49 @@ initDb();
     if(from && to && from>to){ showToast('La fecha "Desde" no puede ser posterior a "Hasta".'); return; }
     if(!isFinite(pct)||pct<1) pct=100; if(pct>100) pct=100;
     if(!Array.isArray(state.config.justificaciones)) state.config.justificaciones=[];
+    if (justEditId){
+      const {i,j} = findJust(justEditId);
+      if (i<0 || !j){ showToast('Esa justificación ya no existe.'); resetJustForm(); renderAll(); return; }
+      Object.assign(j, {ext, from, to:to||from, type, excusePct:pct, note:note||''});   // conserva su id
+      resetJustForm(); renderAll(); showToast('Justificación actualizada.'); return;
+    }
     state.config.justificaciones.push({id:'j_'+Date.now(), ext, from, to:to||from, type, excusePct:pct, note:note||''});
-    $('#jFrom').value=''; $('#jTo').value=''; $('#jNote').value=''; $('#jPct').value='100';
-    renderAll(); showToast('Justificación agregada.');
+    resetJustForm(); renderAll(); showToast('Justificación agregada.');
   });
+  const jCancel=$('#jCancelEdit');
+  if(jCancel) jCancel.addEventListener('click', ()=>{ resetJustForm(); renderJust(); });
   const jList=$('#justList');
-  if(jList) jList.addEventListener('click', e=>{ const b=e.target.closest('.gs-del'); if(!b) return; state.config.justificaciones.splice(+b.dataset.i,1); renderAll(); showToast('Justificación eliminada.'); });
+  if(jList) jList.addEventListener('click', e=>{
+    const ed = e.target.closest('.just-edit');
+    if (ed){
+      const {j} = findJust(ed.dataset.k); if(!j) return;
+      justEditId = ed.dataset.k;
+      renderJust();
+      const sel=$('#jGestor');
+      if (sel && ![...sel.options].some(o=>o.value===j.ext)){ const o=document.createElement('option'); o.value=j.ext; o.textContent=gName(j.ext)+' (ya no opera)'; sel.appendChild(o); }
+      sel.value=j.ext; $('#jFrom').value=j.from||''; $('#jTo').value=j.to||j.from||'';
+      $('#jType').value=j.type||'otro'; $('#jPct').value=String(j.excusePct==null?100:j.excusePct); $('#jNote').value=j.note||'';
+      $('#jAdd').textContent='Guardar cambios';
+      const c=$('#jCancelEdit'); if(c) c.hidden=false;
+      const t=$('#justFormTitle'); if(t) t.textContent='✏️ Editando justificación de '+gName(j.ext);
+      const b=$('#justFormBox'); if(b){ b.classList.add('editing'); b.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+      return;
+    }
+    const d = e.target.closest('.gs-del');
+    if (d){
+      const {i} = findJust(d.dataset.k); if(i<0) return;
+      state.config.justificaciones.splice(i,1);
+      if (justEditId===d.dataset.k) resetJustForm();
+      renderAll(); showToast('Justificación eliminada.');
+    }
+  });
+  const jHead=$('#justHistToggle'), jBody=$('#justHistBody');
+  if (jHead && jBody){
+    const tog=()=>{ const open = jBody.classList.toggle('just-collapsed')===false; jHead.setAttribute('aria-expanded', open?'true':'false'); };
+    jHead.addEventListener('click', tog);
+    jHead.addEventListener('keydown', ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); tog(); } });
+  }
+  const jFilt=$('#justFilter'); if(jFilt) jFilt.addEventListener('change', ()=> renderJust());
 
   // Enganchar al ciclo de render.
   const _ra = window.renderAll;
