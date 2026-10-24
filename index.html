@@ -6197,6 +6197,40 @@ initDb();
   let booted = false;         // no empujar hasta reconciliar con el servidor
   let remoteApplying = false;  // evita bucle al aplicar cambios remotos
   let pushTimer = null;
+  // ---- Sincronización segura: cada pestaña recuerda la versión del servidor sobre la que trabaja (base) ----
+  let baseStr = null;   // snapshot (normalizado) de la última versión del servidor que aplicamos o escribimos
+  let baseRev = 0;      // número de versión (rev) de esa base
+  function stable(v){
+    if (v===null || typeof v!=='object') return JSON.stringify(v);
+    if (Array.isArray(v)) return '['+v.map(stable).join(',')+']';
+    return '{'+Object.keys(v).sort().filter(k=>v[k]!==undefined).map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}';
+  }
+  function byId(arr){ const o={}; (arr||[]).forEach((x,i)=>{ const k = (x && x.id!=null) ? ('id:'+x.id) : ('noid:'+stable(x)); o[k]=x; }); return o; }
+  // Fusión de 3 vías por elemento: aplica sobre lo del servidor SOLO lo que esta pestaña cambió respecto de su base.
+  function mergeKeyed(b,l,s){
+    const out = Object.assign({}, s);
+    new Set([...Object.keys(b), ...Object.keys(l)]).forEach(k=>{
+      const inB = Object.prototype.hasOwnProperty.call(b,k), inL = Object.prototype.hasOwnProperty.call(l,k);
+      if (inL && (!inB || stable(l[k])!==stable(b[k]))) out[k] = l[k];     // creado o modificado aquí
+      else if (!inL && inB) delete out[k];                                  // borrado aquí
+    });
+    return out;
+  }
+  function mergeSnaps(base, local, server){
+    const out = JSON.parse(JSON.stringify(server));
+    out.gestores = mergeKeyed(base.gestores||{}, local.gestores||{}, server.gestores||{});
+    out.daily = Object.entries(mergeKeyed(Object.fromEntries(base.daily||[]), Object.fromEntries(local.daily||[]), Object.fromEntries(server.daily||[])));
+    out.uploads = Object.values(mergeKeyed(byId(base.uploads), byId(local.uploads), byId(server.uploads)));
+    const bc=base.config||{}, lc=local.config||{}, sc=server.config||{};
+    out.config = Object.assign({}, sc);
+    new Set([...Object.keys(bc), ...Object.keys(lc)]).forEach(k=>{
+      if (k==='justificaciones') return;
+      if (stable(lc[k])!==stable(bc[k])){ if (k in lc) out.config[k]=lc[k]; else delete out.config[k]; }
+    });
+    out.config.justificaciones = Object.values(mergeKeyed(byId(bc.justificaciones), byId(lc.justificaciones), byId(sc.justificaciones)));
+    return out;
+  }
+  window.__rlMerge = mergeSnaps;   // (para pruebas)
 
   function snap(){
     return {
@@ -6232,14 +6266,36 @@ initDb();
   }
 
   async function pushNow(){
-    if(!hasReal(snap())){ setBadge('vivo'); return; }  // nunca sobrescribir la base compartida con datos vacíos
+    const local = snap();
+    if(!hasReal(local)){ setBadge('vivo'); return; }                 // nunca sobrescribir la base compartida con datos vacíos
+    if(baseStr!==null && stable(local)===baseStr){ setBadge('vivo'); return; }   // esta pestaña no cambió nada: no escribe
     try{
       setBadge('sync');
-      const { error } = await sb.from('rl_estado').upsert(
-        { id: ROW_ID, data: snap(), updated_at: new Date().toISOString(), updated_by: clientId },
-        { onConflict: 'id' }
-      );
-      setBadge(error ? 'local' : 'vivo', error ? 'Sin conexión · datos locales' : null);
+      for (let intento=0; intento<4; intento++){
+        const { data: cur, error: e1 } = await sb.from('rl_estado').select('data').eq('id', ROW_ID).maybeSingle();
+        if (e1) throw e1;
+        const srv = cur && cur.data;
+        const srvRev = srv ? (Number(srv.rev)||0) : 0;
+        let toWrite = snap();
+        let merged = false;
+        if (srv && hasReal(srv) && baseStr!==null && srvRev!==baseRev){
+          // Otra pestaña/usuario guardó después de nuestra última sincronización: aplicar SOLO nuestros cambios sobre lo suyo.
+          toWrite = mergeSnaps(JSON.parse(baseStr), toWrite, srv); merged = true;
+        }
+        toWrite.rev = srvRev + 1;
+        const { error } = await sb.from('rl_estado').upsert(
+          { id: ROW_ID, data: toWrite, updated_at: new Date().toISOString(), updated_by: clientId },
+          { onConflict: 'id' }
+        );
+        if (!error){
+          if (merged){ remoteApplying = true; apply(toWrite); window.renderAll(); remoteApplying = false; }
+          baseStr = stable(snap()); baseRev = toWrite.rev;
+          setBadge('vivo'); return;
+        }
+        if (!/stale/i.test((error && (error.message||error.details||''))+'')){ setBadge('local','Sin conexión · datos locales'); return; }
+        // la base rechazó por versión (alguien guardó justo en medio): reintentar con lo más nuevo
+      }
+      setBadge('local','No se pudo guardar · recarga la página');
     }catch(e){ setBadge('local','Sin conexión · datos locales'); }
   }
   function schedulePush(){
@@ -6255,10 +6311,16 @@ initDb();
       if (error || !data) return false;
       if (data.updated_by === clientId) return false;     // es nuestro propio eco
       if (!hasReal(data.data)) return false;
+      const local = snap();
+      const pending = baseStr!==null && stable(local)!==baseStr;   // cambios locales aún no guardados
       remoteApplying = true;
       apply(data.data);
+      const serverNorm = stable(snap());
+      if (pending) apply(mergeSnaps(JSON.parse(baseStr), local, JSON.parse(serverNorm)));
       window.renderAll();
       remoteApplying = false;
+      baseStr = serverNorm; baseRev = Number(data.data.rev)||0;
+      if (pending) schedulePush();
       setBadge('vivo');
       return true;
     }catch(e){ remoteApplying=false; return false; }
@@ -6282,6 +6344,7 @@ initDb();
         apply(data.data);
         window.renderAll();
         remoteApplying = false;
+        baseStr = stable(snap()); baseRev = Number(data.data.rev)||0;
       }
       booted = true;
       if (error){ setBadge('local','Sin conexión · datos locales'); return; }
