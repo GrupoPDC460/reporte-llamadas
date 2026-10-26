@@ -1177,6 +1177,9 @@ th.th-sort:hover{color:var(--accent);}
 th .sort-ind{color:var(--accent); font-size:10px;}
 .section-title #btnJustFromCompliance{padding:6px 12px; font-size:12.5px;}
 #justModalSlot .just-form-box{margin:0; border:none; padding:0;}
+
+.gap-badge{display:inline-block; margin-top:2px; font-size:10px; font-weight:700; color:#b7791f; background:rgba(243,169,56,.15); border-radius:4px; padding:1px 5px; cursor:help; white-space:nowrap; vertical-align:middle;}
+.pc-cell .gap-badge{display:block; width:fit-content;}
 </style>
 
 <div class="app-layout">
@@ -1914,6 +1917,22 @@ function excuseRawSumFor(ext, dateStr){
   return sum;
 }
 function excusePctFor(ext, dateStr){ return Math.max(-300, Math.min(100, excuseRawSumFor(ext, dateStr))); }
+// Días SIN REGISTRO: el equipo trabajó (algún gestor que opera tuvo llamadas, día hábil), la persona no tiene
+// llamadas y el día no está justificado al 100%. La regla de meta NO cambia (solo cuenta días con registro);
+// esto sirve para AVISAR qué días faltan.
+function teamWorkedOn(ds){
+  if (isWeekend(ds)) return false;
+  return Object.keys(state.gestores).filter(isActiveGestor).some(e=>{ const r=getRec(e+'_'+ds); return r && (r.total||0)>0; });
+}
+function gapDaysFor(ext, dates){
+  return dates.filter(ds=>{ if(!teamWorkedOn(ds)) return false; const r=getRec(ext+'_'+ds); return !(r && (r.total||0)>0) && !isDayExcusedFull(ext, ds); });
+}
+function gapBadge(gaps){
+  if (!gaps || !gaps.length) return '';
+  const M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const list = gaps.map(d=>{ const x=toUTC(d); return String(x.getUTCDate()).padStart(2,'0')+'-'+M[x.getUTCMonth()]; }).join(', ');
+  return `<span class="gap-badge" title="D\u00edas en que el equipo trabaj\u00f3 y no hay registro ni justificaci\u00f3n: ${list}. Esos d\u00edas no cuentan en su meta.">\u26a0 ${gaps.length} d sin registro</span>`;
+}
 function metaFactorFor(ext, dateStr){ const e = excusePctFor(ext, dateStr); return e>=100 ? 0 : (100-e)/100; }
 function metaForDay(ext, dateStr){ return goalForDate(dateStr) * metaFactorFor(ext, dateStr); }
 function isDayExcusedFull(ext, dateStr){ return excusePctFor(ext, dateStr) >= 100; }
@@ -2787,17 +2806,17 @@ function renderPeriodCompliance(){
   const fmtRange = p => `${dateFmtHuman.format(toUTC(p.from))}–${dateFmtHuman.format(toUTC(p.to))}`;
 
   function periodStats(ext, p){
-    let actual=0, dias=0, meta=0;
+    let actual=0, dias=0, meta=0; const days=[];
     let d=toUTC(p.from); const end=toUTC(p.to);
     while(d<=end){
       const ds=dateFmtUTC.format(d);
-      if(!isWeekend(ds)){
+      if(!isWeekend(ds)){ days.push(ds);
         const r=getRec(ext+'_'+ds);
         if(r && (r.total||0)>0 && !isDayExcusedFull(ext, ds)){ actual+=r.total; dias++; meta += (p.goal||0)*metaFactorFor(ext, ds); }
       }
       d.setUTCDate(d.getUTCDate()+1);
     }
-    return {actual, dias, meta, pct: meta? actual/meta*100 : null};
+    return {actual, dias, meta, pct: meta? actual/meta*100 : null, gaps: gapDaysFor(ext, days)};
   }
 
   const data = scopeExts.map(ext=>({ext, name:gName(ext), cells: periods.map(p=>periodStats(ext,p))}))
@@ -2809,7 +2828,7 @@ function renderPeriodCompliance(){
   const head = `<div class="pc-row pc-head"><span class="pc-name">Gestor</span>`+
     periods.map(p=>`<span class="pc-cell">${fmtRange(p)}<small>meta ${p.goal}/día</small></span>`).join('')+`</div>`;
   const body = data.map(r=>`<div class="pc-row"><span class="pc-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>`+
-    r.cells.map(c=>`<span class="pc-cell"><span class="pc-pct ${sev(c.pct)}">${c.pct===null?'–':Math.round(c.pct)+'%'}</span><small>${fmtInt(c.actual)}/${fmtInt(Math.round(c.meta))}</small></span>`).join('')+
+    r.cells.map(c=>`<span class="pc-cell"><span class="pc-pct ${sev(c.pct)}">${c.pct===null?'–':Math.round(c.pct)+'%'}</span><small>${fmtInt(c.actual)}/${fmtInt(Math.round(c.meta))}</small>${gapBadge(c.gaps)}</span>`).join('')+
     `</div>`).join('');
 
   const scopeLabel = state.filterGestor ? gName(state.filterGestor) : (state.filterTeam ? (TEAMS[state.filterTeam]||state.filterTeam) : 'todo el equipo');
@@ -3054,7 +3073,7 @@ function renderGoalRanking(){
     // de esos días (salvo los días justificados completos). Así aparece TODO el equipo.
     if (!diasTrabajados){ dates.forEach(dt=>{ if(!isDayExcusedFull(ext,dt)) metaAcum += metaForDay(ext,dt); }); }
     const pct = metaAcum ? (totalCalls/metaAcum*100) : null;
-    return {ext, name:gName(ext), pct, diasTrabajados, totalCalls, metaAcum};
+    return {ext, name:gName(ext), pct, diasTrabajados, totalCalls, metaAcum, gaps: diasTrabajados ? gapDaysFor(ext, dates) : []};
   });
   rows = rows.filter(r=>r.pct!==null).sort((a,b)=> (b.pct-a.pct) || a.name.localeCompare(b.name,'es'));
 
@@ -3077,7 +3096,7 @@ function renderGoalRanking(){
       <div class="lb-main">
         <div class="lb-name" title="${escapeHtml(r.name)}${r.pct>=100 ? ' — meta cumplida' : ''} — clic para ver su detalle" data-ext="${r.ext}">${escapeHtml(r.name)}</div>
         <div class="lb-bar-track"><div class="lb-bar-fill ${cls}" style="width:${w}%"></div></div>
-        <div class="lb-faltan ${cls}">${difStr} · ${fmtInt(r.totalCalls)}/${fmtInt(Math.round(r.metaAcum))}</div>
+        <div class="lb-faltan ${cls}">${difStr} · ${fmtInt(r.totalCalls)}/${fmtInt(Math.round(r.metaAcum))} ${gapBadge(r.gaps)}</div>
       </div>
       <span class="lb-val ${cls}">${r.pct.toFixed(0)}%</span>
     </div>`;
