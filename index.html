@@ -1163,6 +1163,8 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
 .just-edit{background:none; border:none; cursor:pointer; font-size:13px; padding:2px 4px; opacity:.75;}
 .just-edit:hover{opacity:1;}
 .just-row.editing{background:var(--accent-wash,rgba(109,179,255,.12)); border-radius:8px;}
+
+.wd-excx{background:#4c5fd5; color:#fff; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55);}
 </style>
 
 <div class="app-layout">
@@ -1397,7 +1399,7 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
       <button class="btn primary" id="jAdd" style="align-self:flex-end;">Agregar</button>
       <button class="btn" id="jCancelEdit" style="align-self:flex-end;" hidden>Cancelar edición</button>
     </div>
-    <div class="field-hint" style="margin-top:8px;"><b>100%</b> = el día no cuenta para su meta (vacaciones/incapacidad completas). <b>Menos de 100%</b> = parcial (ej. 50% = media jornada). Aplica al rango Desde–Hasta para ese gestor, y se refleja en todas las tarjetas de cumplimiento.</div>
+    <div class="field-hint" style="margin-top:8px;"><b>100%</b> = el día no cuenta para su meta (vacaciones/incapacidad completas). <b>Menos de 100%</b> = parcial (ej. 50% = media jornada). Aplica al rango Desde–Hasta para ese gestor, y se refleja en todas las tarjetas de cumplimiento. Si un día tiene <b>varias</b> justificaciones, <b>se suman</b> (ej. 50% + 25% = 75%), con tope de 100%.</div>
     </div>
     <div class="just-hist">
       <div class="card-head up-head just-hist-head" id="justHistToggle" role="button" tabindex="0" aria-expanded="false">
@@ -1713,7 +1715,7 @@ table.wk-table{border-collapse:separate; border-spacing:0; width:max-content; mi
   </div>
   <div class="card">
     <div class="wk-scroll"><div id="weekStratTable"></div></div>
-    <div class="wk-legend"><span class="wk-lg wk-ok">✅ cumplió (≥100%)</span><span class="wk-lg wk-mid">entre 80 y 99%</span><span class="wk-lg wk-bad">❌ menos de 80%</span><span class="wk-lg wk-exc">— semana justificada</span></div><div class="wk-legend" style="margin-top:4px;">Abajo de cada celda, los días <b>L M X J V</b>: <span style="color:#2f9e44;font-weight:700;">verde</span>=cumplió el día · <span style="color:#e03131;font-weight:700;">rojo</span>=por debajo · <span style="color:var(--ink-mute);">punteado</span>=sin reporte · gris=justificado · <span style="color:#4c5fd5;font-weight:700;">S/D azul</span>=llamadas de sábado/domingo (suman a la semana)</div>
+    <div class="wk-legend"><span class="wk-lg wk-ok">✅ cumplió (≥100%)</span><span class="wk-lg wk-mid">entre 80 y 99%</span><span class="wk-lg wk-bad">❌ menos de 80%</span><span class="wk-lg wk-exc">— semana justificada</span></div><div class="wk-legend" style="margin-top:4px;">Abajo de cada celda, los días <b>L M X J V</b>: <span style="color:#2f9e44;font-weight:700;">verde</span>=cumplió el día · <span style="color:#e03131;font-weight:700;">rojo</span>=por debajo · <span style="color:var(--ink-mute);">punteado</span>=sin reporte · gris=justificado · <span style="color:#4c5fd5;font-weight:700;">S/D azul</span>=llamadas de sábado/domingo (suman a la semana) · <span style="color:#4c5fd5;font-weight:700;">letra azul</span>=día justificado en que igual hizo llamadas (también suman)</div>
   </div>
 
   <div class="section-title">
@@ -1877,32 +1879,31 @@ function goalForDate(dateStr){
 // CLAVE DE SEGURIDAD: si no hay justificaciones, excusePctFor=0 → metaFactorFor=1 → metaForDay=goalForDate,
 // así que todos los cálculos quedan idénticos a hoy hasta que se registre una justificación.
 const JUST_TYPES = {vacaciones:'🌴 Vacaciones', incapacidad:'🏥 Incapacidad', permiso:'📋 Permiso', asueto:'🏖️ Asueto', issabel:'⚠️ Issabel caído', otro:'📝 Otro'};
-function excusePctFor(ext, dateStr){
+// Si un mismo día tiene VARIAS justificaciones, sus porcentajes SE SUMAN (ej. 50% + 25% = 75%),
+// con tope de 100% (el día no puede quedar "más que justificado").
+function excuseRawSumFor(ext, dateStr){
   const list = (state.config && state.config.justificaciones) || [];
-  let max = 0;
+  let sum = 0;
   for (const j of list){
     if (!j || j.ext !== ext) continue;
     if (j.from && dateStr < j.from) continue;
     if ((j.to||j.from) && dateStr > (j.to||j.from)) continue;
-    const p = (j.excusePct==null) ? 100 : Math.max(0, Math.min(100, +j.excusePct));
-    if (p > max) max = p;
+    sum += (j.excusePct==null) ? 100 : Math.max(0, Math.min(100, +j.excusePct));
   }
-  return max;
+  return sum;
 }
+function excusePctFor(ext, dateStr){ return Math.min(100, excuseRawSumFor(ext, dateStr)); }
 function metaFactorFor(ext, dateStr){ const e = excusePctFor(ext, dateStr); return e>=100 ? 0 : (100-e)/100; }
 function metaForDay(ext, dateStr){ return goalForDate(dateStr) * metaFactorFor(ext, dateStr); }
 function isDayExcusedFull(ext, dateStr){ return excusePctFor(ext, dateStr) >= 100; }
 function excuseRecordFor(ext, dateStr){
   const list = (state.config && state.config.justificaciones) || [];
-  let best = null, bestP = -1;
-  for (const j of list){
-    if (!j || j.ext !== ext) continue;
-    if (j.from && dateStr < j.from) continue;
-    if ((j.to||j.from) && dateStr > (j.to||j.from)) continue;
-    const p = (j.excusePct==null) ? 100 : +j.excusePct;
-    if (p > bestP){ bestP = p; best = j; }
-  }
-  return best;
+  const hits = list.filter(j=> j && j.ext===ext && !(j.from && dateStr < j.from) && !((j.to||j.from) && dateStr > (j.to||j.from)));
+  if (!hits.length) return null;
+  if (hits.length===1) return hits[0];
+  const same = hits.every(h=>h.type===hits[0].type);
+  return {ext, from:dateStr, to:dateStr, type: same ? hits[0].type : 'otro', excusePct: excusePctFor(ext, dateStr), combined:true,
+    note: hits.map(h=>`${JUST_TYPES[h.type]||h.type} ${h.excusePct==null?100:h.excusePct}%${h.note?' ('+h.note+')':''}`).join(' + ')};
 }
 const TEAMS = { chevere:'Team Chevere', imparables:'Team Imparables' };
 // País/mercado: se identifica por el troncal de salida en Src./Dst. Channel del CDR de Issabel
@@ -3557,34 +3558,37 @@ function renderWeeklyCompliance(){
   const DL = ['L','M','X','J','V'];                    // lun mar mié jue vie
   function weekDates(mon){ const out=[], base=toUTC(mon); for(let i=0;i<5;i++){ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); out.push(dateFmtUTC.format(d)); } return out; }
   function cell(ext, wdays, mon, isCurrent){
-    let meta=0, actual=0, worked=0;
+    let meta=0, actual=0, worked=0, excCalls=0;
     wdays.forEach(ds=>{
-      if(isDayExcusedFull(ext, ds)) return;
+      const r = getRec(ext+'_'+ds); const t = r ? (r.total||0) : 0;
+      if(isDayExcusedFull(ext, ds)){ excCalls += t; return; }   // día justificado al 100%: sin meta, pero si llamó, SUMA a la semana
       meta += metaForDay(ext, ds);
-      const r = getRec(ext+'_'+ds);
-      if(r && (r.total||0)>0){ actual += r.total; worked++; }
+      if(t>0){ actual += t; worked++; }
     });
     const perDay = weekDates(mon).map((ds,i)=>{
       if(ds < min || ds > hi) return {l:DL[i], st:'pend', ds};         // fuera de rango o día futuro
-      if(isDayExcusedFull(ext, ds)) return {l:DL[i], st:'exc', ds};    // justificado (asueto, incapacidad...)
+      if(isDayExcusedFull(ext, ds)){ const rr=getRec(ext+'_'+ds); const cc=rr?(rr.total||0):0;     // justificado (asueto, incapacidad...)
+        return cc>0 ? {l:DL[i], st:'excx', ds, calls:cc} : {l:DL[i], st:'exc', ds}; }
       if(!daySet.has(ds)) return {l:DL[i], st:'none', ds};            // el equipo no trabajó / sin reporte
       const md = metaForDay(ext, ds);
       const r = getRec(ext+'_'+ds); const calls = r ? (r.total||0) : 0;
       return {l:DL[i], st:(md<=0 || calls>=md) ? 'ok' : 'bad', ds, calls, md};
     });
     const we = (weekendBy.get(mon)||new Map()).get(ext) || {calls:0, days:[]};
-    const total = actual + we.calls;
-    return {meta, actual, extra:we.calls, extraDays:we.days, total, pct: meta>0 ? total/meta*100 : null, worked, nDays:wdays.length, perDay, isCurrent};
+    const total = actual + we.calls + excCalls;
+    return {meta, actual, extra:we.calls+excCalls, extraWeekend:we.calls, extraExc:excCalls, extraDays:we.days, total, pct: meta>0 ? total/meta*100 : null, worked, nDays:wdays.length, perDay, isCurrent};
   }
   const dayTip = d=>{
     if(d.st==='ok') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2713 cumpli\u00f3 el d\u00eda`;
     if(d.st==='bad') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2717 por debajo`;
     if(d.st==='exc') return `${d.ds}: justificado (no cuenta)`;
+    if(d.st==='excx') return `${d.ds}: justificado al 100%, pero hizo ${fmtInt(d.calls)} llamadas (suman a la semana)`;
     if(d.st==='none') return `${d.ds}: sin reporte cargado`;
     return `${d.ds}: pendiente`;
   };
   const extraChips = c => (c.extraDays||[]).map(x=>{ const sat = toUTC(x.ds).getUTCDay()===6;
     return `<span class="wd wd-extra" title="${x.ds}: ${fmtInt(x.calls)} llamadas extra (${sat?'s\u00e1bado':'domingo'}) \u00b7 suman a la semana">${sat?'S':'D'}</span>`; }).join('');
+  const extraLbl = c => !c.extra ? '' : `<span class="wk-extra">+${fmtInt(c.extra)} ${(c.extraWeekend&&c.extraExc)?'extra':(c.extraWeekend?'fin de sem.':'d\u00eda justif.')}</span>`;
   const daysHtml = c => `<div class="wk-days">${c.perDay.map(d=>`<span class="wd wd-${d.st}" title="${dayTip(d)}">${d.l}</span>`).join('')}${extraChips(c)}</div>`;
   const teams = [['chevere','👑 Chevere'],['imparables','🔥 Imparables']];
   const rowsHtml = [];
@@ -3599,11 +3603,11 @@ function renderWeeklyCompliance(){
     list.forEach(r=>{
       const tds = r.cells.map(c=>{
         const cur = c.isCurrent ? ' wk-current' : '';
-        if(c.pct==null) return `<td class="wk-cell wk-exc${cur}" title="Semana justificada (sin meta)"><div class="wk-top">\u2014</div>${c.extra?`<div class="wk-nums"><span class="wk-extra">+${fmtInt(c.extra)} fin de sem.</span></div>`:''}${daysHtml(c)}</td>`;
+        if(c.pct==null) return `<td class="wk-cell wk-exc${cur}" title="Semana justificada (sin meta)"><div class="wk-top">\u2014</div>${c.extra?`<div class="wk-nums">${extraLbl(c)}</div>`:''}${daysHtml(c)}</td>`;
         const cumplio = c.pct>=100;
         const cls = cumplio ? 'wk-ok' : (c.pct>=80 ? 'wk-mid' : 'wk-bad');
-        const tip = `Lun\u2013Vie: ${fmtInt(c.actual)}`+(c.extra?` \u00b7 fin de semana: +${fmtInt(c.extra)}`:'')+` \u00b7 total ${fmtInt(c.total)} de ${fmtInt(Math.round(c.meta))} llamadas \u00b7 trabaj\u00f3 ${c.worked}/${c.nDays} d\u00edas`+(c.isCurrent?' \u00b7 en curso (parcial)':'');
-        return `<td class="wk-cell ${cls}${cur}" title="${tip}"><div class="wk-top"><span class="wk-pct">${Math.round(c.pct)}%</span><span class="wk-mark">${cumplio?'\u2705':'\u274c'}</span></div><div class="wk-nums">${fmtInt(c.total)}/${fmtInt(Math.round(c.meta))}${c.extra?`<span class="wk-extra">+${fmtInt(c.extra)} fin de sem.</span>`:''}</div>${daysHtml(c)}</td>`;
+        const tip = `Lun\u2013Vie: ${fmtInt(c.actual)}`+(c.extraWeekend?` \u00b7 fin de semana: +${fmtInt(c.extraWeekend)}`:'')+(c.extraExc?` \u00b7 en d\u00edas justificados: +${fmtInt(c.extraExc)}`:'')+` \u00b7 total ${fmtInt(c.total)} de ${fmtInt(Math.round(c.meta))} llamadas \u00b7 trabaj\u00f3 ${c.worked}/${c.nDays} d\u00edas`+(c.isCurrent?' \u00b7 en curso (parcial)':'');
+        return `<td class="wk-cell ${cls}${cur}" title="${tip}"><div class="wk-top"><span class="wk-pct">${Math.round(c.pct)}%</span><span class="wk-mark">${cumplio?'\u2705':'\u274c'}</span></div><div class="wk-nums">${fmtInt(c.total)}/${fmtInt(Math.round(c.meta))}${extraLbl(c)}</div>${daysHtml(c)}</td>`;
       }).join('');
       rowsHtml.push(`<tr><td class="wk-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td>${tds}</tr>`);
     });
@@ -6205,6 +6209,11 @@ initDb();
     const t=$('#justFormTitle'); if(t) t.textContent='➕ Nueva justificación';
     const b=$('#justFormBox'); if(b) b.classList.remove('editing');
   }
+  function justOverMsg(ext, from, to){
+    const over=[]; let d=toUTC(from); const e=toUTC(to||from);
+    while(d<=e){ const ds=dateFmtUTC.format(d); const s=excuseRawSumFor(ext, ds); if(s>100) over.push(`${ds} (${s}%)`); d.setUTCDate(d.getUTCDate()+1); }
+    return over.length ? ` Ojo: ${over.slice(0,4).join(', ')}${over.length>4?'…':''} suma m\u00e1s de 100% con las otras justificaciones de ese d\u00eda; queda justificado al 100%.` : '';
+  }
   const jAdd=$('#jAdd');
   if(jAdd) jAdd.addEventListener('click', ()=>{
     const ext=$('#jGestor').value; const from=$('#jFrom').value||''; let to=$('#jTo').value||from;
@@ -6218,10 +6227,10 @@ initDb();
       const {i,j} = findJust(justEditId);
       if (i<0 || !j){ showToast('Esa justificación ya no existe.'); resetJustForm(); renderAll(); return; }
       Object.assign(j, {ext, from, to:to||from, type, excusePct:pct, note:note||''});   // conserva su id
-      resetJustForm(); renderAll(); showToast('Justificación actualizada.'); return;
+      resetJustForm(); renderAll(); showToast('Justificación actualizada.'+justOverMsg(ext, from, to||from), 7000); return;
     }
     state.config.justificaciones.push({id:'j_'+Date.now(), ext, from, to:to||from, type, excusePct:pct, note:note||''});
-    resetJustForm(); renderAll(); showToast('Justificación agregada.');
+    resetJustForm(); renderAll(); showToast('Justificación agregada.'+justOverMsg(ext, from, to||from), 7000);
   });
   const jCancel=$('#jCancelEdit');
   if(jCancel) jCancel.addEventListener('click', ()=>{ resetJustForm(); renderJust(); });
