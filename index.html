@@ -1180,6 +1180,10 @@ th .sort-ind{color:var(--accent); font-size:10px;}
 
 .gap-badge{display:inline-block; margin-top:2px; font-size:10px; font-weight:700; color:#b7791f; background:rgba(243,169,56,.15); border-radius:4px; padding:1px 5px; cursor:help; white-space:nowrap; vertical-align:middle;}
 .pc-cell .gap-badge{display:block; width:fit-content;}
+
+.sort-pick{max-width:210px; font-size:12px; padding:5px 8px;}
+.card-head .list-sort{margin-left:6px;}
+.section-title .bar-sort{margin-left:auto;}
 </style>
 
 <div class="app-layout">
@@ -3152,7 +3156,10 @@ function renderGestorBarChart(){
     const t = extTotals(ext, min, max); // ya respeta state.filterDay y state.filterCountry
     return {ext, name:gName(ext), team:gTeam(ext), total:t.total, answered:t.answered, effective:t.effective};
   });
-  rows.sort((a,b)=> b.total-a.total || a.name.localeCompare(b.name));
+  const bs = state.barSort || 'val-desc';   // selector "Orden" del cuadro
+  rows.sort((a,b)=> bs==='val-asc' ? (a.total-b.total || a.name.localeCompare(b.name,'es'))
+    : bs==='name-asc' ? a.name.localeCompare(b.name,'es') : bs==='name-desc' ? b.name.localeCompare(a.name,'es')
+    : (b.total-a.total || a.name.localeCompare(b.name,'es')));
 
   $('#gestorBarChartHint').textContent = `${rows.length} gestor${rows.length===1?'':'es'} · ${fmtInt(rows.reduce((s,r)=>s+r.total,0))} llamadas en total`;
 
@@ -6660,8 +6667,56 @@ initDb();
   // ── ORDENAR y FILTRAR: todas las tablas del panel ──
   // Clic en un encabezado ordena esa columna (de mayor a menor; otro clic, al revés). Arriba de cada tabla,
   // un buscador filtra por gestor. Se recuerda por tabla y se reaplica cada vez que la tabla se vuelve a dibujar.
-  var tblSort = {}, tblQuery = {};
+  var tblSort = {}, tblQuery = {}, tblMode = {};
+  var SORT_OPTS = '<option value="">Orden: predeterminado</option><option value="val-desc">Resultado: mayor a menor</option><option value="val-asc">Resultado: menor a mayor</option><option value="name-asc">Nombre: A \u2192 Z</option><option value="name-desc">Nombre: Z \u2192 A</option>';
+  // columna "Resultado" de una tabla = la columna de más a la derecha con números en la mayoría de filas
+  function resultCol(t){
+    var rows=Array.from(t.tBodies[0].rows).filter(function(r){ return !isGroupRow(r) && !/^\s*total/i.test(r.cells[0]?r.cells[0].textContent:''); });
+    var n = t.tHead && t.tHead.rows[0] ? t.tHead.rows[0].cells.length : (rows[0]?rows[0].cells.length:1);
+    for (var c=n-1; c>0; c--){ var ok=rows.filter(function(r){ return cellNum(r.cells[c])!==null; }).length; if(rows.length && ok >= rows.length*0.6) return c; }
+    return n-1;
+  }
+  // ── Cuadros tipo LISTA: mismo selector de orden ──
+  var LIST_DEFS = [
+    {list:'goalRankList', row:'.lb-row',   name:'.lb-name',   val:'.lb-val'},
+    {list:'rankList',     row:'.rank-row', name:'.rank-name', val:'.rank-val'},
+    {list:'channelSplit', row:'.chan-row', name:'.chan-name', val:'.chan-val'}
+  ];
+  var listMode = {};
+  function numOf(el){ if(!el) return null; var m=(el.textContent||'').replace(/,/g,'').match(/-?\d+(?:\.\d+)?/); return m?parseFloat(m[0]):null; }
+  function sortList(def){
+    var box=document.getElementById(def.list), mode=listMode[def.list]; if(!box || !mode) return;
+    var rows=Array.from(box.querySelectorAll(def.row)); if(rows.length<2) return;
+    var parent=rows[0].parentNode, after=rows[rows.length-1].nextSibling;
+    rows.sort(function(a,b){
+      if(mode.indexOf('name')===0){ var x=nameKey((a.querySelector(def.name)||a).textContent), y=nameKey((b.querySelector(def.name)||b).textContent); return mode==='name-asc' ? x.localeCompare(y,'es') : y.localeCompare(x,'es'); }
+      var va=numOf(a.querySelector(def.val)), vb=numOf(b.querySelector(def.val)); if(va===null) va=-Infinity; if(vb===null) vb=-Infinity;
+      return mode==='val-desc' ? vb-va : va-vb;
+    });
+    rows.forEach(function(r){ parent.insertBefore(r, after); });
+  }
+  function ensureListSelect(def){
+    var box=document.getElementById(def.list); if(!box) return;
+    var card=box.closest('.card'), head=card && card.querySelector('.card-head');
+    var host = head || box.parentNode;
+    if (host.querySelector('.list-sort[data-list="'+def.list+'"]')) return;
+    var sel=document.createElement('select'); sel.className='pick sort-pick list-sort'; sel.dataset.list=def.list; sel.setAttribute('aria-label','Ordenar');
+    sel.innerHTML=SORT_OPTS; sel.value=listMode[def.list]||'';
+    if (head) head.appendChild(sel); else host.insertBefore(sel, box);
+    sel.addEventListener('change', function(){ listMode[def.list]=sel.value; if(!sel.value){ if(typeof renderAll==='function') renderAll(); } else sortList(def); });
+  }
+  function ensureBarSelect(){
+    var t=document.getElementById('gestorBarTitle'); if(!t) return; var host=t.parentNode;
+    if (host.querySelector('.bar-sort')) return;
+    var sel=document.createElement('select'); sel.className='pick sort-pick bar-sort'; sel.setAttribute('aria-label','Ordenar barras');
+    sel.innerHTML=SORT_OPTS.replace('Orden: predeterminado','Orden: mayor a menor (predeterminado)'); sel.value=(state.barSort && state.barSort!=='val-desc')?state.barSort:'';
+    host.appendChild(sel);
+    sel.addEventListener('change', function(){ state.barSort = sel.value || 'val-desc'; if(typeof renderAll==='function') renderAll(); });
+  }
+  function enhanceLists(){ LIST_DEFS.forEach(function(d){ ensureListSelect(d); sortList(d); }); ensureBarSelect(); }
   function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+  // para ordenar por nombre: ignora íconos, medallas o números antes del nombre (p. ej. "👑 Ana")
+  function nameKey(s){ return norm(s).replace(/^[^a-z\u00f1]+/,''); }
   function tblKey(t){ if(t.id) return t.id; var p=t.closest('[id]'); var all=p?Array.from(p.querySelectorAll('table')):[t]; return (p?p.id:'t')+'#'+all.indexOf(t); }
   function isGroupRow(tr){ return tr.classList.contains('wk-team') || (tr.cells.length===1 && tr.cells[0].colSpan>1); }
   function cellNum(td){
@@ -6673,11 +6728,12 @@ initDb();
     var st=tblSort[tblKey(t)]; if(!st || !t.tBodies[0]) return;
     var body=t.tBodies[0], rows=Array.from(body.rows), col=st.col, dir=st.dir;
     var vals=rows.filter(function(r){return !isGroupRow(r);}).map(function(r){ return r.cells[col]; });
-    var numeric = vals.filter(function(c){ return cellNum(c)!==null; }).length >= Math.max(1, vals.filter(function(c){ return c && c.textContent.trim(); }).length*0.6);
+    // la 1.ª columna es siempre el gestor: se ordena por NOMBRE (no por su número de extensión)
+    var numeric = col!==0 && vals.filter(function(c){ return cellNum(c)!==null; }).length >= Math.max(1, vals.filter(function(c){ return c && c.textContent.trim(); }).length*0.6);
     function cmp(a,b){
       if(numeric){ var x=cellNum(a.cells[col]), y=cellNum(b.cells[col]);
         if(x===null && y===null) return 0; if(x===null) return 1; if(y===null) return -1; return dir*(y-x); }
-      return dir*-1*norm(a.cells[col]&&a.cells[col].textContent).localeCompare(norm(b.cells[col]&&b.cells[col].textContent),'es');
+      return dir*-1*nameKey(a.cells[col]&&a.cells[col].textContent).localeCompare(nameKey(b.cells[col]&&b.cells[col].textContent),'es');
     }
     // ordenar dentro de cada grupo (p. ej. por equipo); filas "Total" se quedan al final
     var out=[], seg=[], totals=[];
@@ -6713,10 +6769,19 @@ initDb();
     var prev = anchorEl.previousElementSibling;
     if(prev && prev.classList.contains('tbl-tools') && prev.dataset.key===key) return;
     var bar=document.createElement('div'); bar.className='tbl-tools'; bar.dataset.key=key;
-    bar.innerHTML='<input type="search" class="tbl-q" placeholder="🔎 Filtrar gestor…" aria-label="Filtrar gestor"><span class="tbl-hint">Toca un encabezado para ordenar</span>';
+    bar.innerHTML='<input type="search" class="tbl-q" placeholder="🔎 Filtrar gestor…" aria-label="Filtrar gestor"><select class="pick sort-pick tbl-sort" aria-label="Ordenar">'+SORT_OPTS+'</select><span class="tbl-hint">o toca un encabezado</span>';
     anchorEl.parentNode.insertBefore(bar, anchorEl);
     var inp=bar.querySelector('input'); inp.value = tblQuery[key]||'';
     inp.addEventListener('input', function(){ tblQuery[key]=inp.value; var tt=findTable(key); if(tt) filterTable(tt); });
+    var sel=bar.querySelector('.tbl-sort'); sel.value = tblMode[key]||'';
+    sel.addEventListener('change', function(){
+      var tt=findTable(key); if(!tt) return; tblMode[key]=sel.value;
+      if(!sel.value){ delete tblSort[key]; } else {
+        var col = sel.value.indexOf('name')===0 ? 0 : resultCol(tt);
+        tblSort[key] = {col:col, dir: (sel.value==='name-desc'||sel.value==='val-desc') ? 1 : -1};
+      }
+      sortTable(tt); markHeaders(tt); filterTable(tt);
+    });
   }
   function findTable(key){ return Array.from(document.querySelectorAll('#modZone table')).find(function(t){ return tblKey(t)===key; }); }
   function enhanceTables(){
@@ -6724,11 +6789,13 @@ initDb();
       if(!t.querySelector('thead th') || !t.tBodies[0]) return;
       ensureTools(t); sortTable(t); markHeaders(t); filterTable(t);
     });
+    try{ enhanceLists(); }catch(e){}
   }
   document.addEventListener('click', function(e){
     var th=e.target.closest && e.target.closest('#modZone table thead th'); if(!th) return;
     var t=th.closest('table'), key=tblKey(t), col=Array.from(th.parentNode.children).indexOf(th);
     var st=tblSort[key]; tblSort[key] = (st && st.col===col) ? {col:col, dir:-st.dir} : {col:col, dir:1};
+    tblMode[key]=''; var tb=document.querySelector('.tbl-tools[data-key="'+key+'"] .tbl-sort'); if(tb) tb.value='';
     sortTable(t); markHeaders(t); filterTable(t);
   });
   window.enhanceTables = enhanceTables;
