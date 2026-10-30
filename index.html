@@ -6093,16 +6093,26 @@ initDb();
       out.push({sev, title:`Cumplimiento global: ${p.toFixed(0)}%`, desc:`${fmtInt(c.totalCalls)} llamadas de una meta de ${fmtInt(Math.round(c.meta))} en el período seleccionado.`});
     }
     const per = s.exts.map(ext=>{
-      let total=0, meta=0, answered=0, effective=0, talk=0, dias=0;
-      { const [amin,amax] = currentRangeBounds(); const sc = scoreRange(ext, state.filterDay ? [state.filterDay] : datesBetween(amin, amax)); total = sc.actual; meta = sc.meta; dias = sc.worked; }   // REGLA ÚNICA
+      let total=0, meta=0, answered=0, effective=0, talk=0, dias=0, gaps=[], gapMeta=0;
+      { const [amin,amax] = currentRangeBounds(); const sc = scoreRange(ext, state.filterDay ? [state.filterDay] : datesBetween(amin, amax)); total = sc.actual; meta = sc.meta; dias = sc.worked; gaps = sc.gaps; gapMeta = gaps.reduce((t,ds)=>t+dayScore(ext,ds).meta,0); }   // REGLA ÚNICA
       s.dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0){ answered+=r.answered||0; effective+=r.effective||0; talk+=r.talk||0; }});
-      return {ext, name:gName(ext), total, meta, answered, effective, talk, dias, pct: meta? total/meta*100 : null,
+      return {ext, name:gName(ext), total, meta, answered, effective, talk, dias, gaps, gapMeta, pct: meta? total/meta*100 : null,
               contactRate: total? effective/total : 0, aht: answered? talk/answered : 0};
     });
     const inactivos = per.filter(g=>g.dias===0);
     if(inactivos.length) out.push({sev:'warn', title:`${inactivos.length} gestor(es) sin actividad en el período`, desc: inactivos.slice(0,5).map(g=>g.name).join(', ') + (inactivos.length>5?'…':'')});
     const bajo = per.filter(g=>g.pct!==null && g.pct<70).sort((a,b)=>a.pct-b.pct);
     if(bajo.length) out.push({sev: bajo.some(g=>g.pct<50)?'crit':'warn', title:`${bajo.length} gestor(es) por debajo del 70% de su meta`, desc: bajo.slice(0,4).map(g=>`${g.name} (${g.pct.toFixed(0)}%)`).join(' · ') + (bajo.length>4?'…':'')});
+    // Días SIN REGISTRO por gestor: el equipo trabajó y él no tiene llamadas ni justificación. Su meta de ese día
+    // se le acumula con 0 llamadas; el supervisor debe cuestionar el motivo o registrar la justificación.
+    const conHuecos = per.filter(g=>g.gaps.length).sort((a,b)=>b.gaps.length-a.gaps.length || a.name.localeCompare(b.name,'es'));
+    if(conHuecos.length){
+      const M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      const fd = ds=>{ const x=toUTC(ds); return String(x.getUTCDate()).padStart(2,'0')+'-'+M[x.getUTCMonth()]; };
+      out.push({sev:'crit', title:`${conHuecos.length} gestor(es) con días sin registro — cuestionar`,
+        desc: conHuecos.slice(0,6).map(g=>`${g.name}: ${g.gaps.map(fd).join(', ')} (se le acumulan ${fmtInt(Math.round(g.gapMeta))} de meta con 0 llamadas)`).join(' · ') + (conHuecos.length>6?' · …':'') +
+              ' · Si hubo motivo, regístralo en Justificaciones y la meta de ese día se descuenta.'});
+    }
     const sinEfec = per.filter(g=>g.answered>=15 && g.effective===0);
     if(sinEfec.length) out.push({sev:'warn', title:`${sinEfec.length} gestor(es) contestan pero no logran contactabilidad`, desc:`Ninguna de sus contestadas supera los ${state.config.thresholdSeconds}s: ` + sinEfec.slice(0,4).map(g=>g.name).join(', ')});
     const diasSin = s.dates.filter(dt=> !s.exts.some(ext=>{const r=getRec(ext+'_'+dt); return r&&(r.total||0)>0;}));
