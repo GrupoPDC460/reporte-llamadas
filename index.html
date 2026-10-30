@@ -4016,10 +4016,12 @@ async function handleFile(file){
       if (agg.has(key)){
         applyPhoneDelta(agg.get(key), rec.phone, 1);
         agg.get(key).phone = rec.phone;
+        if (rec.phoneCalls && rec.phoneCalls.length) agg.get(key).phoneCalls = rec.phoneCalls;   // conserva el detalle llamada por llamada
       } else {
         const fresh = {ext, name:gName(ext), date, total:0, answered:0, effective:0, talk:0, noAnswer:0, busy:0, other:0, durUnder1:0, dur1to3:0, durOver3:0, byCountry:{}};
         applyPhoneDelta(fresh, rec.phone, 1);
         fresh.phone = rec.phone;
+        if (rec.phoneCalls && rec.phoneCalls.length) fresh.phoneCalls = rec.phoneCalls;   // conserva el detalle llamada por llamada
         agg.set(key, fresh);
       }
     });
@@ -4156,15 +4158,16 @@ function addPhoneBatchToDay(ext, date, calls, batchId){
   return {nuevas, dup};
 }
 function previewPhoneBatch(ext, parsed){
-  let nuevas=0, dup=0, diasConCarga=0;
+  let nuevas=0, dup=0, diasConCarga=0, legacyDays=0, legacyCalls=0;
   parsed.byDate.forEach((calls, date)=>{
     const rec = state.daily.get(ext+'_'+date);
+    if (rec && rec.phone && rec.phone.total>0 && !(rec.phoneCalls && rec.phoneCalls.length)){ legacyDays++; legacyCalls += rec.phone.total; }
     const seen = new Set((rec && rec.phoneCalls ? rec.phoneCalls : []).map(phoneCallSig));
     if (seen.size) diasConCarga++;
     const local = new Set();
     calls.forEach(c=>{ const s=phoneCallSig(c); if(seen.has(s)||local.has(s)) dup++; else { local.add(s); nuevas++; } });
   });
-  return {nuevas, dup, diasConCarga, tocaDiasConCarga: diasConCarga>0};
+  return {nuevas, dup, diasConCarga, tocaDiasConCarga: diasConCarga>0, legacyDays, legacyCalls};
 }
 // ---- Administración de cargas de celular: eliminar y reasignar un lote ----
 function phoneUploadsList(){
@@ -4431,6 +4434,7 @@ function applyGestorExt(plan){
   });
   (state.config.justificaciones||[]).forEach(j=>{ if (j && j.ext===oldExt) j.ext = newExt; });
   if (state.filterGestor === oldExt) state.filterGestor = newExt;
+  (state.uploads||[]).forEach(u=>{ if (u && u.ext===oldExt){ u.ext = newExt; u.gestorName = g.name; } });   // la lista de cargas sigue al gestor
   state.gestores[newExt] = g; delete state.gestores[oldExt];
   return pairs;
 }
@@ -4566,7 +4570,8 @@ function openPhoneConfirm(a){
     dupLine+
     `<div class="pc-line"><span class="pc-k">De esas, contacto efectivo (&gt;${state.config.thresholdSeconds}s)</span><span class="pc-v mono">${fmtInt(efectivas)}</span></div>`+
     (a.parsed.rowsUnmatched?`<div class="pc-line"><span class="pc-k">Recibidas/perdidas (no cuentan)</span><span class="pc-v mono">${fmtInt(a.parsed.rowsUnmatched)}</span></div>`:'')+
-    segunda;
+    segunda +
+    (a.pre.legacyDays ? `<div class="pc-note" style="color:var(--crit);">⚠️ ${a.pre.legacyDays} de estos días ya tenían ${fmtInt(a.pre.legacyCalls)} llamadas de celular cargadas <b>antes, sin detalle</b>. Este archivo las <b>REEMPLAZA</b> (no se suman). Si es un <b>segundo teléfono</b>, sube también el archivo del primero para que queden los dos.</div>` : '');
   $('#phoneConfirm').classList.add('show'); $('#phoneOverlay').classList.add('show');
 }
 function closePhoneConfirm(){ pendingAnalysis=null; $('#phoneConfirm').classList.remove('show'); if(!$('#phonePicker').classList.contains('show')) $('#phoneOverlay').classList.remove('show'); }
