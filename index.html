@@ -1733,7 +1733,7 @@ th .sort-ind{color:var(--accent); font-size:10px;}
 
   <div class="section-title">
     <h2>Cumplimiento por semana de estrategia</h2>
-    <span class="hint">por persona: el <b>%</b> es el total de la semana (lun–vie <b>+ sábado/domingo</b>, que suman sin meta extra) contra la meta de esa semana (meta diaria × días trabajados, menos lo justificado) · ✅ = llegó al 100% · las letras L M X J V dicen si cumplió <b>cada día</b> · la semana actual va <b>en curso</b></span>
+    <span class="hint">por persona: el <b>%</b> es el total de la semana (lun–vie <b>+ sábado/domingo</b>, que suman sin meta extra) contra la meta de esa semana (meta diaria × días hábiles de estrategia, menos lo justificado; un día <b>sin registro</b> cuenta con 0) · las semanas se miden <b>dentro del mes</b>: la que cruza de mes empieza el día 1 · ✅ = llegó al 100% · las letras L M X J V dicen si cumplió <b>cada día por separado</b> (lo que sobra otro día suma al total, pero no cambia el día incumplido) · la semana actual va <b>en curso</b></span>
   </div>
   <div class="card">
     <div class="wk-scroll"><div id="weekStratTable"></div></div>
@@ -1742,7 +1742,7 @@ th .sort-ind{color:var(--accent); font-size:10px;}
 
   <div class="section-title">
     <h2>Defase vs meta diaria — faltante y acumulado</h2>
-    <span class="hint">cada día contra su meta (toques) y el faltante que se va <b>acumulando</b> · un gestor si lo seleccionas arriba, si no todo el alcance filtrado · sin fines de semana</span>
+    <span class="hint">cada día contra su meta (toques) y el faltante que se va <b>acumulando</b> · un gestor si lo seleccionas arriba, si no todo el alcance filtrado · sáb/dom y días justificados suman sin meta · sin registro = 0</span>
   </div>
   <div class="card">
     <div class="card-head">
@@ -1928,18 +1928,74 @@ function teamWorkedOn(ds){
   if (isWeekend(ds)) return false;
   return Object.keys(state.gestores).filter(isActiveGestor).some(e=>{ const r=getRec(e+'_'+ds); return r && (r.total||0)>0; });
 }
-function gapDaysFor(ext, dates){
-  return dates.filter(ds=>{ if(!teamWorkedOn(ds)) return false; const r=getRec(ext+'_'+ds); return !(r && (r.total||0)>0) && !isDayExcusedFull(ext, ds); });
-}
+function gapDaysFor(ext, dates){ return dates.filter(ds=> dayScore(ext, ds).kind==='gap'); }
 function gapBadge(gaps){
   if (!gaps || !gaps.length) return '';
   const M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const list = gaps.map(d=>{ const x=toUTC(d); return String(x.getUTCDate()).padStart(2,'0')+'-'+M[x.getUTCMonth()]; }).join(', ');
-  return `<span class="gap-badge" title="D\u00edas en que el equipo trabaj\u00f3 y no hay registro ni justificaci\u00f3n: ${list}. Esos d\u00edas no cuentan en su meta.">\u26a0 ${gaps.length} d sin registro</span>`;
+  return `<span class="gap-badge" title="D\u00edas en que el equipo trabaj\u00f3 y no hay registro ni justificaci\u00f3n: ${list}. Esos d\u00edas cuentan en su meta con 0 llamadas.">\u26a0 ${gaps.length} d sin registro</span>`;
 }
 function metaFactorFor(ext, dateStr){ const e = excusePctFor(ext, dateStr); return e>=100 ? 0 : (100-e)/100; }
 function metaForDay(ext, dateStr){ return goalForDate(dateStr) * metaFactorFor(ext, dateStr); }
 function isDayExcusedFull(ext, dateStr){ return excusePctFor(ext, dateStr) >= 100; }
+// ===================== REGLA ÚNICA DE CUMPLIMIENTO =====================
+// TODAS las secciones (gráfica semanal, tabla por semana, cumplimiento por período, ranking, Copiar/Imagen,
+// Modo TV, faltante acumulado y panel de supervisión) calculan con dayScore/scoreRange, para que cuadren.
+//  · Sábado/domingo: las llamadas SUMAN al acumulado, sin meta.
+//  · Día justificado al 100%: las llamadas SUMAN, sin meta.
+//  · Día hábil fuera de los períodos de estrategia (Panel de supervisión): las llamadas suman, sin meta.
+//  · Día hábil de estrategia con llamadas: meta del día (con justificación parcial) contra sus llamadas.
+//  · Día hábil de estrategia en que el EQUIPO trabajó y el gestor no tiene registro: cuenta la meta con 0
+//    llamadas (GAP_COUNTS_META), salvo HOY, que va en curso.
+//  · Cada día se evalúa solo (letras L M X J V): lo que sobra un día suma al acumulado, pero no convierte
+//    en cumplido un día anterior.
+const GAP_COUNTS_META = true;
+function isStrategyDay(ds){
+  const sc = state.config && state.config.goalSchedule;
+  if (!Array.isArray(sc) || !sc.length) return true;      // sin períodos: todos los días hábiles tienen meta
+  return sc.some(p=> p && p.goal!=null && (!p.from || ds>=p.from) && (!p.to || ds<=p.to));
+}
+function todayLocalStr(){ return localDateStr(new Date()); }
+// Primer día con llamadas de cada gestor: antes de esa fecha aún no operaba, así que no hay "sin registro".
+let _firstDateCache = {size:-1, map:null};
+function firstActiveDate(ext){
+  if (_firstDateCache.size !== state.daily.size){
+    const m = {}; state.daily.forEach(r=>{ if((r.total||0)>0 && (!m[r.ext] || r.date < m[r.ext])) m[r.ext] = r.date; });
+    _firstDateCache = {size: state.daily.size, map: m};
+  }
+  return _firstDateCache.map[ext] || null;
+}
+function dayScore(ext, ds){
+  const r = getRec(ext+'_'+ds); const calls = r ? (r.total||0) : 0;
+  const today = todayLocalStr();
+  if (ds > today) return {calls:0, meta:0, kind:'future'};
+  if (isWeekend(ds)) return {calls, meta:0, kind:'weekend'};
+  if (isDayExcusedFull(ext, ds)) return {calls, meta:0, kind:'exc'};
+  if (!isStrategyDay(ds)) return {calls, meta:0, kind:'nostrat'};
+  const m = metaForDay(ext, ds);
+  if (calls>0) return {calls, meta:m, kind:'work'};
+  if (!teamWorkedOn(ds)) return {calls:0, meta:0, kind:'off'};
+  const first = firstActiveDate(ext);
+  if (!first || ds < first) return {calls:0, meta:0, kind:'off'};       // aún no operaba
+  if (ds===today) return {calls:0, meta:0, kind:'today'};
+  return {calls:0, meta: GAP_COUNTS_META ? m : 0, kind:'gap'};
+}
+function scoreRange(ext, dates){
+  const o = {actual:0, meta:0, worked:0, cumplidos:0, extra:0, excCalls:0, excused:0, gaps:[], extraDays:[]};
+  dates.forEach(ds=>{
+    const sc = dayScore(ext, ds); o.actual += sc.calls; o.meta += sc.meta;
+    if (sc.kind==='work'){ o.worked++; if (sc.calls >= sc.meta) o.cumplidos++; }
+    else if (sc.kind==='gap') o.gaps.push(ds);
+    else if (sc.calls>0){ o.extra += sc.calls; o.extraDays.push({ds, calls:sc.calls, kind:sc.kind}); }
+    if (sc.kind==='exc'){ o.excused++; o.excCalls += sc.calls; }
+  });
+  o.pct = o.meta ? o.actual/o.meta*100 : null;
+  return o;
+}
+function datesBetween(a, b){ const out=[]; if(!a||!b) return out; let d=toUTC(a); const e=toUTC(b); while(d<=e){ out.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); } return out; }
+// Semana DENTRO del mes: la semana que cruza de un mes a otro se corta en el día 1 (no mezcla meses).
+function monthWeekStart(ds){ const w = weekStartStr(ds), m = ds.slice(0,8)+'01'; return w < m ? m : w; }
+// ======================================================================
 function excuseRecordFor(ext, dateStr){
   const list = (state.config && state.config.justificaciones) || [];
   const hits = list.filter(j=> j && j.ext===ext && !(j.from && dateStr < j.from) && !((j.to||j.from) && dateStr > (j.to||j.from)));
@@ -2432,13 +2488,13 @@ function renderWeeklyChart(){
     return;
   }
 
-  const dayMap = new Map(); // date -> {total, gestorDias, goalSum}
-  recs.forEach(r=>{
-    const b = dayMap.get(r.date) || {total:0, gestorDias:0, goalSum:0};
-    b.total += (r.total||0);
-    if ((r.total||0)>0){ b.gestorDias += 1; b.goalSum += isWeekend(r.date) ? 0 : metaForDay(r.ext, r.date); }   // misma meta que Cumplimiento: con justificaciones; sáb/dom sin meta
-    dayMap.set(r.date, b);
-  });
+  const dayMap = new Map(); // date -> {total, gestorDias, goalSum} — REGLA ÚNICA (dayScore)
+  { const [cmin,cmax] = currentRangeBounds(); const cexts = state.filterGestor ? [state.filterGestor] : visibleExts();
+    datesBetween(cmin, cmax).forEach(ds=>{
+      const b = {total:0, gestorDias:0, goalSum:0};
+      cexts.forEach(ext=>{ const sc = dayScore(ext, ds); b.total += sc.calls; b.goalSum += sc.meta; if (sc.calls>0) b.gestorDias++; });
+      if (b.total>0 || b.goalSum>0) dayMap.set(ds, b);
+    }); }
   const allDays = Array.from(dayMap.keys()).sort();
   // Con pocas semanas de historial mostramos una barra por día (más vivo y legible);
   // si el rango crece mucho, volvemos a agrupar en una barra por semana.
@@ -2448,16 +2504,15 @@ function renderWeeklyChart(){
   if (byDay){
     items = allDays.map(dt=>{
       const b = dayMap.get(dt);
-      return { label: dateFmtHuman.format(toUTC(dt)), total:b.total, goal:b.goalSum, weekStart: weekStartStr(dt) };
+      return { label: dateFmtHuman.format(toUTC(dt)), total:b.total, goal:b.goalSum, weekStart: monthWeekStart(dt) };
     });
     $('#weeklyHint').textContent = `total por día, agrupado por semana — ${marketLabel} · clic en una barra para ver ese día`;
   } else {
     const buckets = new Map();
-    recs.forEach(r=>{
-      const wk = weekStartStr(r.date);
+    dayMap.forEach((v, ds)=>{
+      const wk = monthWeekStart(ds);
       const b = buckets.get(wk) || {total:0, gestorDias:0, goalSum:0};
-      b.total += (r.total||0);
-      if ((r.total||0)>0){ b.gestorDias += 1; b.goalSum += isWeekend(r.date) ? 0 : metaForDay(r.ext, r.date); }   // misma meta que Cumplimiento: con justificaciones; sáb/dom sin meta
+      b.total += v.total; b.goalSum += v.goalSum; b.gestorDias += v.gestorDias;
       buckets.set(wk, b);
     });
     const weeks = Array.from(buckets.keys()).sort();
@@ -2700,17 +2755,14 @@ function renderDefase(){
 
   const exts = single ? [state.filterGestor] : visibleExts();
   const days=[]; { let d=toUTC(min); const end=toUTC(max);
-    while(d<=end){ const ds=dateFmtUTC.format(d); if(!isWeekend(ds)) days.push(ds); d.setUTCDate(d.getUTCDate()+1); } }
+    while(d<=end){ const ds=dateFmtUTC.format(d); days.push(ds); d.setUTCDate(d.getUTCDate()+1); } }
 
   let cumG=0, cumA=0; const pts=[];
   days.forEach(ds=>{
     let actual=0, workers=0, goal=0;
-    exts.forEach(ext=>{
-      const r=getRec(ext+'_'+ds);
-      if(!(r && (r.total||0)>0)) return;
-      if(isDayExcusedFull(ext, ds)) return;        // día justificado completo: no cuenta ni meta ni llamadas
-      actual += r.total; workers++;
-      goal += metaForDay(ext, ds);                 // meta del día ajustada por justificación parcial (si hay)
+    exts.forEach(ext=>{                            // REGLA ÚNICA (dayScore)
+      const sc = dayScore(ext, ds);
+      actual += sc.calls; goal += sc.meta; if (sc.calls>0 || sc.meta>0) workers++;
     });
     if(!workers) return;
     cumG += goal; cumA += actual;
@@ -2726,9 +2778,8 @@ function renderDefase(){
   if(!single){
     let below=0, evaluated=0;
     exts.forEach(ext=>{
-      let g=0,a=0,worked=false;
-      days.forEach(ds=>{ const r=getRec(ext+'_'+ds); if(r&&(r.total||0)>0 && !isDayExcusedFull(ext,ds)){ g+=metaForDay(ext,ds); a+=r.total; worked=true; } });
-      if(worked){ evaluated++; if(g>a) below++; }
+      const sc = scoreRange(ext, days);
+      if(sc.meta>0){ evaluated++; if(sc.meta>sc.actual) below++; }
     });
     if(evaluated) indivNote = ` · <b style="color:${below?'var(--crit)':'var(--good)'}">${below} de ${evaluated}</b> gestores bajo su meta individual`;
   }
@@ -2809,18 +2860,9 @@ function renderPeriodCompliance(){
   const sev = pct => pct===null?'' : (pct>=100?'good':(pct>=70?'warn':'crit'));
   const fmtRange = p => `${dateFmtHuman.format(toUTC(p.from))}–${dateFmtHuman.format(toUTC(p.to))}`;
 
-  function periodStats(ext, p){
-    let actual=0, dias=0, meta=0; const days=[];
-    let d=toUTC(p.from); const end=toUTC(p.to);
-    while(d<=end){
-      const ds=dateFmtUTC.format(d);
-      if(!isWeekend(ds)){ days.push(ds);
-        const r=getRec(ext+'_'+ds);
-        if(r && (r.total||0)>0 && !isDayExcusedFull(ext, ds)){ actual+=r.total; dias++; meta += (p.goal||0)*metaFactorFor(ext, ds); }
-      }
-      d.setUTCDate(d.getUTCDate()+1);
-    }
-    return {actual, dias, meta, pct: meta? actual/meta*100 : null, gaps: gapDaysFor(ext, days)};
+  function periodStats(ext, p){                      // REGLA ÚNICA
+    const sc = scoreRange(ext, datesBetween(p.from, p.to));
+    return {actual:sc.actual, dias:sc.worked + sc.gaps.length, meta:sc.meta, pct:sc.pct, gaps:sc.gaps};
   }
 
   const data = scopeExts.map(ext=>({ext, name:gName(ext), cells: periods.map(p=>periodStats(ext,p))}))
@@ -2837,7 +2879,7 @@ function renderPeriodCompliance(){
 
   const scopeLabel = state.filterGestor ? gName(state.filterGestor) : (state.filterTeam ? (TEAMS[state.filterTeam]||state.filterTeam) : 'todo el equipo');
   el.style.setProperty('--pc-cols', periods.length);
-  el.innerHTML = `<div class="pc-title">Cumplimiento por gestor y período <span class="pc-hint">${escapeHtml(scopeLabel)} · verde ≥100% · sin fines de semana</span></div><div class="pc-table">${head}${body}</div>`;
+  el.innerHTML = `<div class="pc-title">Cumplimiento por gestor y período <span class="pc-hint">${escapeHtml(scopeLabel)} · verde ≥100% · sáb/dom y días justificados suman sin meta · sin registro = 0</span></div><div class="pc-table">${head}${body}</div>`;
 }
 
 // ---------- Cumplimiento de meta: cálculo ÚNICO (pantallas del TV, Copiar e Imagen) ----------
@@ -2847,7 +2889,7 @@ function periodWorkDates(){
   const [min,max] = currentRangeBounds(); if(!min) return [];
   const ds=[]; let d=toUTC(min); const e=toUTC(max);
   while(d<=e){ ds.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
-  return state.filterDay ? ds.filter(x=>x===state.filterDay) : ds.filter(x=>!isWeekend(x));
+  return state.filterDay ? ds.filter(x=>x===state.filterDay) : ds;   // sáb/dom incluidos: suman sin meta
 }
 // Día que se está midiendo: HOY si ya hay llamadas de hoy (día hábil); si no, el último día hábil con datos.
 function measuredDay(todayStr){
@@ -2866,16 +2908,14 @@ function measuredDay(todayStr){
 // ninguna en ese alcance aparece igual, en 0%, contra la meta completa de esos días (salvo días justificados completos).
 function goalRowsFor(dates){
   return visibleExts().map(ext=>{
-    let tot=0, meta=0, worked=0, excused=0, excCalls=0;
-    dates.forEach(dt=>{
-      const r = getRec(ext+'_'+dt); const t = r ? (r.total||0) : 0;
-      if (isDayExcusedFull(ext,dt)){ excused++; excCalls += t; return; }
-      if (t>0){ tot += t; meta += metaForDay(ext,dt); worked++; }
-    });
-    if (!worked) dates.forEach(dt=>{ if(!isDayExcusedFull(ext,dt)) meta += metaForDay(ext,dt); });
+    const sc = scoreRange(ext, dates);               // REGLA ÚNICA
+    let tot = sc.actual, meta = sc.meta; const excused = sc.excused, excCalls = sc.excCalls;
+    // Sin llamadas en el alcance (p. ej. hoy temprano): aparece en 0% contra la meta de esos días.
+    if (!sc.worked && meta===0 && tot===0) dates.forEach(dt=>{ if(!isWeekend(dt) && isStrategyDay(dt) && !isDayExcusedFull(ext,dt)) meta += metaForDay(ext,dt); });
+    const workDays = dates.filter(dt=>!isWeekend(dt)).length;
     // TODO el equipo aparece: quien tiene todo el alcance justificado al 100% sale como "Justificado"
     // (sin %, con las llamadas que igual hizo) y no entra en los totales del equipo.
-    const justified = (meta===0 && dates.length>0 && excused===dates.length);
+    const justified = (meta===0 && workDays>0 && excused===workDays);
     return {ext, name:gName(ext), team:gTeam(ext), tot, meta, pct: meta ? tot/meta*100 : null, justified, excCalls};
   }).filter(r=>r.pct!==null || r.justified);
 }
@@ -3069,29 +3109,21 @@ function renderGoalRanking(){
   while (d<=endD){ dates.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); }
   if (state.filterDay){
     dates = dates.filter(dt=>dt===state.filterDay);
-  } else {
-    dates = dates.filter(dt=>!isWeekend(dt));
-  }
+  }                                                   // sáb/dom incluidos: suman sin meta (REGLA ÚNICA)
 
   const hasSchedule = Array.isArray(state.config.goalSchedule) && state.config.goalSchedule.length>0;
   const exts = state.filterGestor ? [state.filterGestor] : visibleExts();
   let rows = exts.map(ext=>{
-    const perDay = dates.map(dt => getRec(ext+'_'+dt) || null);
-    let diasTrabajados=0, totalCalls=0, metaAcum=0;
-    perDay.forEach((r,idx)=>{
-      if(!(r && (r.total||0)>0)) return;
-      if(isDayExcusedFull(ext, dates[idx])) return;   // día justificado completo: fuera de meta y llamadas
-      diasTrabajados++; totalCalls += r.total; metaAcum += metaForDay(ext, dates[idx]);
-    });
-    // Sin llamadas en este alcance (p. ej. hoy, o todo el período): aparece en 0% contra la meta completa
-    // de esos días (salvo los días justificados completos). Así aparece TODO el equipo.
-    if (!diasTrabajados){ dates.forEach(dt=>{ if(!isDayExcusedFull(ext,dt)) metaAcum += metaForDay(ext,dt); }); }
+    const sc = scoreRange(ext, dates);
+    let metaAcum = sc.meta; const totalCalls = sc.actual, diasTrabajados = sc.worked;
+    // Sin llamadas en este alcance (p. ej. hoy temprano): aparece en 0% contra la meta de esos días.
+    if (!diasTrabajados && metaAcum===0 && totalCalls===0){ dates.forEach(dt=>{ if(!isWeekend(dt) && isStrategyDay(dt) && !isDayExcusedFull(ext,dt)) metaAcum += metaForDay(ext,dt); }); }
     const pct = metaAcum ? (totalCalls/metaAcum*100) : null;
-    return {ext, name:gName(ext), pct, diasTrabajados, totalCalls, metaAcum, gaps: diasTrabajados ? gapDaysFor(ext, dates) : []};
+    return {ext, name:gName(ext), pct, diasTrabajados, totalCalls, metaAcum, gaps: sc.gaps};
   });
   rows = rows.filter(r=>r.pct!==null).sort((a,b)=> (b.pct-a.pct) || a.name.localeCompare(b.name,'es'));
 
-  $('#goalRankHint').textContent = (hasSchedule ? '% de la meta diaria (variable por período) acumulada' : `% de la meta (${fmtInt(goal)}/día) acumulada en el período`) + ' · no incluye fines de semana';
+  $('#goalRankHint').textContent = (hasSchedule ? '% de la meta diaria (variable por período) acumulada' : `% de la meta (${fmtInt(goal)}/día) acumulada en el período`) + ' · sáb/dom y días justificados suman sin meta · días sin registro cuentan con 0';
 
   if (!rows.length){ el.innerHTML = '<div class="rank-empty">Sin días trabajados en este período.</div>'; return; }
 
@@ -3579,6 +3611,7 @@ function initials(name){
 // suma de metaForDay (meta diaria variable, ya descontadas las justificaciones) sobre los días
 // hábiles en que el EQUIPO trabajó. Cumplió = ≥100%. La semana que contiene hoy va "en curso".
 function renderWeeklyCompliance(){
+  // REGLA ÚNICA (dayScore/scoreRange) + semanas DENTRO del mes: la semana que cruza de mes se corta en el día 1.
   const el = document.getElementById('weekStratTable'); if(!el) return;
   const [min,max] = currentRangeBounds();
   if(!min){ el.innerHTML = '<div class="rank-empty">Sin datos todavía.</div>'; return; }
@@ -3586,71 +3619,50 @@ function renderWeeklyCompliance(){
   const hi = (max < today) ? max : today;
   const allExts = visibleExts();
   const exts = state.filterGestor ? [state.filterGestor] : allExts;
-  const dayCounts = [];
-  { let d = toUTC(min); const e = toUTC(hi);
-    while(d<=e){ const ds = dateFmtUTC.format(d);
-      if(!isWeekend(ds) && allExts.some(ext=>{ const r=getRec(ext+'_'+ds); return r && (r.total||0)>0; })) dayCounts.push(ds);
-      d.setUTCDate(d.getUTCDate()+1);
-    }
-  }
-  if(!dayCounts.length){ el.innerHTML = '<div class="rank-empty">Sin llamadas en este alcance.</div>'; return; }
-  const daySet = new Set(dayCounts);
-  // Llamadas de SÁBADO/DOMINGO: no tienen meta, pero SUMAN al resultado de su semana (días extra).
-  const weekendBy = new Map();   // semana -> ext -> {calls, days:[{ds,calls}]}
-  { let d = toUTC(min); const e = toUTC(hi);
-    while(d<=e){ const ds = dateFmtUTC.format(d);
-      if(isWeekend(ds)){
-        exts.forEach(ext=>{ const r=getRec(ext+'_'+ds); const t=r?(r.total||0):0; if(t<=0) return;
-          const w=weekStartStr(ds); if(!weekendBy.has(w)) weekendBy.set(w,new Map()); const m=weekendBy.get(w);
-          if(!m.has(ext)) m.set(ext,{calls:0,days:[]}); const o=m.get(ext); o.calls+=t; o.days.push({ds,calls:t}); });
-      }
-      d.setUTCDate(d.getUTCDate()+1);
-    }
-  }
-  const weeksMap = new Map();
-  dayCounts.forEach(ds=>{ const w = weekStartStr(ds); if(!weeksMap.has(w)) weeksMap.set(w, []); weeksMap.get(w).push(ds); });
-  const weeks = Array.from(weeksMap.keys()).sort();
-  const currentWeek = weekStartStr(today);
+  const weeksMap = new Map();                      // inicio de semana-en-mes -> [fechas]
+  datesBetween(min, hi).forEach(ds=>{ const w = monthWeekStart(ds); if(!weeksMap.has(w)) weeksMap.set(w, []); weeksMap.get(w).push(ds); });
+  const weeks = Array.from(weeksMap.keys()).sort().filter(w=> weeksMap.get(w).some(ds=> allExts.some(ext=>{ const sc=dayScore(ext,ds); return sc.calls>0 || sc.meta>0; })));
+  if(!weeks.length){ el.innerHTML = '<div class="rank-empty">Sin llamadas en este alcance.</div>'; return; }
+  const currentWeek = monthWeekStart(today);
   const curIdx = weeks.indexOf(currentWeek);
-  const DL = ['L','M','X','J','V'];                    // lun mar mié jue vie
+  const DL = ['L','M','X','J','V'];
   function weekDates(mon){ const out=[], base=toUTC(mon); for(let i=0;i<5;i++){ const d=new Date(base); d.setUTCDate(base.getUTCDate()+i); out.push(dateFmtUTC.format(d)); } return out; }
-  function cell(ext, wdays, mon, isCurrent){
-    let meta=0, actual=0, worked=0, excCalls=0;
-    wdays.forEach(ds=>{
-      const r = getRec(ext+'_'+ds); const t = r ? (r.total||0) : 0;
-      if(isDayExcusedFull(ext, ds)){ excCalls += t; return; }   // día justificado al 100%: sin meta, pero si llamó, SUMA a la semana
-      meta += metaForDay(ext, ds);
-      if(t>0){ actual += t; worked++; }
+  function cell(ext, wk, isCurrent){
+    const sc = scoreRange(ext, weeksMap.get(wk));
+    const perDay = weekDates(weekStartStr(wk)).map((ds,i)=>{
+      if(ds < wk) return {l:DL[i], st:'pend', ds, prevMonth:true};            // pertenece al mes anterior
+      if(ds < min || ds > hi) return {l:DL[i], st:'pend', ds};               // fuera de rango o día futuro
+      const d = dayScore(ext, ds);
+      if(d.kind==='exc') return d.calls>0 ? {l:DL[i], st:'excx', ds, calls:d.calls} : {l:DL[i], st:'exc', ds};
+      if(d.kind==='today' || d.kind==='future') return {l:DL[i], st:'pend', ds};
+      if(d.kind==='off') return {l:DL[i], st:'none', ds};
+      if(d.kind==='nostrat') return {l:DL[i], st:'none', ds, nostrat:true, calls:d.calls};
+      return {l:DL[i], st:(d.meta<=0 || d.calls>=d.meta) ? 'ok' : 'bad', ds, calls:d.calls, md:d.meta, gap:d.kind==='gap'};
     });
-    const perDay = weekDates(mon).map((ds,i)=>{
-      if(ds < min || ds > hi) return {l:DL[i], st:'pend', ds};         // fuera de rango o día futuro
-      if(isDayExcusedFull(ext, ds)){ const rr=getRec(ext+'_'+ds); const cc=rr?(rr.total||0):0;     // justificado (asueto, incapacidad...)
-        return cc>0 ? {l:DL[i], st:'excx', ds, calls:cc} : {l:DL[i], st:'exc', ds}; }
-      if(!daySet.has(ds)) return {l:DL[i], st:'none', ds};            // el equipo no trabajó / sin reporte
-      const md = metaForDay(ext, ds);
-      const r = getRec(ext+'_'+ds); const calls = r ? (r.total||0) : 0;
-      return {l:DL[i], st:(md<=0 || calls>=md) ? 'ok' : 'bad', ds, calls, md};
-    });
-    const we = (weekendBy.get(mon)||new Map()).get(ext) || {calls:0, days:[]};
-    const total = actual + we.calls + excCalls;
-    return {meta, actual, extra:we.calls+excCalls, extraWeekend:we.calls, extraExc:excCalls, extraDays:we.days, total, pct: meta>0 ? total/meta*100 : null, worked, nDays:wdays.length, perDay, isCurrent};
+    const wkend = sc.extraDays.filter(x=>x.kind==='weekend');
+    const extraWeekend = wkend.reduce((a,x)=>a+x.calls,0);
+    const extraOther = sc.extra - extraWeekend - sc.excCalls;
+    return {meta:sc.meta, actual:sc.actual - sc.extra, extra:sc.extra, extraWeekend, extraExc:sc.excCalls, extraOther, extraDays:wkend,
+            total:sc.actual, pct:sc.pct, worked:sc.worked, nDays:sc.worked + sc.gaps.length, perDay, isCurrent};
   }
   const dayTip = d=>{
+    if(d.prevMonth) return `${d.ds}: pertenece al mes anterior (no se mide aquí)`;
     if(d.st==='ok') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2713 cumpli\u00f3 el d\u00eda`;
-    if(d.st==='bad') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2717 por debajo`;
+    if(d.st==='bad') return d.gap ? `${d.ds}: sin registro \u2014 cuenta 0/${fmtInt(Math.round(d.md))}` : `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2717 por debajo`;
     if(d.st==='exc') return `${d.ds}: justificado (no cuenta)`;
     if(d.st==='excx') return `${d.ds}: justificado al 100%, pero hizo ${fmtInt(d.calls)} llamadas (suman a la semana)`;
-    if(d.st==='none') return `${d.ds}: sin reporte cargado`;
-    return `${d.ds}: pendiente`;
+    if(d.st==='none') return d.nostrat ? `${d.ds}: fuera de los per\u00edodos de estrategia (sin meta)${d.calls?` \u00b7 +${fmtInt(d.calls)} suman`:''}` : `${d.ds}: sin reporte cargado`;
+    return `${d.ds}: pendiente / en curso`;
   };
   const extraChips = c => (c.extraDays||[]).map(x=>{ const sat = toUTC(x.ds).getUTCDay()===6;
     return `<span class="wd wd-extra" title="${x.ds}: ${fmtInt(x.calls)} llamadas extra (${sat?'s\u00e1bado':'domingo'}) \u00b7 suman a la semana">${sat?'S':'D'}</span>`; }).join('');
-  const extraLbl = c => !c.extra ? '' : `<span class="wk-extra">+${fmtInt(c.extra)} ${(c.extraWeekend&&c.extraExc)?'extra':(c.extraWeekend?'fin de sem.':'d\u00eda justif.')}</span>`;
+  const extraLbl = c => { if(!c.extra) return ''; const k=[c.extraWeekend&&'fin de sem.', c.extraExc&&'d\u00eda justif.', c.extraOther&&'sin meta'].filter(Boolean);
+    return `<span class="wk-extra">+${fmtInt(c.extra)} ${k.length===1?k[0]:'extra'}</span>`; };
   const daysHtml = c => `<div class="wk-days">${c.perDay.map(d=>`<span class="wd wd-${d.st}" title="${dayTip(d)}">${d.l}</span>`).join('')}${extraChips(c)}</div>`;
   const teams = [['chevere','👑 Chevere'],['imparables','🔥 Imparables']];
   const rowsHtml = [];
   teams.forEach(([key,label])=>{
-    let list = exts.filter(ext=>gTeam(ext)===key).map(ext=>({ext, name:gName(ext), cells: weeks.map(w=>cell(ext, weeksMap.get(w), w, w===currentWeek))}));
+    let list = exts.filter(ext=>gTeam(ext)===key).map(ext=>({ext, name:gName(ext), cells: weeks.map(w=>cell(ext, w, w===currentWeek))}));
     if(!list.length) return;
     list.sort((a,b)=>{
       if(curIdx>=0){ const va=a.cells[curIdx].pct==null?Infinity:a.cells[curIdx].pct, vb=b.cells[curIdx].pct==null?Infinity:b.cells[curIdx].pct; if(va!==vb) return va-vb; }
@@ -3660,10 +3672,10 @@ function renderWeeklyCompliance(){
     list.forEach(r=>{
       const tds = r.cells.map(c=>{
         const cur = c.isCurrent ? ' wk-current' : '';
-        if(c.pct==null) return `<td class="wk-cell wk-exc${cur}" title="Semana justificada (sin meta)"><div class="wk-top">\u2014</div>${c.extra?`<div class="wk-nums">${extraLbl(c)}</div>`:''}${daysHtml(c)}</td>`;
+        if(c.pct==null) return `<td class="wk-cell wk-exc${cur}" title="Semana justificada o sin meta"><div class="wk-top">\u2014</div>${c.extra?`<div class="wk-nums">${extraLbl(c)}</div>`:''}${daysHtml(c)}</td>`;
         const cumplio = c.pct>=100;
         const cls = cumplio ? 'wk-ok' : (c.pct>=80 ? 'wk-mid' : 'wk-bad');
-        const tip = `Lun\u2013Vie: ${fmtInt(c.actual)}`+(c.extraWeekend?` \u00b7 fin de semana: +${fmtInt(c.extraWeekend)}`:'')+(c.extraExc?` \u00b7 en d\u00edas justificados: +${fmtInt(c.extraExc)}`:'')+` \u00b7 total ${fmtInt(c.total)} de ${fmtInt(Math.round(c.meta))} llamadas \u00b7 trabaj\u00f3 ${c.worked}/${c.nDays} d\u00edas`+(c.isCurrent?' \u00b7 en curso (parcial)':'');
+        const tip = `Lun\u2013Vie: ${fmtInt(c.actual)}`+(c.extraWeekend?` \u00b7 fin de semana: +${fmtInt(c.extraWeekend)}`:'')+(c.extraExc?` \u00b7 en d\u00edas justificados: +${fmtInt(c.extraExc)}`:'')+(c.extraOther?` \u00b7 en d\u00edas fuera de estrategia (sin meta): +${fmtInt(c.extraOther)}`:'')+` \u00b7 total ${fmtInt(c.total)} de ${fmtInt(Math.round(c.meta))} llamadas \u00b7 trabaj\u00f3 ${c.worked}/${c.nDays} d\u00edas`+(c.isCurrent?' \u00b7 en curso (parcial)':'');
         return `<td class="wk-cell ${cls}${cur}" title="${tip}"><div class="wk-top"><span class="wk-pct">${Math.round(c.pct)}%</span><span class="wk-mark">${cumplio?'\u2705':'\u274c'}</span></div><div class="wk-nums">${fmtInt(c.total)}/${fmtInt(Math.round(c.meta))}${extraLbl(c)}</div>${daysHtml(c)}</td>`;
       }).join('');
       rowsHtml.push(`<tr><td class="wk-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td>${tds}</tr>`);
@@ -3679,7 +3691,7 @@ function renderCompliance(){
   const hasSchedule = Array.isArray(state.config.goalSchedule) && state.config.goalSchedule.length>0;
   $('#complianceHint').textContent = (hasSchedule
     ? `meta diaria variable por período (ver Panel de supervisión) · acumulado = total ÷ (suma de metas de los días trabajados)`
-    : `meta: ${fmtInt(goal)} llamadas/día (toques, no tienen que contar para la contactabilidad) · acumulado = total del período ÷ (meta × días trabajados)`) + ' · no incluye fines de semana';
+    : `meta: ${fmtInt(goal)} llamadas/día (toques, no tienen que contar para la contactabilidad) · acumulado = total del período ÷ (meta × días trabajados)`) + ' · columnas sin fines de semana; en el acumulado sáb/dom y días justificados suman sin meta · sin registro = 0';
   if (!min){ table.innerHTML=''; return; }
 
   let dates = [];
@@ -3694,17 +3706,12 @@ function renderCompliance(){
   const gestorExts = state.filterGestor ? [state.filterGestor] : visibleExts();
   if (!gestorExts.length || !dates.length){ table.innerHTML=''; return; }
 
+  const accDates = state.filterDay ? [state.filterDay] : datesBetween(min, max);   // acumulado: incluye sáb/dom
   const rows = gestorExts.map(ext=>{
     const perDay = dates.map(dt => getRec(ext+'_'+dt) || null);
-    let diasTrabajados=0, diasCumplidos=0, totalCalls=0, metaAcum=0;
-    perDay.forEach((r,idx)=>{
-      if(!(r && (r.total||0)>0)) return;
-      if(isDayExcusedFull(ext, dates[idx])) return;   // justificado completo: fuera de todo
-      diasTrabajados++; totalCalls += r.total;
-      const dm = metaForDay(ext, dates[idx]); metaAcum += dm;
-      if (r.total >= dm) diasCumplidos++;
-    });
-    const pct = metaAcum ? (totalCalls/metaAcum*100) : null;
+    const sc = scoreRange(ext, accDates);              // REGLA ÚNICA
+    const diasTrabajados = sc.worked + sc.gaps.length, diasCumplidos = sc.cumplidos, totalCalls = sc.actual, metaAcum = sc.meta;
+    const pct = sc.pct;
     return {ext, name:gName(ext), perDay, diasTrabajados, diasCumplidos, totalCalls, metaAcum, pct};
   });
 
@@ -3724,7 +3731,7 @@ function renderCompliance(){
         const lbl = (JUST_TYPES[exc.type]||'• Justificado');
         return `<td class="cell-num comp-exc" title="${escapeHtml(lbl)}${exc.note?(' — '+escapeHtml(exc.note)):''} (no cuenta para la meta)">${lbl.split(' ')[0]}</td>`;
       }
-      if (!rec || !rec.total){ return `<td class="cell-num comp-none">–</td>`; }
+      if (!rec || !rec.total){ return dayScore(r.ext, dates[idx]).kind==='gap' ? `<td class="cell-num comp-miss" title="Sin registro: el equipo trabajó, cuenta la meta con 0">0</td>` : `<td class="cell-num comp-none">–</td>`; }
       const dm = metaForDay(r.ext, dates[idx]);
       const hit = rec.total >= dm;
       const tt = exc ? ` title="${+exc.excusePct<0 ? `Meta aumentada +${-exc.excusePct}%` : `Justificación parcial ${exc.excusePct}%`} — meta del día ${Math.round(dm)}"` : '';
@@ -5143,12 +5150,9 @@ function tvAggregate(){
 function tvPeriodGoal(){
   const scope = new Set(state.filterGestor ? [state.filterGestor] : visibleExts());
   let total=0, metaSum=0;
-  filteredRecords().forEach(r=>{
-    if (!scope.has(r.ext) || !(r.total>0)) return;
-    if (!state.filterDay && isWeekend(r.date)) return;
-    if (isDayExcusedFull(r.ext, r.date)) return;
-    total += r.total; metaSum += metaForDay(r.ext, r.date);
-  });
+  const [tmin,tmax] = currentRangeBounds();
+  const tdates = state.filterDay ? [state.filterDay] : datesBetween(tmin, tmax);
+  scope.forEach(ext=>{ const sc = scoreRange(ext, tdates); total += sc.actual; metaSum += sc.meta; });   // REGLA ÚNICA
   return {total, metaSum, pct: metaSum ? total/metaSum*100 : null};
 }
 function tvDayLabelHtml(d, i, days){
@@ -6023,9 +6027,10 @@ initDb();
     const periods = sched.map(p=>({from:p.from,to:p.to,goal:p.goal,total:0,meta:0}));
     const uncovered={total:0,meta:0,has:false};
     let totalCalls=0, meta=0;
-    s.dates.forEach(dt=>{
+    const [smin,smax] = currentRangeBounds();
+    (state.filterDay ? [state.filterDay] : datesBetween(smin, smax)).forEach(dt=>{
       let dayTotal=0, dayMeta=0;
-      s.exts.forEach(ext=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0 && !isDayExcusedFull(ext,dt)){ dayTotal+=r.total; dayMeta+=metaForDay(ext,dt); }});
+      s.exts.forEach(ext=>{ const sc=dayScore(ext,dt); dayTotal+=sc.calls; dayMeta+=sc.meta; });   // REGLA ÚNICA
       totalCalls+=dayTotal; meta+=dayMeta;
       const p = periods.find(pp=> (!pp.from||dt>=pp.from)&&(!pp.to||dt<=pp.to));
       if(p){ p.total+=dayTotal; p.meta+=dayMeta; }
@@ -6089,7 +6094,8 @@ initDb();
     }
     const per = s.exts.map(ext=>{
       let total=0, meta=0, answered=0, effective=0, talk=0, dias=0;
-      s.dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0 && !isDayExcusedFull(ext,dt)){ total+=r.total; meta+=metaForDay(ext,dt); answered+=r.answered||0; effective+=r.effective||0; talk+=r.talk||0; dias++; }});
+      { const [amin,amax] = currentRangeBounds(); const sc = scoreRange(ext, state.filterDay ? [state.filterDay] : datesBetween(amin, amax)); total = sc.actual; meta = sc.meta; dias = sc.worked; }   // REGLA ÚNICA
+      s.dates.forEach(dt=>{ const r=getRec(ext+'_'+dt); if(r&&(r.total||0)>0){ answered+=r.answered||0; effective+=r.effective||0; talk+=r.talk||0; }});
       return {ext, name:gName(ext), total, meta, answered, effective, talk, dias, pct: meta? total/meta*100 : null,
               contactRate: total? effective/total : 0, aht: answered? talk/answered : 0};
     });
