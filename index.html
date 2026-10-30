@@ -2436,7 +2436,7 @@ function renderWeeklyChart(){
   recs.forEach(r=>{
     const b = dayMap.get(r.date) || {total:0, gestorDias:0, goalSum:0};
     b.total += (r.total||0);
-    if ((r.total||0)>0){ b.gestorDias += 1; b.goalSum += goalForDate(r.date); }
+    if ((r.total||0)>0){ b.gestorDias += 1; b.goalSum += isWeekend(r.date) ? 0 : metaForDay(r.ext, r.date); }   // misma meta que Cumplimiento: con justificaciones; sáb/dom sin meta
     dayMap.set(r.date, b);
   });
   const allDays = Array.from(dayMap.keys()).sort();
@@ -2457,7 +2457,7 @@ function renderWeeklyChart(){
       const wk = weekStartStr(r.date);
       const b = buckets.get(wk) || {total:0, gestorDias:0, goalSum:0};
       b.total += (r.total||0);
-      if ((r.total||0)>0){ b.gestorDias += 1; b.goalSum += goalForDate(r.date); }
+      if ((r.total||0)>0){ b.gestorDias += 1; b.goalSum += isWeekend(r.date) ? 0 : metaForDay(r.ext, r.date); }   // misma meta que Cumplimiento: con justificaciones; sáb/dom sin meta
       buckets.set(wk, b);
     });
     const weeks = Array.from(buckets.keys()).sort();
