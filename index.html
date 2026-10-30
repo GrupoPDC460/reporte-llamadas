@@ -1794,15 +1794,6 @@ h1,h2,h3{color:var(--heading); font-weight:800;}
   </div>
 
   <div class="section-title">
-    <h2 id="complianceTitle">Cumplimiento de meta diaria</h2>
-    <button class="btn primary" id="btnJustFromCompliance" style="margin-left:auto; order:3;" title="Registrar una justificación o ajuste de meta">➕ Justificación / ajuste de meta</button>
-    <span class="hint" id="complianceHint">meta: 60 llamadas/día (toques, no tienen que contar para la contactabilidad)</span>
-  </div>
-  <div class="table-scroll">
-    <table class="matrix" id="complianceTable"></table>
-  </div>
-
-  <div class="section-title">
     <h2>Cumplimiento por semana de estrategia</h2>
     <span class="hint">por persona: el <b>%</b> es el total de la semana (lun–vie <b>+ sábado/domingo</b>, que suman sin meta extra) contra la meta de esa semana (meta diaria × días hábiles de estrategia, menos lo justificado; un día <b>sin registro</b> cuenta con 0) · las semanas se miden <b>dentro del mes</b>: la que cruza de mes empieza el día 1 · ✅ = llegó al 100% · las letras L M X J V dicen si cumplió <b>cada día por separado</b> (lo que sobra otro día suma al total, pero no cambia el día incumplido) · la semana actual va <b>en curso</b></span>
   </div>
@@ -1822,6 +1813,15 @@ h1,h2,h3{color:var(--heading); font-weight:800;}
     </div>
     <svg class="trend-svg" id="defaseSvg" viewBox="0 0 900 300" preserveAspectRatio="none" style="height:300px;"></svg>
     <div class="defase-legend" id="defaseLegend"></div>
+  </div>
+
+  <div class="section-title">
+    <h2 id="complianceTitle">Cumplimiento de meta diaria</h2>
+    <button class="btn primary" id="btnJustFromCompliance" style="margin-left:auto; order:3;" title="Registrar una justificación o ajuste de meta">➕ Justificación / ajuste de meta</button>
+    <span class="hint" id="complianceHint">meta: 60 llamadas/día (toques, no tienen que contar para la contactabilidad)</span>
+  </div>
+  <div class="table-scroll">
+    <table class="matrix" id="complianceTable"></table>
   </div>
 
   <div class="section-title">
@@ -5810,7 +5810,7 @@ initDb();
   let built = false;
 
   function loadLayout(){
-    try{ const raw = localStorage.getItem(LAYOUT_KEY); if (raw){ const o = JSON.parse(raw); if (o && typeof o==='object'){ layout.order = Array.isArray(o.order)?o.order:[]; layout.hidden = o.hidden && typeof o.hidden==='object' ? o.hidden : {}; } } }catch(e){}
+    try{ const raw = localStorage.getItem(LAYOUT_KEY); if (raw){ const o = JSON.parse(raw); if (o && typeof o==='object'){ layout.order = Array.isArray(o.order)?o.order:[]; layout.hidden = o.hidden && typeof o.hidden==='object' ? o.hidden : {}; layout.cumpOrderV2 = !!o.cumpOrderV2; } } }catch(e){}
   }
   function saveLayout(){
     try{ localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); }catch(e){}
@@ -5894,6 +5894,13 @@ initDb();
 
   function applyLayout(){
     if (!modZone) return;
+    // Migración (una sola vez): en Cumplimiento va primero la tabla por semana y al final la de meta diaria.
+    if (!layout.cumpOrderV2 && layout.order && layout.order.length){
+      const want = ['cumplimiento-por-semana-de-estrategia','defase-vs-meta-diaria-faltante-y-acumula','cumplimiento-de-meta-diaria'];
+      const pos = layout.order.findIndex(id=>want.includes(id));
+      if (pos>=0){ layout.order = layout.order.filter(id=>!want.includes(id)); layout.order.splice(pos, 0, ...want); }
+      layout.cumpOrderV2 = true; saveLayout();
+    }
     // Orden guardado.
     if (layout.order && layout.order.length){
       const byId = {};
