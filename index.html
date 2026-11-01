@@ -1366,6 +1366,63 @@ h1,h2,h3{color:var(--heading); font-weight:800;}
     background: var(--surface) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
 }
 @media (prefers-reduced-motion: reduce){ body:not(.tv-mode) .kpi:hover{transform:none;} }
+
+/* ===================== CALENDARIO DE PERÍODO ===================== */
+.cal-wrap{position:relative;}
+.cal-btn{display:inline-flex; align-items:center; gap:8px; font:inherit; font-size:13px; font-weight:700; color:var(--ink);
+  padding:7px 12px; border-radius:12px; border:1px solid var(--glass-rim, var(--border)); background:var(--glass-pill, var(--surface)); cursor:pointer;
+  -webkit-backdrop-filter:blur(14px) saturate(160%); backdrop-filter:blur(14px) saturate(160%); box-shadow:var(--glass-edge, none);}
+.cal-btn svg{color:var(--accent);} .cal-caret{font-size:10px; color:var(--ink-mute);}
+.cal-btn:hover{border-color:var(--accent-line);}
+.cal-pop{position:absolute; top:calc(100% + 8px); left:0; z-index:140; width:310px; padding:14px; border-radius:20px;
+  background:var(--glass-hi, none), linear-gradient(var(--glass-sticky, var(--surface)), var(--glass-sticky, var(--surface))); border:1px solid var(--glass-rim, var(--border));
+  -webkit-backdrop-filter:blur(28px) saturate(190%); backdrop-filter:blur(28px) saturate(190%);
+  box-shadow:var(--glass-edge, none), 0 22px 50px -12px rgba(0,22,80,.35); animation:calIn .22s cubic-bezier(.2,.8,.2,1);}
+@keyframes calIn{from{opacity:0; transform:translateY(-6px) scale(.98);} to{opacity:1; transform:none;}}
+.cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+.cal-month{font:inherit; font-size:15px; font-weight:800; color:var(--heading); background:none; border:0; padding:4px 10px; border-radius:10px; cursor:pointer;}
+.cal-month:hover{background:var(--accent-wash);}
+.cal-nav{width:32px; height:32px; border-radius:50%; border:1px solid var(--glass-rim, var(--border)); background:var(--glass-pill, var(--surface)); color:var(--ink); font-size:18px; line-height:1; cursor:pointer;}
+.cal-nav:hover{background:var(--accent-wash);}
+.cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px;}
+.cal-dow span{font-size:10.5px; font-weight:800; color:var(--ink-mute); text-align:center; padding:4px 0;}
+.cal-d{position:relative; height:36px; border:0; border-radius:11px; background:transparent; color:var(--ink); font:inherit; font-size:13px; font-weight:600; cursor:pointer;}
+.cal-d.cal-empty{cursor:default;}
+.cal-d.we{color:var(--ink-mute);}
+.cal-d:not(.cal-empty):hover{background:var(--accent-wash);}
+.cal-d.has::after{content:""; position:absolute; left:50%; bottom:4px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--orange);}
+.cal-d.today{box-shadow:inset 0 0 0 1.5px var(--orange);}
+.cal-d.in{background:var(--accent-wash); color:var(--accent); font-weight:800;}
+.cal-d.edge, .cal-d.edge:not(.cal-empty):hover{background:var(--accent); color:var(--accent-ink);}
+.cal-d.in:not(.edge):not(.cal-empty):hover{background:var(--accent-line);}
+.cal-d.edge::after{background:var(--accent-ink);}
+.cal-hint{font-size:11.5px; color:var(--ink-soft); margin:10px 2px 0; line-height:1.4;}
+.cal-actions{display:flex; gap:6px; margin-top:8px;}
+.cal-actions .btn{flex:1; justify-content:center;}
+.cal-quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border-soft);}
+.cal-quick button{font:inherit; font-size:11.5px; font-weight:700; color:var(--accent); background:var(--accent-wash); border:0; border-radius:999px; padding:5px 10px; cursor:pointer;}
+.cal-quick button:hover{filter:brightness(.95);}
+@media (max-width:520px){ .cal-pop{position:fixed; left:12px; right:12px; top:120px; width:auto;} }
+
+/* ===================== GRÁFICAS: EFECTO DE LLENADO ===================== */
+@keyframes pdcGrowY{from{transform:scaleY(0);} to{transform:scaleY(1);}}
+@keyframes pdcGrowX{from{transform:scaleX(0);} to{transform:scaleX(1);}}
+@keyframes pdcDraw{from{stroke-dashoffset:1;} to{stroke-dashoffset:0;}}
+@keyframes pdcFadeUp{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+svg rect.week-bar, svg rect.gestor-bar{transform-box:fill-box; transform-origin:50% 100%;
+  animation:pdcGrowY .9s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i,0) * 35ms);}
+#weeklySvg text, #weeklySvg .week-badge, #gestorBarSvg text{animation:pdcFadeUp .5s ease-out both; animation-delay:.55s;}
+.rank-bar-fill, .lb-bar-fill, .wtc-fill, .prog-fill, .chan-seg, .dur-seg{transform-origin:0 50%; animation:pdcGrowX 1s cubic-bezier(.2,.8,.2,1) both;}
+.lb-row:nth-child(2) .lb-bar-fill, .rank-row:nth-child(2) .rank-bar-fill{animation-delay:.05s;}
+.lb-row:nth-child(3) .lb-bar-fill, .rank-row:nth-child(3) .rank-bar-fill{animation-delay:.1s;}
+.lb-row:nth-child(n+4) .lb-bar-fill, .rank-row:nth-child(n+4) .rank-bar-fill{animation-delay:.15s;}
+.chan-seg + .chan-seg, .dur-seg + .dur-seg{animation-delay:.15s;}
+svg .draw-line{stroke-dasharray:1; animation:pdcDraw 1.3s cubic-bezier(.4,0,.2,1) both;}
+#trendSvg circle, #defaseSvg circle{animation:pdcFadeUp .4s ease-out both; animation-delay:.9s;}
+@media (prefers-reduced-motion: reduce){
+  svg rect.week-bar, svg rect.gestor-bar, .rank-bar-fill, .lb-bar-fill, .wtc-fill, .prog-fill, .chan-seg, .dur-seg, svg .draw-line,
+  #weeklySvg text, #gestorBarSvg text, #trendSvg circle, #defaseSvg circle{animation:none !important;}
+}
 </style>
 
 <div class="app-layout">
@@ -1498,7 +1555,14 @@ h1,h2,h3{color:var(--heading); font-weight:800;}
       <button data-range="30">Últimos 30 días</button>
       <button data-range="all">Todo el historial</button>
     </div>
-    <select class="pick" id="pickMonth" aria-label="Ver un mes" title="Ver solo un mes (evita mezclar meses)">
+    <div class="cal-wrap">
+      <button type="button" class="cal-btn" id="calBtn" aria-haspopup="dialog" aria-expanded="false" title="Elegir día, rango o mes">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+        <span class="cal-txt">Elegir fechas</span><span class="cal-caret">▾</span>
+      </button>
+      <div class="cal-pop" id="calPop" role="dialog" aria-label="Calendario de período" hidden></div>
+    </div>
+    <select class="pick" id="pickMonth" hidden aria-label="Ver un mes" title="Ver solo un mes (evita mezclar meses)">
       <option value="">📅 Ver un mes…</option>
     </select>
     <select class="pick" id="pickTeam" aria-label="Filtrar por equipo">
@@ -1512,7 +1576,7 @@ h1,h2,h3{color:var(--heading); font-weight:800;}
     <select class="pick" id="pickCountry" aria-label="Filtrar por país/mercado">
       <option value="">Todos los mercados</option>
     </select>
-    <select class="pick" id="pickDay" aria-label="Filtrar por día">
+    <select class="pick" id="pickDay" hidden aria-label="Filtrar por día">
       <option value="">Todos los días</option>
     </select>
     <span class="range-label" id="rangeLabel"></span>
@@ -2380,6 +2444,9 @@ function currentRangeBounds(){
     if (inMonth.length) return [inMonth[0], inMonth[inMonth.length-1]];
     return [dates[0], dates[dates.length-1]];   // mes sin datos: cae a todo el historial
   }
+  if (typeof state.range==='string' && state.range.startsWith('custom:')){   // rango elegido en el calendario
+    const [, a, b] = state.range.split(':'); if (a && b) return [a, b];
+  }
   if (state.range === 'all') return [dates[0], dates[dates.length-1]];
   if (state.range === 'last_upload'){
     const r = lastUploadRange();
@@ -2654,7 +2721,7 @@ function renderTrend(){
     </linearGradient></defs>
     ${gridLines}
     <path d="${areaPath}" fill="url(#trendFill)" stroke="none"/>
-    <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path class="draw-line" pathLength="1" d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}
     ${xLabels}
   `;
@@ -2791,7 +2858,7 @@ function renderWeeklyChart(){
     const dateStr = byDay ? allDays[i] : '';
     const isSelected = byDay && state.filterDay && state.filterDay===dateStr;
     return `<g>
-      <rect class="week-bar ${byDay?'week-bar-click':''}" data-date="${dateStr}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="${byDay?5:7}" fill="url(#${gradId})" ${isSelected?`stroke="var(--ink)" stroke-width="2.5"`:''}><title>${it.label}: ${fmtInt(it.total)} llamadas${pct!==null?` · ${pct}% de la meta`:''}${byDay?' · clic para filtrar':''}</title></rect>
+      <rect class="week-bar ${byDay?'week-bar-click':''}" style="--i:${i}" data-date="${dateStr}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="${byDay?5:7}" fill="url(#${gradId})" ${isSelected?`stroke="var(--ink)" stroke-width="2.5"`:''}><title>${it.label}: ${fmtInt(it.total)} llamadas${pct!==null?` · ${pct}% de la meta`:''}${byDay?' · clic para filtrar':''}</title></rect>
       ${showLabel ? `<text x="${cx.toFixed(1)}" y="${valueY.toFixed(1)}" text-anchor="middle" font-family="var(--font-display)" font-weight="800" font-size="${byDay?11:13}" fill="var(--ink)">${fmtInt(it.total)}</text>` : ''}
       ${badgeText ? `
         <rect x="${(cx-badgeW/2).toFixed(1)}" y="${(badgeCy-9).toFixed(1)}" width="${badgeW.toFixed(1)}" height="18" rx="9" fill="var(--${st}-wash)"/>
@@ -2998,7 +3065,7 @@ function renderDefase(){
     area += `<polygon points="${X(i).toFixed(1)},${Y(pts[i].cumG).toFixed(1)} ${X(i+1).toFixed(1)},${Y(pts[i+1].cumG).toFixed(1)} ${X(i+1).toFixed(1)},${Y(pts[i+1].cumA).toFixed(1)} ${X(i).toFixed(1)},${Y(pts[i].cumA).toFixed(1)}" fill="${behind?'var(--crit)':'var(--good)'}" opacity=".18"/>`;
   }
   const metaLine = `<polyline points="${pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.cumG).toFixed(1)}`).join(' ')}" fill="none" stroke="var(--ink-mute)" stroke-width="2" stroke-dasharray="6 5"/>`;
-  const actLine  = `<polyline points="${pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.cumA).toFixed(1)}`).join(' ')}" fill="none" stroke="${finalDef>0?'var(--crit)':'var(--good)'}" stroke-width="2.6"/>`;
+  const actLine  = `<polyline class="draw-line" pathLength="1" points="${pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.cumA).toFixed(1)}`).join(' ')}" fill="none" stroke="${finalDef>0?'var(--crit)':'var(--good)'}" stroke-width="2.6"/>`;
   const dots = pts.map((p,i)=>{
     const acc = p.cumG-p.cumA;
     const accTxt = acc>0 ? `faltan ${fmtInt(acc)}` : `+${fmtInt(-acc)}`;
@@ -3458,7 +3525,7 @@ function renderGestorBarChart(){
           : `<text x="${cx.toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-weight="700" font-size="10.5" fill="var(--ink)">${fmtInt(r.total)}</text>`)
       : '';
     return `<g>
-      <rect class="gestor-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="5" fill="url(#${gradId})"><title>${escapeHtml(r.name)}: ${fmtInt(r.total)} llamadas</title></rect>
+      <rect class="gestor-bar" style="--i:${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="5" fill="url(#${gradId})"><title>${escapeHtml(r.name)}: ${fmtInt(r.total)} llamadas</title></rect>
       ${valueLabel}
       <text class="trend-axis" x="0" y="0" text-anchor="end" transform="translate(${cx.toFixed(1)},${labelY}) rotate(-40)">${escapeHtml(shortName(r.name))}</text>
     </g>`;
@@ -4102,6 +4169,7 @@ function renderAll(){
   }
   $$('#rangeSeg button').forEach(b=> b.classList.toggle('active', b.dataset.range===state.range));
   populateFilterOptions();
+  if (window.updateCalBtn) window.updateCalBtn();
   renderKPIs();
   renderRanking();
   renderTrend();
@@ -4814,6 +4882,84 @@ $('#toggleDetail').addEventListener('click', ()=>{ state.detail = !state.detail;
 
 { const _pm=document.getElementById('pickMonth');
   if(_pm) _pm.addEventListener('change', ()=>{ if (_pm.value){ state._userRange=true; state.range = 'month:'+_pm.value; } else { state._userRange=false; } state.filterDay=''; renderAll(); }); }
+// ---------- Calendario de período (reemplaza los desplegables de mes y día) ----------
+(function(){
+  const btn = document.getElementById('calBtn'), pop = document.getElementById('calPop');
+  if (!btn || !pop) return;
+  const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
+  const ymOf = ds => ds.slice(0,7);
+  const shiftYM = (ym, n) => { const [y,m] = ym.split('-').map(Number); return dateFmtUTC.format(new Date(Date.UTC(y, m-1+n, 1))).slice(0,7); };
+  const lastOfMonth = ym => { const [y,m] = ym.split('-').map(Number); return dateFmtUTC.format(new Date(Date.UTC(y, m, 0))); };
+  const full = ds => dateFmtHumanFull.format(toUTC(ds));
+  let view = null, selA = null;
+
+  window.updateCalBtn = function(){
+    const [a,b] = currentRangeBounds(); let t = 'Elegir fechas';
+    if (state.filterDay) t = full(state.filterDay);
+    else if (typeof state.range==='string' && state.range.startsWith('month:')){ const ym = state.range.slice(6); t = cap(MES[+ym.slice(5,7)-1])+' '+ym.slice(0,4); }
+    else if (a) t = (a===b) ? full(a) : (dateFmtHuman.format(toUTC(a))+' – '+full(b));
+    btn.querySelector('.cal-txt').textContent = t;
+  };
+
+  function render(){
+    const dataDays = new Set(allDatesSorted());
+    const [a,b] = currentRangeBounds(); const today = localDateStr(new Date());
+    const [y,m] = view.split('-').map(Number);
+    const lead = (new Date(Date.UTC(y, m-1, 1)).getUTCDay()+6)%7;
+    const nd = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    let cells = '';
+    for (let k=0; k<lead; k++) cells += '<span class="cal-d cal-empty"></span>';
+    for (let d=1; d<=nd; d++){
+      const ds = `${view}-${String(d).padStart(2,'0')}`;
+      const cls = ['cal-d'];
+      if (dataDays.has(ds)) cls.push('has');
+      if (isWeekend(ds)) cls.push('we');
+      if (ds===today) cls.push('today');
+      if (selA){ if (ds===selA) cls.push('in','edge'); }
+      else if (state.filterDay){ if (ds===state.filterDay) cls.push('in','edge'); }
+      else if (a && ds>=a && ds<=b){ cls.push('in'); if (ds===a || ds===b) cls.push('edge'); }
+      cells += `<button type="button" class="${cls.join(' ')}" data-ds="${ds}" title="${full(ds)}${dataDays.has(ds)?' · con llamadas':''}">${d}</button>`;
+    }
+    pop.innerHTML =
+      `<div class="cal-head"><button type="button" class="cal-nav" data-nav="-1" aria-label="Mes anterior">‹</button>`+
+      `<button type="button" class="cal-month" data-month="${view}" title="Ver todo el mes">${cap(MES[m-1])} ${y}</button>`+
+      `<button type="button" class="cal-nav" data-nav="1" aria-label="Mes siguiente">›</button></div>`+
+      `<div class="cal-grid cal-dow">${['L','M','X','J','V','S','D'].map(x=>`<span>${x}</span>`).join('')}</div>`+
+      `<div class="cal-grid">${cells}</div>`+
+      `<div class="cal-hint">${selA ? `Inicio: <b>${full(selA)}</b> · toca el día final para ver el rango, o vuelve a tocarlo para ver solo ese día.` : 'Toca un día y luego otro para un <b>rango</b>, o el mismo día dos veces para verlo <b>solo</b>. El nombre del mes muestra el <b>mes completo</b>.'}</div>`+
+      (selA ? `<div class="cal-actions"><button type="button" class="btn primary" data-act="day">Ver solo este día</button><button type="button" class="btn" data-act="cancel">Cancelar</button></div>` : '')+
+      `<div class="cal-quick"><button type="button" data-q="month">Todo ${MES[m-1]}</button><button type="button" data-q="week">Semana actual</button><button type="button" data-q="lastday">Último día con datos</button><button type="button" data-q="all">Todo el historial</button></div>`;
+  }
+  function close(){ pop.hidden = true; btn.setAttribute('aria-expanded','false'); }
+  function open(){ const [a] = currentRangeBounds(); view = ymOf(state.filterDay || a || localDateStr(new Date())); selA = null; render(); pop.hidden = false; btn.setAttribute('aria-expanded','true'); }
+  function apply(fn){ fn(); state._userRange = true; selA = null; close(); renderAll(); }
+  const setMonth = ym => apply(()=>{ state.range = 'month:'+ym; state.filterDay = ''; });
+  const setDay = ds => apply(()=>{ state.range = 'month:'+ymOf(ds); state.filterDay = ds; });
+  const setRange = (x,y) => (x.endsWith('-01') && y===lastOfMonth(ymOf(x))) ? setMonth(ymOf(x)) : apply(()=>{ state.range = 'custom:'+x+':'+y; state.filterDay = ''; });
+
+  btn.addEventListener('click', e=>{ e.stopPropagation(); pop.hidden ? open() : close(); });
+  document.addEventListener('click', e=>{ if (!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) close(); });
+  document.addEventListener('keydown', e=>{ if (e.key==='Escape' && !pop.hidden) close(); });
+  pop.addEventListener('click', e=>{
+    e.stopPropagation();
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.nav){ view = shiftYM(view, +t.dataset.nav); render(); return; }
+    if (t.dataset.month){ setMonth(t.dataset.month); return; }
+    if (t.dataset.ds){
+      const ds = t.dataset.ds;
+      if (!selA){ selA = ds; render(); return; }
+      if (ds===selA){ setDay(ds); return; }
+      const [x,y] = ds < selA ? [ds, selA] : [selA, ds]; setRange(x,y); return;
+    }
+    if (t.dataset.act==='day'){ setDay(selA); return; }
+    if (t.dataset.act==='cancel'){ selA = null; render(); return; }
+    if (t.dataset.q==='month'){ setMonth(view); return; }
+    if (t.dataset.q==='week'){ const td = localDateStr(new Date()); apply(()=>{ state.range = 'custom:'+monthWeekStart(td)+':'+td; state.filterDay = ''; }); return; }
+    if (t.dataset.q==='lastday'){ const ds = allDatesSorted().slice(-1)[0]; if (ds) setDay(ds); return; }
+    if (t.dataset.q==='all'){ apply(()=>{ state.range = 'all'; state.filterDay = ''; }); return; }
+  });
+})();
 $$('#rangeSeg button').forEach(btn=>{
   btn.addEventListener('click', ()=>{ state._userRange=true; state.range = btn.dataset.range; state.filterDay=''; renderAll(); });
 });
