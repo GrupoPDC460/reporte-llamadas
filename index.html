@@ -1255,6 +1255,117 @@ h1,h2,h3{color:var(--heading); font-weight:800;}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .wk-gap.falta{color:#FF9A66;} :root:not([data-theme="light"]) .wk-cell.wk-current{box-shadow:inset 0 0 0 2px var(--celeste);} }
 .pc-gap{display:block; font-size:10px; font-weight:800; margin-top:1px;}
 .pc-gap.falta{color:#C23E00;} .pc-gap.sobra{color:var(--accent);}
+
+/* ===================== LIQUID GLASS (estilo iOS) =====================
+   Fondo ambiental con la paleta PDC (navy, celeste, naranja) + superficies de vidrio translúcido:
+   desenfoque y saturación del fondo, borde de luz, brillo especular arriba y sombra suave.
+   Se desactiva solo si el sistema pide "reducir transparencia" o el navegador no soporta backdrop-filter. */
+:root{
+  --glass-bg: linear-gradient(145deg, rgba(255,255,255,.78) 0%, rgba(255,255,255,.52) 100%);
+  --glass-hi: radial-gradient(120% 60% at 15% -10%, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 55%);
+  --glass-rim: rgba(255,255,255,.75);
+  --glass-edge: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.35), inset 1px 0 0 rgba(255,255,255,.35);
+  --glass-drop: 0 10px 34px -8px rgba(0,33,111,.18), 0 2px 6px rgba(0,33,111,.06);
+  --glass-blur: blur(24px) saturate(185%);
+  --glass-sticky: rgba(250,252,255,.94);
+  --glass-pill: rgba(255,255,255,.42);
+  --wall-1: rgba(125,191,230,.55); --wall-2: rgba(255,81,0,.20); --wall-3: rgba(0,33,111,.22); --wall-base:#EAF0F8;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --glass-bg: linear-gradient(145deg, rgba(30,46,96,.62) 0%, rgba(12,22,54,.46) 100%);
+  --glass-hi: radial-gradient(120% 60% at 15% -10%, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 55%);
+  --glass-rim: rgba(255,255,255,.14);
+  --glass-edge: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(255,255,255,.04), inset 1px 0 0 rgba(255,255,255,.06);
+  --glass-drop: 0 14px 40px -10px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.3);
+  --glass-sticky: rgba(16,27,62,.95); --glass-pill: rgba(255,255,255,.07);
+  --wall-1: rgba(125,191,230,.22); --wall-2: rgba(255,81,0,.16); --wall-3: rgba(36,80,180,.38); --wall-base:#060B1E;
+}}
+:root[data-theme="dark"]{
+  --glass-bg: linear-gradient(145deg, rgba(30,46,96,.62) 0%, rgba(12,22,54,.46) 100%);
+  --glass-hi: radial-gradient(120% 60% at 15% -10%, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 55%);
+  --glass-rim: rgba(255,255,255,.14);
+  --glass-edge: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(255,255,255,.04), inset 1px 0 0 rgba(255,255,255,.06);
+  --glass-drop: 0 14px 40px -10px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.3);
+  --glass-sticky: rgba(16,27,62,.95); --glass-pill: rgba(255,255,255,.07);
+  --wall-1: rgba(125,191,230,.22); --wall-2: rgba(255,81,0,.16); --wall-3: rgba(36,80,180,.38); --wall-base:#060B1E;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+  body:not(.tv-mode){
+    background:
+      radial-gradient(42vw 42vw at 12% 8%, var(--wall-1), transparent 70%),
+      radial-gradient(36vw 36vw at 92% 22%, var(--wall-2), transparent 70%),
+      radial-gradient(48vw 48vw at 70% 105%, var(--wall-3), transparent 70%),
+      radial-gradient(30vw 30vw at 30% 70%, var(--wall-1), transparent 70%),
+      var(--wall-base);
+    background-attachment: fixed;
+  }
+  /* Superficies de vidrio */
+  body:not(.tv-mode) .card,
+  body:not(.tv-mode) .kpi,
+  body:not(.tv-mode) .table-scroll,
+  body:not(.tv-mode) .info-pop-body,
+  body:not(.tv-mode) .drawer{
+    background: var(--glass-hi), var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-rim);
+    box-shadow: var(--glass-edge), var(--glass-drop);
+  }
+  body:not(.tv-mode) .card, body:not(.tv-mode) .table-scroll{border-radius:22px;}
+  body:not(.tv-mode) .kpi{border-radius:20px; transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s;}
+  body:not(.tv-mode) .kpi:hover{transform:translateY(-2px) scale(1.005);}
+  /* Barra superior y lateral flotando sobre el contenido */
+  body:not(.tv-mode) .app-header{
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--glass-rim); box-shadow: inset 0 -1px 0 rgba(255,255,255,.25), 0 6px 24px -12px rgba(0,33,111,.25);
+  }
+  body:not(.tv-mode) .sidebar{
+    background:
+      radial-gradient(140% 50% at 0% 0%, rgba(125,191,230,.28), transparent 60%),
+      linear-gradient(180deg, rgba(0,33,111,.86) 0%, rgba(0,22,80,.90) 100%);
+    -webkit-backdrop-filter: blur(26px) saturate(180%); backdrop-filter: blur(26px) saturate(180%);
+    box-shadow: inset -1px 0 0 rgba(255,255,255,.12), 10px 0 40px -18px rgba(0,22,80,.55);
+  }
+  body:not(.tv-mode) .sb-nav a.active{
+    background: linear-gradient(145deg, rgba(255,255,255,.24), rgba(255,255,255,.08));
+    box-shadow: inset 3px 0 0 var(--orange), inset 0 1px 0 rgba(255,255,255,.35), 0 4px 14px -6px rgba(0,0,0,.35);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  /* Controles tipo píldora de vidrio */
+  body:not(.tv-mode) .seg{
+    background: var(--glass-pill); border:1px solid var(--glass-rim); border-radius:14px;
+    -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%);
+    box-shadow: var(--glass-edge);
+  }
+  body:not(.tv-mode) .seg button{border-radius:11px;}
+  body:not(.tv-mode) .seg button.active{
+    background: var(--glass-hi), var(--glass-bg); box-shadow: var(--glass-edge), 0 4px 12px -4px rgba(0,33,111,.25);
+  }
+  body:not(.tv-mode) select,
+  body:not(.tv-mode) .btn:not(.primary){
+    background-color: var(--glass-pill); border-color: var(--glass-rim);
+    -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
+    box-shadow: var(--glass-edge);
+  }
+  body:not(.tv-mode) .btn.primary{
+    background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 55%), var(--accent);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 6px 16px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  /* Celdas fijas de las tablas: casi opacas para que se lean al desplazar */
+  body:not(.tv-mode) .wk-table thead th, body:not(.tv-mode) .wk-corner, body:not(.tv-mode) .wk-name,
+  body:not(.tv-mode) .table-scroll thead th, body:not(.tv-mode) .table-scroll tbody th,
+  body:not(.tv-mode) .pc-row.pc-head{ background: var(--glass-sticky); }
+  body:not(.tv-mode) .table-scroll table{background:transparent;}
+  /* Celdas de la tabla por semana con brillo de cristal */
+  body:not(.tv-mode) .wk-cell{ background-image: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 60%); }
+  body:not(.tv-mode) .wk-gap, body:not(.tv-mode) .wd{ box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+}
+@media (prefers-reduced-transparency: reduce){
+  body:not(.tv-mode){ background: var(--page) !important; }
+  body:not(.tv-mode) .card, body:not(.tv-mode) .kpi, body:not(.tv-mode) .table-scroll, body:not(.tv-mode) .app-header{
+    background: var(--surface) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+}
+@media (prefers-reduced-motion: reduce){ body:not(.tv-mode) .kpi:hover{transform:none;} }
 </style>
 
 <div class="app-layout">
