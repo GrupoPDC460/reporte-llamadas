@@ -1860,10 +1860,18 @@ body.capturing .cap-wrap .wk-scroll, body.capturing .cap-wrap .table-scroll, bod
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M3 16l4-4 3 3 4-4 7 6"/></svg>
           Imagen
         </button>
-        <select class="pick rank-theme" id="rankTheme" title="Diseño de la imagen del ranking">
+        <select class="pick rank-theme" id="rankTheme" title="Diseño de la imagen del ranking. «De temporada» lo cambia solo según la fecha.">
           <option value="auto">Tema: de temporada</option>
-          <option value="navidad">🎄 Navideño</option>
-          <option value="normal">Normal</option>
+          <option value="normal">Normal (sin temporada)</option>
+          <option value="anionuevo">🥂 Fin de año (26-dic → 1-ene)</option>
+          <option value="reyes">👑 Día de Reyes (2 → 6-ene)</option>
+          <option value="carino">💘 Día del Cariño (1 → 14-feb)</option>
+          <option value="semanasanta">🌸 Semana Santa (según el calendario)</option>
+          <option value="madre">💐 Día de la Madre (1 → 10-may)</option>
+          <option value="padre">👔 Día del Padre (10 → 17-jun)</option>
+          <option value="independencia">🇬🇹 Independencia (1 → 15-sep)</option>
+          <option value="santos">🪁 Todos los Santos (22 → 31-oct)</option>
+          <option value="navidad">🎄 Navidad (1-nov → 25-dic)</option>
         </select>
       </div>
       <div id="goalRankList"></div>
@@ -3288,98 +3296,372 @@ function fallbackCopyText(t){
   catch(err){ showToast('No se pudo copiar automáticamente.'); }
 }
 
-// ---------- Tema de temporada para la imagen del ranking ----------
-// "auto": navideño del 1-nov al 6-ene; normal el resto del año. Se puede forzar con el selector junto a "Imagen".
+// ===================== TEMPORADAS DE LA IMAGEN DEL RANKING =====================
+// Cada temporada: fondo, decoración superior, partículas animadas y escena del pie. Todo se dibuja en el lienzo
+// (sin imágenes externas). "phase" (0..1) mueve la animación del GIF; todos los movimientos cierran el bucle sin saltos.
+function easterSunday(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+        h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+        mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  return dateFmtUTC.format(new Date(Date.UTC(y,mo-1,da)));
+}
+function addDaysStr(ds, n){ const d=toUTC(ds); d.setUTCDate(d.getUTCDate()+n); return dateFmtUTC.format(d); }
+// Temporada que corresponde a una fecha (modo "de temporada")
+function seasonFor(ds){
+  const md = ds.slice(5), E = easterSunday(+ds.slice(0,4));
+  if (md >= '12-26' || md <= '01-01') return 'anionuevo';
+  if (md >= '01-02' && md <= '01-06') return 'reyes';
+  if (md >= '02-01' && md <= '02-14') return 'carino';
+  if (ds >= addDaysStr(E,-10) && ds <= E) return 'semanasanta';
+  if (md >= '05-01' && md <= '05-10') return 'madre';
+  if (md >= '06-10' && md <= '06-17') return 'padre';
+  if (md >= '09-01' && md <= '09-15') return 'independencia';
+  if (md >= '10-22' && md <= '10-31') return 'santos';
+  if (md >= '11-01' && md <= '12-25') return 'navidad';
+  return 'normal';
+}
 function rankThemeNow(){
   let v = 'auto'; try{ v = localStorage.getItem('rank_theme') || 'auto'; }catch(e){}
   const sel = document.getElementById('rankTheme'); if (sel) v = sel.value || v;
-  if (v !== 'auto') return v;
-  const md = localDateStr(new Date()).slice(5);
-  return (md >= '11-01' || md <= '01-06') ? 'navidad' : 'normal';
+  return v === 'auto' ? seasonFor(localDateStr(new Date())) : v;
 }
 function xmasRand(seed){ let s = seed>>>0; return ()=>{ s = (s*1664525 + 1013904223)>>>0; return s/4294967296; }; }
-// Fondo nocturno + nieve (debajo de todo)
+const TAU = Math.PI*2;
+function vGrad(c, H, stops){ const g = c.createLinearGradient(0,0,0,H); stops.forEach((s,i)=>g.addColorStop(i/(stops.length-1), s)); return g; }
+// Partículas que caen (o suben) en franjas repetidas: el bucle cierra exacto.
+function loopParticles(c, W, H, ph, n, seed, drawOne, o){
+  o = o || {}; const rnd = xmasRand(seed), P = Math.ceil(H/3), p = ph || 0;
+  for (let i=0;i<n;i++){
+    const x = rnd()*W, y0 = rnd()*P, s = rnd(), sp = rnd() < .7 ? 1 : 2, sway = Math.sin(p*TAU*sp + i) * (o.sway==null?5:o.sway);
+    for (let j=-1;j<3;j++){
+      let y = ((y0 + p*P*sp) % P) + j*P; if (o.up) y = H - y;
+      if (y < -24 || y > H+24) continue;
+      drawOne(x+sway, y, s, i, p*sp);
+    }
+  }
+}
+// Fuegos artificiales: cada uno explota una vez por vuelta (desfasados)
+function drawFireworks(c, spots, ph){
+  spots.forEach((f,k)=>{
+    const t = (ph==null) ? (.45 + (k%3)*.12) : (((ph + f.off) % 1) + 1) % 1;
+    if (t > .92) return;
+    const r = f.r * (1 - Math.pow(1-t, 3)), a = Math.max(0, 1 - t*1.05);
+    c.save(); c.globalAlpha = a; c.shadowColor = f.col; c.shadowBlur = 12; c.fillStyle = f.col; c.strokeStyle = f.col; c.lineWidth = 1.6;
+    for (let i=0;i<16;i++){ const an = i/16*TAU, x = f.x + Math.cos(an)*r, y = f.y + Math.sin(an)*r + t*t*18;
+      c.beginPath(); c.moveTo(f.x + Math.cos(an)*r*.72, f.y + Math.sin(an)*r*.72 + t*t*14); c.lineTo(x,y); c.stroke();
+      c.beginPath(); c.arc(x,y,2.1,0,TAU); c.fill(); }
+    c.restore();
+  });
+}
+function star5(c, x, y, R, r){ c.beginPath(); for (let i=0;i<10;i++){ const rad = i%2 ? r : R, a = -Math.PI/2 + i*Math.PI/5; c.lineTo(x+rad*Math.cos(a), y+rad*Math.sin(a)); } c.closePath(); }
+function heart(c, x, y, s){ c.beginPath(); c.moveTo(x, y+s*.35); c.bezierCurveTo(x-s*1.1, y-s*.45, x-s*.45, y-s*1.15, x, y-s*.45); c.bezierCurveTo(x+s*.45, y-s*1.15, x+s*1.1, y-s*.45, x, y+s*.35); c.closePath(); }
+function twinkle(ph, k, f){ return ph==null ? 1 : (.35 + .65*(.5 + .5*Math.sin(ph*TAU*(f||2) + k*1.7))); }
+function groundHill(c, W, H, col, lift){ const g = H - (lift||46); c.fillStyle = col; c.beginPath(); c.moveTo(0, g+14);
+  c.bezierCurveTo(W*.2, g-12, W*.35, g+20, W*.55, g+4); c.bezierCurveTo(W*.75, g-12, W*.9, g+16, W, g); c.lineTo(W,H); c.lineTo(0,H); c.closePath(); c.fill(); return g; }
+// Guirnalda genérica: cuerda en arcos con piezas colgando (focos, estrellas, banderines, corazones…)
+function drawGarland(c, W, y, ph, pieceFn, o){
+  o = o || {}; const swags = o.swags || 4, sw = W/swags, sag = o.sag || 26, n = o.n || 9; let k = 0;
+  for (let s=0; s<swags; s++){
+    const x0 = s*sw, x1 = x0+sw, cx = (x0+x1)/2;
+    c.strokeStyle = o.wire || '#0b3d1f'; c.lineWidth = 2; c.beginPath(); c.moveTo(x0, y); c.quadraticCurveTo(cx, y+sag*2, x1, y); c.stroke();
+    for (let i=1;i<n;i++){ const t = i/n, x = (1-t)*(1-t)*x0 + 2*(1-t)*t*cx + t*t*x1, yy = (1-t)*(1-t)*y + 2*(1-t)*t*(y+sag*2) + t*t*y; pieceFn(x, yy, k, ph); k++; }
+  }
+}
+
+// ---------- NAVIDAD ----------
 function drawXmasBackground(c, W, H, phase){
-  const g = c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#00123a'); g.addColorStop(.55,'#00216f'); g.addColorStop(1,'#0a2f7a');
-  c.fillStyle = g; c.fillRect(0,0,W,H);
+  c.fillStyle = vGrad(c, H, ['#00123a','#00216f','#0a2f7a']); c.fillRect(0,0,W,H);
   const glow = c.createRadialGradient(W*.8, 80, 10, W*.8, 80, 420); glow.addColorStop(0,'rgba(125,191,230,.28)'); glow.addColorStop(1,'rgba(125,191,230,0)');
   c.fillStyle = glow; c.fillRect(0,0,W,H);
-  // La nieve se repite en franjas de alto P y avanza 1 o 2 franjas por vuelta: así la animación cierra sin saltos.
-  const rnd = xmasRand(7), P = Math.ceil(H/3), ph = phase || 0;
-  for (let i=0;i<60;i++){
-    const x = rnd()*W, y0 = rnd()*P, r = .7 + rnd()*2.2, a = .3 + rnd()*.6, sp = rnd() < .7 ? 1 : 2;
-    const sway = Math.sin(ph*6.283*sp + i) * 5;
-    for (let j=-1;j<3;j++){
-      const y = ((y0 + ph*P*sp) % P) + j*P; if (y < -4 || y > H+4) continue;
-      c.fillStyle = `rgba(255,255,255,${a})`; c.beginPath(); c.arc(x+sway, y, r, 0, Math.PI*2); c.fill();
-    }
-  }
+  loopParticles(c, W, H, phase, 60, 7, (x,y,s)=>{ c.fillStyle = `rgba(255,255,255,${.3+s*.6})`; c.beginPath(); c.arc(x, y, .7+s*2.2, 0, TAU); c.fill(); });
 }
-// Guirnalda de luces arriba
 function drawXmasLights(c, W, y, phase){
   const COLORS = ['#ff3b3b','#ffd23f','#2ecc71','#7dbfe6','#ff8c1a'];
-  const swags = 4, sw = W/swags;
-  let k = 0;
-  for (let s=0; s<swags; s++){
-    const x0 = s*sw, x1 = x0+sw, sag = 26;
-    c.strokeStyle = '#0b3d1f'; c.lineWidth = 2.2; c.beginPath(); c.moveTo(x0, y); c.quadraticCurveTo((x0+x1)/2, y+sag*2, x1, y); c.stroke();
-    const n = 9;
-    for (let i=1;i<n;i++){
-      const t = i/n, x = (1-t)*(1-t)*x0 + 2*(1-t)*t*((x0+x1)/2) + t*t*x1, yy = (1-t)*(1-t)*y + 2*(1-t)*t*(y+sag*2) + t*t*y;
-      const col = COLORS[k % COLORS.length];
-      const on = phase==null ? 1 : (.35 + .65*(.5 + .5*Math.sin(phase*6.283*2 + k*1.7)));
-      c.save(); c.globalAlpha = on; c.shadowColor = col; c.shadowBlur = 14*on;
-      c.fillStyle = col; c.beginPath(); c.ellipse(x, yy+9, 4.6, 7, 0, 0, Math.PI*2); c.fill(); c.restore();
-      c.fillStyle = '#c9b27c'; c.fillRect(x-2.6, yy+1, 5.2, 3.6);
-      k++;
-    }
-  }
+  drawGarland(c, W, y, phase, (x,yy,k,ph)=>{ const col = COLORS[k%COLORS.length], on = twinkle(ph, k, 2);
+    c.save(); c.globalAlpha = on; c.shadowColor = col; c.shadowBlur = 14*on; c.fillStyle = col; c.beginPath(); c.ellipse(x, yy+9, 4.6, 7, 0, 0, TAU); c.fill(); c.restore();
+    c.fillStyle = '#c9b27c'; c.fillRect(x-2.6, yy+1, 5.2, 3.6); });
 }
-// Gorritos de nieve sobre las tarjetas de equipo
 function drawSnowCap(c, x, y, w){
   c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(x+6, y+2);
   const bumps = Math.max(6, Math.round(w/34));
   for (let i=0;i<=bumps;i++){ const bx = x+6 + (w-12)*i/bumps; c.quadraticCurveTo(bx - (w-12)/bumps/2, y-9 - (i%2)*3, bx, y+1); }
   c.lineTo(x+w-6, y+6); c.lineTo(x+6, y+6); c.closePath(); c.fill();
-  for (let i=0;i<bumps;i+=2){ c.beginPath(); c.ellipse(x+14 + (w-28)*i/bumps, y+8, 3.2, 5, 0, 0, Math.PI*2); c.fill(); }
+  for (let i=0;i<bumps;i+=2){ c.beginPath(); c.ellipse(x+14 + (w-28)*i/bumps, y+8, 3.2, 5, 0, 0, TAU); c.fill(); }
 }
-// Escena de pie de página: nieve en el suelo, muñeco de nieve, árbol y regalos
 function drawXmasScene(c, W, H, phase){
-  const ground = H - 46;
-  c.fillStyle = '#f4f8ff'; c.beginPath(); c.moveTo(0, ground+14);
-  c.bezierCurveTo(W*.2, ground-12, W*.35, ground+20, W*.55, ground+4); c.bezierCurveTo(W*.75, ground-12, W*.9, ground+16, W, ground); c.lineTo(W,H); c.lineTo(0,H); c.closePath(); c.fill();
-  // Muñeco de nieve (izquierda)
+  const ground = groundHill(c, W, H, '#f4f8ff');
   const sx = 92, sy = ground+6;
   c.fillStyle = '#ffffff'; c.strokeStyle = 'rgba(0,33,111,.18)'; c.lineWidth = 1.5;
-  [[sx, sy-26, 30],[sx, sy-72, 22],[sx, sy-106, 15]].forEach(([x,y,r])=>{ c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill(); c.stroke(); });
+  [[sx, sy-26, 30],[sx, sy-72, 22],[sx, sy-106, 15]].forEach(([x,y,r])=>{ c.beginPath(); c.arc(x,y,r,0,TAU); c.fill(); c.stroke(); });
   c.fillStyle = '#d62828'; c.fillRect(sx-19, sy-92, 38, 7); c.fillRect(sx+8, sy-92, 8, 22);
   c.fillStyle = '#00216f'; c.fillRect(sx-17, sy-124, 34, 5); c.fillRect(sx-11, sy-148, 22, 25);
-  c.fillStyle = '#0f141b'; [[-5,-110],[5,-110]].forEach(([dx,dy])=>{ c.beginPath(); c.arc(sx+dx, sy+dy, 2, 0, Math.PI*2); c.fill(); });
-  [-78,-66,-54].forEach(dy=>{ c.beginPath(); c.arc(sx, sy+dy, 2.2, 0, Math.PI*2); c.fill(); });
+  c.fillStyle = '#0f141b'; [[-5,-110],[5,-110]].forEach(([dx,dy])=>{ c.beginPath(); c.arc(sx+dx, sy+dy, 2, 0, TAU); c.fill(); });
+  [-78,-66,-54].forEach(dy=>{ c.beginPath(); c.arc(sx, sy+dy, 2.2, 0, TAU); c.fill(); });
   c.fillStyle = '#ff5100'; c.beginPath(); c.moveTo(sx, sy-104); c.lineTo(sx+16, sy-101); c.lineTo(sx, sy-99); c.closePath(); c.fill();
   c.strokeStyle = '#6b4226'; c.lineWidth = 3; c.lineCap = 'round';
   c.beginPath(); c.moveTo(sx-20, sy-74); c.lineTo(sx-44, sy-92); c.moveTo(sx+20, sy-74); c.lineTo(sx+44, sy-90); c.stroke();
-  // Árbol (derecha)
   const tx = W - 110, tb = ground+4;
   c.fillStyle = '#6b4226'; c.fillRect(tx-9, tb-22, 18, 22);
-  const tiers = [[tb-18, 66],[tb-56, 54],[tb-90, 42],[tb-120, 28]];
-  tiers.forEach(([by, hw], i)=>{ const g = c.createLinearGradient(tx-hw, 0, tx+hw, 0); g.addColorStop(0,'#0b6b32'); g.addColorStop(1,'#15a04d');
+  [[tb-18, 66],[tb-56, 54],[tb-90, 42],[tb-120, 28]].forEach(([by, hw], i)=>{ const g = c.createLinearGradient(tx-hw, 0, tx+hw, 0); g.addColorStop(0,'#0b6b32'); g.addColorStop(1,'#15a04d');
     c.fillStyle = g; c.beginPath(); c.moveTo(tx-hw, by); c.lineTo(tx, by-52 + i*2); c.lineTo(tx+hw, by); c.closePath(); c.fill(); });
   const ORN = ['#ff3b3b','#ffd23f','#7dbfe6','#ff8c1a','#ffffff'];
   [[-38,-26],[22,-34],[-8,-46],[34,-22],[-22,-66],[16,-74],[-4,-94],[10,-110],[-14,-104],[44,-24],[-46,-22]].forEach(([dx,dy],i)=>{
-    const col = ORN[i%ORN.length], on = phase==null ? 1 : (.45 + .55*(.5+.5*Math.sin(phase*6.283*3 + i*2.1)));
-    c.save(); c.globalAlpha = on; c.shadowColor = col; c.shadowBlur = 10*on; c.fillStyle = col; c.beginPath(); c.arc(tx+dx, tb+dy, 4, 0, Math.PI*2); c.fill(); c.restore();
-  });
-  // Estrella
-  const st = tb-170, starOn = phase==null ? 1 : (.75 + .25*Math.sin(phase*6.283*2));
-  c.save(); c.shadowColor = '#ffd23f'; c.shadowBlur = 22*starOn; c.fillStyle = '#ffd23f'; c.beginPath();
-  for (let i=0;i<10;i++){ const r = i%2 ? 6 : 14, a = -Math.PI/2 + i*Math.PI/5; c.lineTo(tx + r*Math.cos(a), st + r*Math.sin(a)); }
-  c.closePath(); c.fill(); c.restore();
-  // Regalos
+    const col = ORN[i%ORN.length], on = twinkle(phase, i*1.2, 3);
+    c.save(); c.globalAlpha = on; c.shadowColor = col; c.shadowBlur = 10*on; c.fillStyle = col; c.beginPath(); c.arc(tx+dx, tb+dy, 4, 0, TAU); c.fill(); c.restore(); });
+  const st = tb-170, so = phase==null ? 1 : (.75 + .25*Math.sin(phase*TAU*2));
+  c.save(); c.shadowColor = '#ffd23f'; c.shadowBlur = 22*so; c.fillStyle = '#ffd23f'; star5(c, tx, st, 14, 6); c.fill(); c.restore();
   [[tx-118, 34, '#d62828', '#ffd23f'],[tx-78, 26, '#ff5100', '#ffffff'],[tx+74, 30, '#7dbfe6', '#d62828']].forEach(([gx, s, col, rib])=>{
     c.fillStyle = col; c.fillRect(gx, tb-s, s, s); c.fillStyle = rib; c.fillRect(gx + s/2 - 3, tb-s, 6, s); c.fillRect(gx, tb - s*0.6, s, 5);
-    c.beginPath(); c.ellipse(gx+s/2-6, tb-s-4, 6, 4, -.5, 0, Math.PI*2); c.ellipse(gx+s/2+6, tb-s-4, 6, 4, .5, 0, Math.PI*2); c.fill();
-  });
+    c.beginPath(); c.ellipse(gx+s/2-6, tb-s-4, 6, 4, -.5, 0, TAU); c.ellipse(gx+s/2+6, tb-s-4, 6, 4, .5, 0, TAU); c.fill(); });
+}
+
+// ---------- FIN DE AÑO ----------
+function drawNYBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#05030f','#140a3a','#1d1155']); c.fillRect(0,0,W,H);
+  const rs = xmasRand(3); for (let i=0;i<90;i++){ const x=rs()*W, y=rs()*H*.8, a=twinkle(ph, i, 2)*(.3+rs()*.6); c.fillStyle=`rgba(255,255,255,${a})`; c.fillRect(x,y,1.6,1.6); }
+  drawFireworks(c, [
+    {x:W*.12,y:150,r:70,col:'#ffd23f',off:0},{x:W*.86,y:120,r:80,col:'#ff5100',off:.33},{x:W*.55,y:70,r:55,col:'#7dbfe6',off:.66},
+    {x:W*.92,y:H-260,r:60,col:'#ff4fa3',off:.2},{x:W*.06,y:H-300,r:58,col:'#2ecc71',off:.55},{x:W*.35,y:H-230,r:50,col:'#ffd23f',off:.85}], ph);
+  const CONF = ['#ffd23f','#ff5100','#7dbfe6','#ff4fa3','#ffffff','#2ecc71'];
+  loopParticles(c, W, H, ph, 55, 11, (x,y,s,i,pp)=>{ c.save(); c.translate(x,y); c.rotate(s*TAU + pp*TAU*2); c.fillStyle = CONF[i%CONF.length]; c.globalAlpha=.85; c.fillRect(-4,-1.6,8,3.2); c.restore(); }, {sway:9});
+}
+function drawNYTop(c, W, ph){
+  drawGarland(c, W, 4, ph, (x,yy,k,p)=>{ const on = twinkle(p,k,2), cols=['#ffd23f','#ffffff','#e8b53a']; c.save(); c.globalAlpha=on; c.shadowColor='#ffd23f'; c.shadowBlur=12*on;
+    c.fillStyle = cols[k%3]; star5(c, x, yy+10, 7, 3); c.fill(); c.restore(); }, {wire:'#b38b2d'});
+}
+function drawFlute(c, x, y, tilt, ph, k){
+  c.save(); c.translate(x, y); c.rotate(tilt);
+  c.fillStyle = 'rgba(255,255,255,.25)'; c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1.6;
+  c.beginPath(); c.moveTo(-16,-92); c.lineTo(16,-92); c.lineTo(9,-30); c.quadraticCurveTo(0,-22,-9,-30); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = 'rgba(255,210,63,.85)'; c.beginPath(); c.moveTo(-14,-76); c.lineTo(14,-76); c.lineTo(9,-31); c.quadraticCurveTo(0,-24,-9,-31); c.closePath(); c.fill();
+  c.strokeStyle = 'rgba(255,255,255,.85)'; c.beginPath(); c.moveTo(0,-24); c.lineTo(0,0); c.moveTo(-14,0); c.lineTo(14,0); c.stroke();
+  for (let i=0;i<6;i++){ const t = (((ph||0)*2 + i/6 + k*.3) % 1), by = -32 - t*42, bx = Math.sin(i*2.3 + t*TAU)*4;
+    c.fillStyle = `rgba(255,255,255,${.75*(1-t)})`; c.beginPath(); c.arc(bx, by, 1.6, 0, TAU); c.fill(); }
+  c.restore();
+}
+function drawNYScene(c, W, H, ph){
+  const yr = (()=>{ const d = localDateStr(new Date()); return +d.slice(0,4) + (+d.slice(5,7) >= 11 ? 1 : 0); })();   // año que empieza
+  const base = H - 30;
+  c.fillStyle = 'rgba(255,255,255,.06)'; c.fillRect(0, base, W, 30);
+  // Botella
+  c.save(); c.translate(120, base); c.rotate(-.42);
+  c.fillStyle = '#0d4d2b'; c.beginPath(); c.moveTo(-20,0); c.lineTo(-20,-88); c.quadraticCurveTo(-20,-108,-8,-118); c.lineTo(-8,-150); c.lineTo(8,-150); c.lineTo(8,-118); c.quadraticCurveTo(20,-108,20,-88); c.lineTo(20,0); c.closePath(); c.fill();
+  c.fillStyle = '#e8b53a'; c.fillRect(-9,-152,18,30); c.fillStyle = '#fff7e0'; c.fillRect(-17,-70,34,34); c.fillStyle = '#00216f'; c.font='bold 10px Arial'; c.textAlign='center'; c.fillText(String(yr), 0, -48);
+  for (let i=0;i<14;i++){ const t = (((ph||0)*2 + i/14) % 1), a = -1.5708 + (i%7-3)*.13, d = 10 + t*70;
+    c.fillStyle = `rgba(255,240,200,${.9*(1-t)})`; c.beginPath(); c.arc(Math.cos(a)*d*.35, -156 + Math.sin(a)*d, 2.4*(1-t)+.8, 0, TAU); c.fill(); }
+  c.restore();
+  // Copas brindando
+  drawFlute(c, W-150, base, .22, ph, 0); drawFlute(c, W-110, base, -.22, ph, 1);
+  const sp = twinkle(ph, 0, 4); c.save(); c.globalAlpha = sp; c.fillStyle = '#ffd23f'; star5(c, W-130, base-104, 9, 3); c.fill(); c.restore();
+  // Año
+  c.save(); c.shadowColor = '#ffd23f'; c.shadowBlur = 18; c.fillStyle = '#ffd23f'; c.font = 'bold 54px Arial'; c.textAlign = 'center'; c.fillText(String(yr), W/2, base-6); c.restore();
+}
+
+// ---------- DÍA DE REYES ----------
+function drawReyesBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#0e0626','#2a0f5c','#4a1f7a']); c.fillRect(0,0,W,H);
+  const rs = xmasRand(5); for (let i=0;i<110;i++){ const x=rs()*W, y=rs()*H*.85, a=twinkle(ph,i,2)*(.25+rs()*.6); c.fillStyle=`rgba(255,240,200,${a})`; c.beginPath(); c.arc(x,y,.6+rs()*1.3,0,TAU); c.fill(); }
+  // Estrella de Belén con cola
+  const sx = W*.6, sy = 92, g = c.createLinearGradient(sx, sy, sx+170, sy-80); g.addColorStop(0,'rgba(255,224,130,.55)'); g.addColorStop(1,'rgba(255,224,130,0)');
+  c.fillStyle = g; c.beginPath(); c.moveTo(sx-5, sy-4); c.lineTo(sx+190, sy-90); c.lineTo(sx+200, sy-74); c.lineTo(sx+5, sy+5); c.closePath(); c.fill();
+  const on = twinkle(ph, 0, 2); c.save(); c.shadowColor='#ffe082'; c.shadowBlur=30*on; c.fillStyle='#fff3c4'; star5(c, sx, sy, 20, 7); c.fill(); c.restore();
+}
+function drawReyesTop(c, W, ph){
+  drawGarland(c, W, 4, ph, (x,yy,k,p)=>{ const on = twinkle(p,k,2); c.save(); c.globalAlpha=.5+.5*on; c.fillStyle='#e8b53a'; c.shadowColor='#ffd23f'; c.shadowBlur=8*on;
+    c.beginPath(); c.moveTo(x-8,yy+16); c.lineTo(x-8,yy+6); c.lineTo(x-4,yy+11); c.lineTo(x,yy+4); c.lineTo(x+4,yy+11); c.lineTo(x+8,yy+6); c.lineTo(x+8,yy+16); c.closePath(); c.fill(); c.restore(); }, {wire:'#b38b2d', n:7});
+}
+function drawCamel(c, x, y, s, rider, bob){
+  c.save(); c.translate(x, y + bob); c.scale(s, s); c.fillStyle = '#1a0b33';
+  c.beginPath(); c.ellipse(0,-46,34,15,0,0,TAU); c.fill();
+  c.beginPath(); c.ellipse(-6,-60,15,13,0,0,TAU); c.fill();
+  c.beginPath(); c.moveTo(26,-50); c.quadraticCurveTo(44,-64,40,-86); c.lineTo(50,-90); c.quadraticCurveTo(56,-86,50,-80); c.lineTo(46,-80); c.quadraticCurveTo(50,-60,32,-40); c.closePath(); c.fill();
+  c.lineWidth = 5; c.strokeStyle = '#1a0b33'; c.lineCap = 'round';
+  [[-24,-36],[-12,-36],[14,-36],[24,-36]].forEach(([lx,ly],i)=>{ c.beginPath(); c.moveTo(lx,ly); c.lineTo(lx + (i%2?3:-3), 0); c.stroke(); });
+  // Rey
+  c.fillStyle = rider.robe; c.beginPath(); c.moveTo(-18,-66); c.lineTo(4,-66); c.lineTo(-2,-98); c.lineTo(-12,-98); c.closePath(); c.fill();
+  c.fillStyle = '#c68a5a'; c.beginPath(); c.arc(-7,-106,8,0,TAU); c.fill();
+  c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(-15,-112); c.lineTo(-15,-122); c.lineTo(-11,-116); c.lineTo(-7,-124); c.lineTo(-3,-116); c.lineTo(1,-122); c.lineTo(1,-112); c.closePath(); c.fill();
+  c.restore();
+}
+function drawReyesScene(c, W, H, ph){
+  const base = H - 40;
+  c.fillStyle = '#b8864b'; c.beginPath(); c.moveTo(0, base); c.bezierCurveTo(W*.25, base-28, W*.45, base+10, W*.7, base-14); c.bezierCurveTo(W*.85, base-26, W*.95, base-4, W, base-10); c.lineTo(W,H); c.lineTo(0,H); c.closePath(); c.fill();
+  c.fillStyle = '#d9a866'; c.beginPath(); c.moveTo(0, base+16); c.bezierCurveTo(W*.3, base, W*.6, base+26, W, base+8); c.lineTo(W,H); c.lineTo(0,H); c.closePath(); c.fill();
+  const robes = ['#d62828','#2ecc71','#7dbfe6'];
+  [0,1,2].forEach(i=>{ const bob = ph==null ? 0 : Math.sin(ph*TAU*2 + i*2.1)*3; drawCamel(c, W*.52 + i*120, base+2 - i*6, .95, {robe:robes[i]}, bob); });
+  // Rosca de Reyes
+  const rx = 130, ry = base - 10;
+  c.fillStyle = '#c9822f'; c.beginPath(); c.ellipse(rx, ry, 92, 34, 0, 0, TAU); c.fill();
+  c.fillStyle = '#b8864b'; c.beginPath(); c.ellipse(rx, ry, 52, 14, 0, 0, TAU); c.fill();
+  c.fillStyle = '#f4e3c3'; for (let i=0;i<8;i++){ const a = i/8*TAU; c.beginPath(); c.ellipse(rx+Math.cos(a)*72, ry+Math.sin(a)*24, 14, 5, a, 0, TAU); c.fill(); }
+  const FR = ['#d62828','#2ecc71','#ffd23f','#ff5100']; for (let i=0;i<10;i++){ const a = i/10*TAU + .3; c.fillStyle = FR[i%4]; c.fillRect(rx+Math.cos(a)*74-5, ry+Math.sin(a)*26-3, 10, 6); }
+}
+
+// ---------- DÍA DEL CARIÑO ----------
+function drawCarinoBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#4a0721','#8e1446','#c2185b']); c.fillRect(0,0,W,H);
+  loopParticles(c, W, H, ph, 40, 13, (x,y,s)=>{ c.fillStyle = `rgba(255,${150+Math.round(s*80)},${190+Math.round(s*40)},${.35+s*.45})`; heart(c, x, y, 5+s*9); c.fill(); }, {up:true, sway:8});
+}
+function drawCarinoTop(c, W, ph){
+  drawGarland(c, W, 4, ph, (x,yy,k,p)=>{ const on = twinkle(p,k,2), cols=['#ff4f81','#ffffff','#ffb3c8']; c.save(); c.globalAlpha=.55+.45*on; c.fillStyle=cols[k%3]; heart(c, x, yy+12, 8); c.fill(); c.restore(); }, {wire:'#ffc1d6'});
+}
+function drawCarinoScene(c, W, H, ph){
+  const base = H - 36, pulse = ph==null ? 1 : 1 + .08*Math.sin(ph*TAU*2);
+  c.save(); c.shadowColor = '#ff4f81'; c.shadowBlur = 26; c.fillStyle = '#ff2e63'; heart(c, W/2, base-30, 46*pulse); c.fill(); c.restore();
+  c.fillStyle = '#ffffff'; c.font = 'bold 15px Arial'; c.textAlign = 'center'; c.fillText('GRACIAS', W/2, base-40); c.fillText('EQUIPO', W/2, base-22);
+  [[120,.9],[200,.6],[W-120,.9],[W-200,.6]].forEach(([x,s],i)=>{ const p2 = ph==null ? 1 : 1 + .1*Math.sin(ph*TAU*2 + i); c.fillStyle = i%2 ? '#ffb3c8' : '#ff4f81'; heart(c, x, base-20, 30*s*p2); c.fill(); });
+}
+
+// ---------- SEMANA SANTA ----------
+function drawSSBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#1f0533','#3b0a5c','#5e1a8a']); c.fillRect(0,0,W,H);
+  loopParticles(c, W, H, ph, 50, 17, (x,y,s,i,pp)=>{ c.save(); c.translate(x,y); c.rotate(s*TAU + pp*TAU); c.fillStyle = `rgba(${190+Math.round(s*40)},${150+Math.round(s*50)},255,${.45+s*.4})`; c.beginPath(); c.ellipse(0,0,5+s*3,2.6+s*1.4,0,0,TAU); c.fill(); c.restore(); }, {sway:10});
+}
+function drawSSTop(c, W, ph){
+  [[0,1],[W,-1]].forEach(([bx,dir])=>{ c.strokeStyle = '#3e2615'; c.lineWidth = 5; c.beginPath(); c.moveTo(bx, 0); c.quadraticCurveTo(bx+dir*120, 30, bx+dir*240, 14); c.stroke();
+    for (let i=0;i<22;i++){ const t = i/22, x = bx + dir*(t*240), y = 6 + Math.sin(t*3)*18 + (i%3)*6; c.fillStyle = i%2 ? '#b388ff' : '#9c6ade'; c.beginPath(); c.arc(x, y+8, 6, 0, TAU); c.fill(); } });
+}
+function drawSSScene(c, W, H, ph){
+  const top = H - 92, h = 80, x0 = 30, w = W - 60;
+  c.fillStyle = '#2a0b40'; c.fillRect(x0-6, top-6, w+12, h+12);
+  c.fillStyle = '#7b1fa2'; c.fillRect(x0, top, w, h);
+  const COL = ['#ffd23f','#ff5100','#2ecc71','#ffffff','#d62828','#7dbfe6'];
+  const n = 12, cw = w/n;
+  for (let i=0;i<n;i++){ const cx = x0 + cw*i + cw/2, cy = top + h/2;
+    c.fillStyle = COL[i%COL.length]; c.beginPath(); c.moveTo(cx, top+6); c.lineTo(cx+cw/2-6, cy); c.lineTo(cx, top+h-6); c.lineTo(cx-cw/2+6, cy); c.closePath(); c.fill();
+    c.fillStyle = COL[(i+3)%COL.length]; for (let p=0;p<6;p++){ const a = p/6*TAU; c.beginPath(); c.arc(cx+Math.cos(a)*9, cy+Math.sin(a)*9, 5, 0, TAU); c.fill(); }
+    c.fillStyle = '#ffd23f'; c.beginPath(); c.arc(cx, cy, 4, 0, TAU); c.fill(); }
+  const rs = xmasRand(19); for (let i=0;i<500;i++){ c.fillStyle = `rgba(255,255,255,${rs()*.12})`; c.fillRect(x0+rs()*w, top+rs()*h, 1.4, 1.4); }
+  c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.strokeRect(x0+4, top+4, w-8, h-8);
+}
+
+// ---------- DÍA DE LA MADRE ----------
+function drawMadreBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#fff0f6','#fbd3e6','#f3b6d4']); c.fillRect(0,0,W,H);
+  loopParticles(c, W, H, ph, 45, 23, (x,y,s,i,pp)=>{ c.save(); c.translate(x,y); c.rotate(s*TAU + pp*TAU); c.fillStyle = ['rgba(236,64,122,.55)','rgba(255,138,128,.55)','rgba(186,104,200,.5)'][i%3]; c.beginPath(); c.ellipse(0,0,6+s*3,3+s*1.5,0,0,TAU); c.fill(); c.restore(); }, {sway:10});
+}
+function flower(c, x, y, r, col, center){ c.fillStyle = col; for (let i=0;i<6;i++){ const a = i/6*TAU; c.beginPath(); c.ellipse(x+Math.cos(a)*r*.9, y+Math.sin(a)*r*.9, r*.62, r*.42, a, 0, TAU); c.fill(); } c.fillStyle = center||'#ffd23f'; c.beginPath(); c.arc(x,y,r*.45,0,TAU); c.fill(); }
+function drawMadreTop(c, W, ph){
+  drawGarland(c, W, 4, ph, (x,yy,k,p)=>{ const s = 1 + (ph==null?0:.06*Math.sin(p*TAU*2+k)); flower(c, x, yy+10, 7*s, ['#ec407a','#ab47bc','#ff7043','#f06292'][k%4]); }, {wire:'#6d9b4a'});
+}
+function drawMadreScene(c, W, H, ph){
+  const base = H - 30, bx = 150;
+  c.strokeStyle = '#4c8c3a'; c.lineWidth = 3; for (let i=-3;i<=3;i++){ c.beginPath(); c.moveTo(bx, base); c.quadraticCurveTo(bx+i*10, base-60, bx+i*22, base-100-Math.abs(i)*-4); c.stroke(); }
+  [[-66,-100,'#ec407a'],[-44,-118,'#ab47bc'],[-22,-128,'#ff7043'],[0,-134,'#f06292'],[22,-128,'#ec407a'],[44,-118,'#ffca28'],[66,-100,'#ab47bc'],[0,-104,'#ff8a80']].forEach(([dx,dy,col],i)=>{
+    const s = ph==null ? 1 : 1 + .07*Math.sin(ph*TAU*2 + i); flower(c, bx+dx, base+dy, 15*s, col); });
+  c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(bx-38, base-46); c.lineTo(bx+38, base-46); c.lineTo(bx+18, base); c.lineTo(bx-18, base); c.closePath(); c.fill();
+  c.fillStyle = '#ec407a'; c.fillRect(bx-38, base-40, 76, 7);
+  const pulse = ph==null ? 1 : 1 + .08*Math.sin(ph*TAU*2);
+  c.save(); c.shadowColor = '#ec407a'; c.shadowBlur = 18; c.fillStyle = '#e91e63'; heart(c, W-150, base-40, 40*pulse); c.fill(); c.restore();
+  c.fillStyle = '#ffffff'; c.font = 'bold 14px Arial'; c.textAlign = 'center'; c.fillText('MAMÁ', W-150, base-46);
+}
+
+// ---------- DÍA DEL PADRE ----------
+function drawPadreBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#001a24','#00303f','#005f73']); c.fillRect(0,0,W,H);
+  loopParticles(c, W, H, ph, 40, 29, (x,y,s)=>{ c.fillStyle = `rgba(148,210,189,${.2+s*.4})`; star5(c, x, y, 3+s*4, 1.4+s*1.6); c.fill(); }, {sway:4});
+}
+function drawPadreTop(c, W, ph){
+  drawGarland(c, W, 4, ph, (x,yy,k,p)=>{ const on = twinkle(p,k,2), cols=['#ee9b00','#94d2bd','#ffffff']; c.save(); c.globalAlpha=.55+.45*on; c.fillStyle=cols[k%3]; star5(c, x, yy+10, 7, 3); c.fill(); c.restore(); }, {wire:'#94d2bd'});
+}
+function drawPadreScene(c, W, H, ph){
+  const base = H - 30;
+  // Corbata
+  const tx = 140; c.fillStyle = '#ee9b00'; c.beginPath(); c.moveTo(tx-14, base-140); c.lineTo(tx+14, base-140); c.lineTo(tx+8, base-122); c.lineTo(tx-8, base-122); c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(tx-8, base-122); c.lineTo(tx+8, base-122); c.lineTo(tx+26, base-30); c.lineTo(tx, base-6); c.lineTo(tx-26, base-30); c.closePath(); c.fill();
+  c.strokeStyle = '#ca6702'; c.lineWidth = 5; for (let i=0;i<5;i++){ c.beginPath(); c.moveTo(tx-20, base-100+i*18); c.lineTo(tx+20, base-112+i*18); c.stroke(); }
+  // Bigote
+  c.fillStyle = '#e9d8a6'; c.beginPath(); const mx = W/2, my = base-30;
+  c.moveTo(mx, my); c.bezierCurveTo(mx-20, my-22, mx-60, my-10, mx-74, my-26); c.bezierCurveTo(mx-70, my+8, mx-30, my+14, mx, my+2);
+  c.bezierCurveTo(mx+30, my+14, mx+70, my+8, mx+74, my-26); c.bezierCurveTo(mx+60, my-10, mx+20, my-22, mx, my); c.fill();
+  // Taza con vapor
+  const cx = W-150; c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(cx-34, base-80); c.lineTo(cx+34, base-80); c.lineTo(cx+28, base); c.lineTo(cx-28, base); c.closePath(); c.fill();
+  c.strokeStyle = '#ffffff'; c.lineWidth = 7; c.beginPath(); c.arc(cx+38, base-46, 15, -1.3, 1.3); c.stroke();
+  c.fillStyle = '#005f73'; c.font = 'bold 13px Arial'; c.textAlign = 'center'; c.fillText('#1 PAPÁ', cx, base-36);
+  c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 3; c.lineCap = 'round';
+  for (let i=0;i<3;i++){ const t = (((ph||0)*2 + i/3) % 1); c.globalAlpha = 1 - t; c.beginPath(); const sx = cx - 16 + i*16, sy = base - 86 - t*40;
+    c.moveTo(sx, sy); c.bezierCurveTo(sx-8, sy-10, sx+8, sy-20, sx, sy-30); c.stroke(); }
+  c.globalAlpha = 1;
+}
+
+// ---------- INDEPENDENCIA (GUATEMALA) ----------
+function drawIndepBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#4997d0','#a9d3f2','#eaf5fd']); c.fillRect(0,0,W,H);
+  const CONF = ['#ffffff','#4997d0','#ffffff','#1f6fb2'];
+  loopParticles(c, W, H, ph, 50, 31, (x,y,s,i,pp)=>{ c.save(); c.translate(x,y); c.rotate(s*TAU + pp*TAU*2); c.fillStyle = CONF[i%4]; c.globalAlpha = .85; c.fillRect(-4,-1.6,8,3.2); c.restore(); }, {sway:9});
+}
+function drawIndepTop(c, W, ph){
+  drawGarland(c, W, 2, ph, (x,yy,k,p)=>{ const sw = ph==null ? 0 : Math.sin(p*TAU*2 + k*.8)*.18; c.save(); c.translate(x, yy); c.rotate(sw);
+    c.fillStyle = k%2 ? '#ffffff' : '#4997d0'; c.strokeStyle = 'rgba(0,33,111,.25)'; c.lineWidth = 1; c.beginPath(); c.moveTo(-10,0); c.lineTo(10,0); c.lineTo(0,24); c.closePath(); c.fill(); c.stroke(); c.restore(); }, {wire:'#ffffff', n:11});
+}
+function drawIndepScene(c, W, H, ph){
+  const base = groundHill(c, W, H, '#5aa469', 40);
+  // Antorcha
+  const ax = 150; c.fillStyle = '#7a4a24'; c.beginPath(); c.moveTo(ax-8, base+8); c.lineTo(ax+8, base+8); c.lineTo(ax+14, base-70); c.lineTo(ax-14, base-70); c.closePath(); c.fill();
+  c.fillStyle = '#c9a227'; c.fillRect(ax-20, base-82, 40, 14);
+  const fl = ph==null ? 0 : Math.sin(ph*TAU*4)*4, fl2 = ph==null ? 0 : Math.cos(ph*TAU*3)*3;
+  c.save(); c.shadowColor = '#ff8c1a'; c.shadowBlur = 30;
+  c.fillStyle = '#ff5100'; c.beginPath(); c.moveTo(ax-20, base-82); c.quadraticCurveTo(ax-26+fl, base-120, ax+fl2, base-150-fl); c.quadraticCurveTo(ax+26+fl, base-118, ax+20, base-82); c.closePath(); c.fill();
+  c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(ax-11, base-82); c.quadraticCurveTo(ax-12-fl2, base-106, ax+fl, base-126+fl2); c.quadraticCurveTo(ax+14, base-104, ax+11, base-82); c.closePath(); c.fill(); c.restore();
+  // Bandera ondeando
+  const fx = W-210, fy = base-150, fw = 150, fh = 92;
+  c.fillStyle = '#6b6b6b'; c.fillRect(fx-6, fy-6, 5, 160);
+  for (let i=0;i<fw;i+=3){ const wv = ph==null ? Math.sin(i/22)*4 : Math.sin(i/22 + ph*TAU*2)*5; const col = i < fw/3 ? '#4997d0' : (i < fw*2/3 ? '#ffffff' : '#4997d0');
+    c.fillStyle = col; c.fillRect(fx+i, fy+wv, 3.4, fh); }
+  c.fillStyle = '#5aa469'; c.beginPath(); c.arc(fx+fw/2, fy+fh/2 + (ph==null?Math.sin(fw/2/22)*4:Math.sin(fw/2/22+ph*TAU*2)*5), 12, 0, TAU); c.fill();
+}
+
+// ---------- TODOS LOS SANTOS (BARRILETES) ----------
+function drawSantosBackground(c, W, H, ph){
+  c.fillStyle = vGrad(c, H, ['#5db7ea','#a8dcf5','#e3f4fc']); c.fillRect(0,0,W,H);
+  const cloud = (x,y,s)=>{ c.fillStyle = 'rgba(255,255,255,.85)'; [[0,0,22],[20,-10,26],[44,0,22],[22,6,24]].forEach(([dx,dy,r])=>{ c.beginPath(); c.arc(x+dx*s, y+dy*s, r*s, 0, TAU); c.fill(); }); };
+  const dx = (ph||0)*W;
+  [[80,70,1],[420,40,.8],[760,90,1.1],[250,H-330,.9],[640,H-300,.7]].forEach(([x,y,s])=>{ cloud(((x + dx) % (W+140)) - 70, y, s); });
+}
+function kite(c, x, y, r, cols, ph, k){
+  const sw = ph==null ? 0 : Math.sin(ph*TAU*2 + k)*.12; c.save(); c.translate(x,y); c.rotate(sw);
+  const n = 8; for (let i=0;i<n;i++){ const a0 = i/n*TAU, a1 = (i+1)/n*TAU; c.fillStyle = cols[i%cols.length]; c.beginPath(); c.moveTo(0,0); c.lineTo(Math.cos(a0)*r, Math.sin(a0)*r); c.lineTo(Math.cos(a1)*r, Math.sin(a1)*r); c.closePath(); c.fill(); }
+  c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 1.2; c.beginPath(); for (let i=0;i<=n;i++){ const a = i/n*TAU; c.lineTo(Math.cos(a)*r, Math.sin(a)*r); } c.stroke();
+  c.fillStyle = '#ffffff'; c.beginPath(); c.arc(0,0,r*.25,0,TAU); c.fill(); c.fillStyle = cols[0]; c.beginPath(); c.arc(0,0,r*.12,0,TAU); c.fill();
+  c.strokeStyle = cols[1]; c.lineWidth = 2; c.beginPath(); c.moveTo(0, r); for (let i=1;i<=6;i++){ const wv = Math.sin(i*1.3 + (ph||0)*TAU*2)*8; c.lineTo(wv, r + i*14); } c.stroke();
+  c.restore();
+}
+function drawSantosTop(c, W, ph){
+  kite(c, W*.6, 62, 30, ['#d62828','#ffd23f','#2ecc71','#00216f','#ff5100','#ab47bc'], ph, 0);
+  kite(c, W*.7, 36, 20, ['#ff5100','#00216f','#ffd23f','#2ecc71'], ph, 2);
+}
+function drawSantosScene(c, W, H, ph){
+  const base = groundHill(c, W, H, '#6cbf4f', 44);
+  for (let i=0;i<26;i++){ const x = 30 + i*36 + (i%2)*8, y = base + 18 + (i%3)*6; c.strokeStyle = '#3f7d2c'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y+12); c.lineTo(x, y); c.stroke(); flower(c, x, y, 6, '#ff9800', '#e65100'); }
+  kite(c, 150, base-80, 56, ['#d62828','#ffd23f','#00216f','#2ecc71','#ff5100','#7dbfe6','#ab47bc','#ffffff'], ph, 1);
+  kite(c, W-150, base-90, 48, ['#00216f','#ff5100','#ffd23f','#d62828','#2ecc71','#ffffff'], ph, 3);
+}
+
+// ---------- CATÁLOGO ----------
+const RANK_THEMES = {
+  navidad:{label:'🎄 Navidad', dark:true, circle:'#d62828', emoji:'🎅', slogan:['¡Feliz Navidad,','equipo!'], sc:'#ffd23f',
+    foot:['¡Tu esfuerzo se nota! 🎄','Que esta Navidad cerremos con todas las metas cumplidas'], bg:drawXmasBackground, top:(c,W,p)=>drawXmasLights(c,W,4,p), scene:drawXmasScene, caps:true},
+  anionuevo:{label:'🥂 Fin de año', dark:true, circle:'#e8b53a', emoji:'🥂', slogan:['¡Feliz','Año Nuevo!'], sc:'#ffd23f',
+    foot:['¡Brindemos por las metas cumplidas! 🎆','Gracias por un gran año: vamos por más'], bg:drawNYBackground, top:drawNYTop, scene:drawNYScene},
+  reyes:{label:'👑 Día de Reyes', dark:true, circle:'#6a1b9a', emoji:'👑', slogan:['¡Feliz','Día de Reyes!'], sc:'#ffd54f',
+    foot:['Que este año nos traiga metas cumplidas 👑','¡Gracias por tu esfuerzo, equipo!'], bg:drawReyesBackground, top:drawReyesTop, scene:drawReyesScene},
+  carino:{label:'💘 Día del Cariño', dark:true, circle:'#ff2e63', emoji:'💘', slogan:['¡Feliz','Día del Cariño!'], sc:'#ffd1dc',
+    foot:['Hacemos con cariño lo que nos toca 💖','¡Gracias por tu entrega, equipo!'], bg:drawCarinoBackground, top:drawCarinoTop, scene:drawCarinoScene},
+  semanasanta:{label:'🌸 Semana Santa', dark:true, circle:'#7b1fa2', emoji:'🌸', slogan:['¡Felices días de','Semana Santa!'], sc:'#e1bee7',
+    foot:['Gracias por tu esfuerzo de cada día 💜','Que estos días sean de paz y descanso'], bg:drawSSBackground, top:drawSSTop, scene:drawSSScene},
+  madre:{label:'💐 Día de la Madre', dark:false, circle:'#ec407a', emoji:'💐', slogan:['¡Feliz Día','de la Madre!'], sc:'#c2185b',
+    foot:['¡Gracias, mamás de nuestro equipo! 💐','Su esfuerzo y su amor se notan en cada resultado'], bg:drawMadreBackground, top:drawMadreTop, scene:drawMadreScene},
+  padre:{label:'👔 Día del Padre', dark:true, circle:'#ee9b00', emoji:'👔', slogan:['¡Feliz Día','del Padre!'], sc:'#ee9b00',
+    foot:['¡Gracias, papás de nuestro equipo! 👔','Liderar con el ejemplo también es cumplir la meta'], bg:drawPadreBackground, top:drawPadreTop, scene:drawPadreScene},
+  independencia:{label:'🇬🇹 Independencia', dark:false, circle:'#4997d0', emoji:'🎉', slogan:['¡Viva','Guatemala!'], sc:'#00216f',
+    foot:[`¡Feliz Día de la Independencia! ✨`, ''], bg:drawIndepBackground, top:drawIndepTop, scene:drawIndepScene},
+  santos:{label:'🪁 Todos los Santos', dark:false, circle:'#ff5100', emoji:'🪁', slogan:['¡Elevemos','nuestras metas!'], sc:'#ff5100',
+    foot:['¡Alto como los barriletes! 🪁','Feliz Día de Todos los Santos'], bg:drawSantosBackground, top:drawSantosTop, scene:drawSantosScene},
+};
+function rankThemeObj(key){
+  const T = RANK_THEMES[key]; if (!T) return null;
+  if (key === 'independencia'){ const y = +localDateStr(new Date()).slice(0,4); return {...T, foot:[T.foot[0], `${y-1821} años de independencia · ¡orgullosamente chapines!`]}; }
+  return T;
 }
 // ---------- Imagen del ranking: se DIBUJA directamente en un lienzo (sin librerías externas ni internet) ----------
 function drawRankingCanvas(che, imp, range, opts){
@@ -3392,8 +3674,8 @@ function drawRankingCanvas(che, imp, range, opts){
   if (!FONT || /var\(/.test(FONT)) FONT = (getComputedStyle(document.documentElement).getPropertyValue('--font-body') || '').trim();
   if (!FONT || /var\(/.test(FONT)) FONT = "'IBM Plex Sans'";
   FONT = FONT.split(',')[0].trim() + ', Arial, sans-serif';   // primera fuente del tema + respaldo: válido en cualquier motor
-  const XMAS = (opts.theme || rankThemeNow()) === 'navidad';
-  const TOP = XMAS ? 44 : 0, FOOT = XMAS ? 185 : 0;      // espacio para la guirnalda y la escena navideña
+  const TH = rankThemeObj(opts.theme || rankThemeNow());   // temporada (null = diseño normal)
+  const TOP = TH ? 44 : 0, FOOT = TH ? 185 : 0;           // espacio para la decoración superior y la escena del pie
   const nRows = Math.max(che.length, imp.length, 1);
   const colH = HEAD_H + SUB_H + nRows*ROW_H + 8;
   const colsY = PAD + 130 + TOP;
@@ -3414,23 +3696,23 @@ function drawRankingCanvas(che, imp, range, opts){
     return lines;
   };
   // fondo
-  if (XMAS){ drawXmasBackground(c, W, H, opts.phase); drawXmasLights(c, W, 4, opts.phase); }
+  if (TH){ TH.bg(c, W, H, opts.phase); TH.top(c, W, opts.phase); }
   else { c.fillStyle='#eaf2fb'; c.fillRect(0,0,W,H); }
-  const HC = XMAS ? '#ffffff' : NAVY, SLOGAN = XMAS ? '#ffd23f' : ORANGE;
+  const DK = TH && TH.dark, HC = DK ? '#ffffff' : NAVY, SLOGAN = TH ? TH.sc : ORANGE;
   c.save(); c.translate(0, TOP);
   // encabezado
-  c.fillStyle = XMAS ? '#d62828' : NAVY; c.beginPath(); c.arc(PAD+27,PAD+27,27,0,Math.PI*2); c.fill();
-  text(XMAS ? '🎅' : '📞',PAD+27,PAD+36,26,400,'#fff','center');
+  c.fillStyle = TH ? TH.circle : NAVY; c.beginPath(); c.arc(PAD+27,PAD+27,27,0,Math.PI*2); c.fill();
+  text(TH ? TH.emoji : '📞',PAD+27,PAD+36,26,400,'#fff','center');
   const titleLines = opts.day ? ['CUMPLIMIENTO DE','META DEL DÍA'] : ['RANKING POR','CUMPLIMIENTO DE META'];
   text(titleLines[0],PAD+68,PAD+24,26,900,HC); text(titleLines[1],PAD+68,PAD+52,26,900,HC);
-  text(XMAS ? '¡Feliz Navidad,' : '¡Juntos',W-PAD,PAD+22,20,800,SLOGAN,'right','italic'); text(XMAS ? 'equipo!' : 'logramos más!',W-PAD,PAD+46,20,800,SLOGAN,'right','italic');
+  text(TH ? TH.slogan[0] : '¡Juntos',W-PAD,PAD+22,20,800,SLOGAN,'right','italic'); text(TH ? TH.slogan[1] : 'logramos más!',W-PAD,PAD+46,20,800,SLOGAN,'right','italic');
   // chip de fecha + nota
   const chipTxt = `📅 ${opts.day && opts.dayTag ? opts.dayTag+' · ' : ''}${range}`;
   c.font=font(12,700); const chipW=c.measureText(chipTxt).width+28;
-  c.fillStyle = XMAS ? 'rgba(255,255,255,.16)' : '#dce9f7'; rr(PAD,PAD+68,chipW,28,14); c.fill();
+  c.fillStyle = DK ? 'rgba(255,255,255,.16)' : (TH ? 'rgba(255,255,255,.7)' : '#dce9f7'); rr(PAD,PAD+68,chipW,28,14); c.fill();
   text(chipTxt,PAD+14,PAD+87,12,700,HC);
   const note = opts.day ? '🎯 % de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '🎯 % de meta diaria (variable por período) acumulada · sáb/dom suman sin meta';
-  text(note,PAD,PAD+114,11.5,400,XMAS ? '#c9d6ee' : '#8a97a3');
+  text(note,PAD,PAD+114,11.5,400,DK ? '#c9d6ee' : (TH ? '#33415c' : '#8a97a3'));
   c.restore();
   // columnas por equipo
   const medals=['#e8b53a','#b9c3cb','#cd7f45'];
@@ -3472,11 +3754,11 @@ function drawRankingCanvas(che, imp, range, opts){
     });
     c.restore();
   });
-  if (XMAS){
-    teams.forEach((tm,ti)=> drawSnowCap(c, PAD + ti*(colW+GAP), colsY, colW));
-    drawXmasScene(c, W, H, opts.phase);
-    text('¡Tu esfuerzo se nota! 🎄',W/2,colsY+colH+40,20,800,'#ffd23f','center','italic');
-    text('Que esta Navidad cerremos con todas las metas cumplidas',W/2,colsY+colH+64,12.5,400,'#dbe6f7','center');
+  if (TH){
+    if (TH.caps) teams.forEach((tm,ti)=> drawSnowCap(c, PAD + ti*(colW+GAP), colsY, colW));
+    TH.scene(c, W, H, opts.phase);
+    text(TH.foot[0],W/2,colsY+colH+40,20,800,TH.sc,'center','italic');
+    if (TH.foot[1]) text(TH.foot[1],W/2,colsY+colH+64,12.5,400,DK ? '#dbe6f7' : '#33415c','center');
   } else {
     text('¡Tu esfuerzo se nota!',W/2,colsY+colH+36,18,800,ORANGE,'center','italic');
   }
@@ -3492,7 +3774,7 @@ function loadGifenc(){
 async function buildRankingGif(che, imp, sc, onProgress){
   const { GIFEncoder, quantize, applyPalette } = await loadGifenc();
   const N = 24, DELAY = 110;                                   // 24 cuadros ≈ 2.6 s por vuelta
-  const base = {day:sc.isDay, dayTag:sc.dayTag, theme:'navidad', scale:1};
+  const base = {day:sc.isDay, dayTag:sc.dayTag, theme:rankThemeNow(), scale:1};
   const first = drawRankingCanvas(che, imp, sc.label, {...base, phase:0});
   const w = first.width, h = first.height;
   const pal = quantize(first.getContext('2d').getImageData(0,0,w,h).data, 255, {format:'rgb565'});
@@ -3520,7 +3802,7 @@ function showRankingPreview(canvas, blob, fileName, sc, lists){
   m.innerHTML = `<div style="background:var(--surface,#fff);border-radius:16px;max-width:min(1100px,96vw);max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4);">
     <div style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-soft,#e3e8ee);flex-wrap:wrap;">
       <div style="flex:1;min-width:160px;"><b style="color:var(--ink,#111);">Imagen del ranking</b>${scopeTxt?`<div style="font-size:12px;color:var(--ink-mute,#667);">${escapeHtml(scopeTxt)}</div>`:''}</div>
-      ${lists && lists.xmas ? `<button class="btn" id="rimgGif" title="GIF con nieve y luces en movimiento: descárgalo y arrástralo al chat de Teams">🎞️ GIF animado</button>` : ''}
+      ${lists && lists.animated ? `<button class="btn" id="rimgGif" title="GIF con nieve y luces en movimiento: descárgalo y arrástralo al chat de Teams">🎞️ GIF animado</button>` : ''}
       <button class="btn primary" id="rimgCopy">Copiar imagen</button>
       <button class="btn" id="rimgDl">Descargar</button>
       <button class="btn" id="rimgClose">Cerrar</button>
@@ -3563,7 +3845,7 @@ async function generateRankingImage(){
   canvas.toBlob(blob=>{
     if(!blob){ showToast('No se pudo generar el archivo de la imagen.'); return; }
     // No se descarga sola: se muestra para copiarla; el botón Descargar la baja si la necesitas.
-    showRankingPreview(canvas, blob, fileName, sc, {che, imp, xmas: rankThemeNow()==='navidad'});
+    showRankingPreview(canvas, blob, fileName, sc, {che, imp, animated: !!rankThemeObj(rankThemeNow())});
   }, 'image/png');
 }
 
@@ -5110,7 +5392,8 @@ $('#btnExport').addEventListener('click', exportCsv);
 { const _cr=document.getElementById('btnCopyRank'); if(_cr) _cr.addEventListener('click', copyGoalRankingByTeam); }
 { const _ir=document.getElementById('btnImgRank'); if(_ir) _ir.addEventListener('click', generateRankingImage); }
 { const _rt=document.getElementById('rankTheme'); if(_rt){ try{ _rt.value = localStorage.getItem('rank_theme') || 'auto'; }catch(e){}
-    _rt.addEventListener('change', ()=>{ try{ localStorage.setItem('rank_theme', _rt.value); }catch(e){} }); } }
+    _rt.addEventListener('change', ()=>{ try{ localStorage.setItem('rank_theme', _rt.value); }catch(e){} }); 
+    const k = seasonFor(localDateStr(new Date())), T = RANK_THEMES[k]; _rt.options[0].textContent = 'Tema: de temporada (hoy: ' + (T ? T.label : 'Normal') + ')'; } }
 $('#btnExportSummary').addEventListener('click', exportSummaryCsv);
 $('#btnSettings').addEventListener('click', openDrawer);
 $('#btnCloseDrawer').addEventListener('click', closeDrawer);
