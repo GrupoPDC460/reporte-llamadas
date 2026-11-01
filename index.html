@@ -1860,6 +1860,11 @@ body.capturing .cap-wrap .wk-scroll, body.capturing .cap-wrap .table-scroll, bod
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M3 16l4-4 3 3 4-4 7 6"/></svg>
           Imagen
         </button>
+        <select class="pick rank-theme" id="rankTheme" title="Diseño de la imagen del ranking">
+          <option value="auto">Tema: de temporada</option>
+          <option value="navidad">🎄 Navideño</option>
+          <option value="normal">Normal</option>
+        </select>
       </div>
       <div id="goalRankList"></div>
     </div>
@@ -3283,6 +3288,96 @@ function fallbackCopyText(t){
   catch(err){ showToast('No se pudo copiar automáticamente.'); }
 }
 
+// ---------- Tema de temporada para la imagen del ranking ----------
+// "auto": navideño del 1-nov al 6-ene; normal el resto del año. Se puede forzar con el selector junto a "Imagen".
+function rankThemeNow(){
+  let v = 'auto'; try{ v = localStorage.getItem('rank_theme') || 'auto'; }catch(e){}
+  const sel = document.getElementById('rankTheme'); if (sel) v = sel.value || v;
+  if (v !== 'auto') return v;
+  const md = localDateStr(new Date()).slice(5);
+  return (md >= '11-01' || md <= '01-06') ? 'navidad' : 'normal';
+}
+function xmasRand(seed){ let s = seed>>>0; return ()=>{ s = (s*1664525 + 1013904223)>>>0; return s/4294967296; }; }
+// Fondo nocturno + nieve (debajo de todo)
+function drawXmasBackground(c, W, H, phase){
+  const g = c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#00123a'); g.addColorStop(.55,'#00216f'); g.addColorStop(1,'#0a2f7a');
+  c.fillStyle = g; c.fillRect(0,0,W,H);
+  const glow = c.createRadialGradient(W*.8, 80, 10, W*.8, 80, 420); glow.addColorStop(0,'rgba(125,191,230,.28)'); glow.addColorStop(1,'rgba(125,191,230,0)');
+  c.fillStyle = glow; c.fillRect(0,0,W,H);
+  const rnd = xmasRand(7);
+  for (let i=0;i<170;i++){
+    const x = rnd()*W, y0 = rnd()*H, r = .7 + rnd()*2.2, a = .3 + rnd()*.6, sp = .4 + rnd();
+    const y = (y0 + (phase||0)*H*sp*.35) % H;
+    const sway = Math.sin(((phase||0)*6.283*sp) + i) * 6 * sp;
+    c.fillStyle = `rgba(255,255,255,${a})`; c.beginPath(); c.arc(x+sway, y, r, 0, Math.PI*2); c.fill();
+  }
+}
+// Guirnalda de luces arriba
+function drawXmasLights(c, W, y, phase){
+  const COLORS = ['#ff3b3b','#ffd23f','#2ecc71','#7dbfe6','#ff8c1a'];
+  const swags = 4, sw = W/swags;
+  let k = 0;
+  for (let s=0; s<swags; s++){
+    const x0 = s*sw, x1 = x0+sw, sag = 26;
+    c.strokeStyle = '#0b3d1f'; c.lineWidth = 2.2; c.beginPath(); c.moveTo(x0, y); c.quadraticCurveTo((x0+x1)/2, y+sag*2, x1, y); c.stroke();
+    const n = 9;
+    for (let i=1;i<n;i++){
+      const t = i/n, x = (1-t)*(1-t)*x0 + 2*(1-t)*t*((x0+x1)/2) + t*t*x1, yy = (1-t)*(1-t)*y + 2*(1-t)*t*(y+sag*2) + t*t*y;
+      const col = COLORS[k % COLORS.length];
+      const on = phase==null ? 1 : (.35 + .65*(.5 + .5*Math.sin(phase*6.283*2 + k*1.7)));
+      c.save(); c.globalAlpha = on; c.shadowColor = col; c.shadowBlur = 14*on;
+      c.fillStyle = col; c.beginPath(); c.ellipse(x, yy+9, 4.6, 7, 0, 0, Math.PI*2); c.fill(); c.restore();
+      c.fillStyle = '#c9b27c'; c.fillRect(x-2.6, yy+1, 5.2, 3.6);
+      k++;
+    }
+  }
+}
+// Gorritos de nieve sobre las tarjetas de equipo
+function drawSnowCap(c, x, y, w){
+  c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(x+6, y+2);
+  const bumps = Math.max(6, Math.round(w/34));
+  for (let i=0;i<=bumps;i++){ const bx = x+6 + (w-12)*i/bumps; c.quadraticCurveTo(bx - (w-12)/bumps/2, y-9 - (i%2)*3, bx, y+1); }
+  c.lineTo(x+w-6, y+6); c.lineTo(x+6, y+6); c.closePath(); c.fill();
+  for (let i=0;i<bumps;i+=2){ c.beginPath(); c.ellipse(x+14 + (w-28)*i/bumps, y+8, 3.2, 5, 0, 0, Math.PI*2); c.fill(); }
+}
+// Escena de pie de página: nieve en el suelo, muñeco de nieve, árbol y regalos
+function drawXmasScene(c, W, H, phase){
+  const ground = H - 46;
+  c.fillStyle = '#f4f8ff'; c.beginPath(); c.moveTo(0, ground+14);
+  c.bezierCurveTo(W*.2, ground-12, W*.35, ground+20, W*.55, ground+4); c.bezierCurveTo(W*.75, ground-12, W*.9, ground+16, W, ground); c.lineTo(W,H); c.lineTo(0,H); c.closePath(); c.fill();
+  // Muñeco de nieve (izquierda)
+  const sx = 92, sy = ground+6;
+  c.fillStyle = '#ffffff'; c.strokeStyle = 'rgba(0,33,111,.18)'; c.lineWidth = 1.5;
+  [[sx, sy-26, 30],[sx, sy-72, 22],[sx, sy-106, 15]].forEach(([x,y,r])=>{ c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill(); c.stroke(); });
+  c.fillStyle = '#d62828'; c.fillRect(sx-19, sy-92, 38, 7); c.fillRect(sx+8, sy-92, 8, 22);
+  c.fillStyle = '#00216f'; c.fillRect(sx-17, sy-124, 34, 5); c.fillRect(sx-11, sy-148, 22, 25);
+  c.fillStyle = '#0f141b'; [[-5,-110],[5,-110]].forEach(([dx,dy])=>{ c.beginPath(); c.arc(sx+dx, sy+dy, 2, 0, Math.PI*2); c.fill(); });
+  [-78,-66,-54].forEach(dy=>{ c.beginPath(); c.arc(sx, sy+dy, 2.2, 0, Math.PI*2); c.fill(); });
+  c.fillStyle = '#ff5100'; c.beginPath(); c.moveTo(sx, sy-104); c.lineTo(sx+16, sy-101); c.lineTo(sx, sy-99); c.closePath(); c.fill();
+  c.strokeStyle = '#6b4226'; c.lineWidth = 3; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(sx-20, sy-74); c.lineTo(sx-44, sy-92); c.moveTo(sx+20, sy-74); c.lineTo(sx+44, sy-90); c.stroke();
+  // Árbol (derecha)
+  const tx = W - 110, tb = ground+4;
+  c.fillStyle = '#6b4226'; c.fillRect(tx-9, tb-22, 18, 22);
+  const tiers = [[tb-18, 66],[tb-56, 54],[tb-90, 42],[tb-120, 28]];
+  tiers.forEach(([by, hw], i)=>{ const g = c.createLinearGradient(tx-hw, 0, tx+hw, 0); g.addColorStop(0,'#0b6b32'); g.addColorStop(1,'#15a04d');
+    c.fillStyle = g; c.beginPath(); c.moveTo(tx-hw, by); c.lineTo(tx, by-52 + i*2); c.lineTo(tx+hw, by); c.closePath(); c.fill(); });
+  const ORN = ['#ff3b3b','#ffd23f','#7dbfe6','#ff8c1a','#ffffff'];
+  [[-38,-26],[22,-34],[-8,-46],[34,-22],[-22,-66],[16,-74],[-4,-94],[10,-110],[-14,-104],[44,-24],[-46,-22]].forEach(([dx,dy],i)=>{
+    const col = ORN[i%ORN.length], on = phase==null ? 1 : (.45 + .55*(.5+.5*Math.sin(phase*6.283*3 + i*2.1)));
+    c.save(); c.globalAlpha = on; c.shadowColor = col; c.shadowBlur = 10*on; c.fillStyle = col; c.beginPath(); c.arc(tx+dx, tb+dy, 4, 0, Math.PI*2); c.fill(); c.restore();
+  });
+  // Estrella
+  const st = tb-170, starOn = phase==null ? 1 : (.75 + .25*Math.sin(phase*6.283*2));
+  c.save(); c.shadowColor = '#ffd23f'; c.shadowBlur = 22*starOn; c.fillStyle = '#ffd23f'; c.beginPath();
+  for (let i=0;i<10;i++){ const r = i%2 ? 6 : 14, a = -Math.PI/2 + i*Math.PI/5; c.lineTo(tx + r*Math.cos(a), st + r*Math.sin(a)); }
+  c.closePath(); c.fill(); c.restore();
+  // Regalos
+  [[tx-118, 34, '#d62828', '#ffd23f'],[tx-78, 26, '#ff5100', '#ffffff'],[tx+74, 30, '#7dbfe6', '#d62828']].forEach(([gx, s, col, rib])=>{
+    c.fillStyle = col; c.fillRect(gx, tb-s, s, s); c.fillStyle = rib; c.fillRect(gx + s/2 - 3, tb-s, 6, s); c.fillRect(gx, tb - s*0.6, s, 5);
+    c.beginPath(); c.ellipse(gx+s/2-6, tb-s-4, 6, 4, -.5, 0, Math.PI*2); c.ellipse(gx+s/2+6, tb-s-4, 6, 4, .5, 0, Math.PI*2); c.fill();
+  });
+}
 // ---------- Imagen del ranking: se DIBUJA directamente en un lienzo (sin librerías externas ni internet) ----------
 function drawRankingCanvas(che, imp, range, opts){
   opts = opts || {};
@@ -3294,10 +3389,12 @@ function drawRankingCanvas(che, imp, range, opts){
   if (!FONT || /var\(/.test(FONT)) FONT = (getComputedStyle(document.documentElement).getPropertyValue('--font-body') || '').trim();
   if (!FONT || /var\(/.test(FONT)) FONT = "'IBM Plex Sans'";
   FONT = FONT.split(',')[0].trim() + ', Arial, sans-serif';   // primera fuente del tema + respaldo: válido en cualquier motor
+  const XMAS = (opts.theme || rankThemeNow()) === 'navidad';
+  const TOP = XMAS ? 44 : 0, FOOT = XMAS ? 185 : 0;      // espacio para la guirnalda y la escena navideña
   const nRows = Math.max(che.length, imp.length, 1);
   const colH = HEAD_H + SUB_H + nRows*ROW_H + 8;
-  const colsY = PAD + 130;
-  const H = colsY + colH + 18 + 24 + PAD;
+  const colsY = PAD + 130 + TOP;
+  const H = colsY + colH + 18 + 24 + PAD + FOOT;
   const canvas = document.createElement('canvas'); canvas.width = W*SC; canvas.height = H*SC;
   const c = canvas.getContext('2d'); if (!c) return null;
   c.scale(SC,SC);
@@ -3314,24 +3411,28 @@ function drawRankingCanvas(che, imp, range, opts){
     return lines;
   };
   // fondo
-  c.fillStyle='#eaf2fb'; c.fillRect(0,0,W,H);
+  if (XMAS){ drawXmasBackground(c, W, H, opts.phase); drawXmasLights(c, W, 4, opts.phase); }
+  else { c.fillStyle='#eaf2fb'; c.fillRect(0,0,W,H); }
+  const HC = XMAS ? '#ffffff' : NAVY, SLOGAN = XMAS ? '#ffd23f' : ORANGE;
+  c.save(); c.translate(0, TOP);
   // encabezado
-  c.fillStyle=NAVY; c.beginPath(); c.arc(PAD+27,PAD+27,27,0,Math.PI*2); c.fill();
-  text('📞',PAD+27,PAD+36,26,400,'#fff','center');
+  c.fillStyle = XMAS ? '#d62828' : NAVY; c.beginPath(); c.arc(PAD+27,PAD+27,27,0,Math.PI*2); c.fill();
+  text(XMAS ? '🎅' : '📞',PAD+27,PAD+36,26,400,'#fff','center');
   const titleLines = opts.day ? ['CUMPLIMIENTO DE','META DEL DÍA'] : ['RANKING POR','CUMPLIMIENTO DE META'];
-  text(titleLines[0],PAD+68,PAD+24,26,900,NAVY); text(titleLines[1],PAD+68,PAD+52,26,900,NAVY);
-  text('¡Juntos',W-PAD,PAD+22,20,800,ORANGE,'right','italic'); text('logramos más!',W-PAD,PAD+46,20,800,ORANGE,'right','italic');
+  text(titleLines[0],PAD+68,PAD+24,26,900,HC); text(titleLines[1],PAD+68,PAD+52,26,900,HC);
+  text(XMAS ? '¡Feliz Navidad,' : '¡Juntos',W-PAD,PAD+22,20,800,SLOGAN,'right','italic'); text(XMAS ? 'equipo!' : 'logramos más!',W-PAD,PAD+46,20,800,SLOGAN,'right','italic');
   // chip de fecha + nota
   const chipTxt = `📅 ${opts.day && opts.dayTag ? opts.dayTag+' · ' : ''}${range}`;
   c.font=font(12,700); const chipW=c.measureText(chipTxt).width+28;
-  c.fillStyle='#dce9f7'; rr(PAD,PAD+68,chipW,28,14); c.fill();
-  text(chipTxt,PAD+14,PAD+87,12,700,NAVY);
-  const note = opts.day ? '🎯 % de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '🎯 % de meta diaria (variable por período) acumulada · sin fines de semana';
-  text(note,PAD,PAD+114,11.5,400,'#8a97a3');
+  c.fillStyle = XMAS ? 'rgba(255,255,255,.16)' : '#dce9f7'; rr(PAD,PAD+68,chipW,28,14); c.fill();
+  text(chipTxt,PAD+14,PAD+87,12,700,HC);
+  const note = opts.day ? '🎯 % de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '🎯 % de meta diaria (variable por período) acumulada · sáb/dom suman sin meta';
+  text(note,PAD,PAD+114,11.5,400,XMAS ? '#c9d6ee' : '#8a97a3');
+  c.restore();
   // columnas por equipo
   const medals=['#e8b53a','#b9c3cb','#cd7f45'];
   const teams=[{title:'CHEVERE',emoji:'👑',c1:NAVY,c2:'#0a3a9c',list:che},{title:'IMPARABLES',emoji:'🔥',c1:ORANGE,c2:'#ff7a33',list:imp}];
-  const nameW = colW - 14*2 - 26 - 130 - 48 - 64 - 32;
+  const nameW = colW - 14*2 - 26 - 8 - 112 - 8 - 150;
   teams.forEach((tm,ti)=>{
     const x0 = PAD + ti*(colW+GAP), y0 = colsY;
     c.save(); c.shadowColor='rgba(0,0,0,.08)'; c.shadowBlur=10; c.shadowOffsetY=2; c.fillStyle='#fff'; rr(x0,y0,colW,colH,14); c.fill(); c.restore();
@@ -3340,7 +3441,7 @@ function drawRankingCanvas(che, imp, range, opts){
     c.fillStyle=g; c.fillRect(x0,y0,colW,HEAD_H);
     text(tm.emoji,x0+16,y0+33,22,400,'#fff'); text('TEAM '+tm.title,x0+50,y0+32,18,800,'#fff');
     c.fillStyle='#f6f8fa'; c.fillRect(x0,y0+HEAD_H,colW,SUB_H);
-    const hy=y0+HEAD_H+17, nameX=x0+14+26+8, pctX=nameX+nameW+8, vsR=pctX+130+8+48, callR=x0+colW-14;
+    const hy=y0+HEAD_H+17, nameX=x0+14+26+8, pctX=nameX+nameW+8, callR=x0+colW-14, vsR=callR-94;
     text('#',x0+14,hy,9,700,'#8a97a3'); text('NOMBRE',nameX,hy,9,700,'#8a97a3'); text('% DE META',pctX,hy,9,700,'#8a97a3');
     text('VS META',vsR,hy,9,700,'#8a97a3','right'); text('LLAM/META',callR,hy,9,700,'#8a97a3','right');
     if(!tm.list.length) text('Sin datos en este período.',x0+colW/2,y0+HEAD_H+SUB_H+30,12,400,'#8a97a3','center');
@@ -3361,14 +3462,21 @@ function drawRankingCanvas(che, imp, range, opts){
       const barW=Math.max(3,Math.min(pct,100));
       const barColor = pct>=100 ? '#3aa76d' : pct>=50 ? '#f3a938' : '#e03131';
       text(pct+'%',pctX,cy-2,15,800,NAVY);
-      c.fillStyle='#eef1f4'; rr(pctX,cy+5,130,7,3.5); c.fill();
-      c.fillStyle=barColor; rr(pctX,cy+5,130*barW/100,7,3.5); c.fill();
+      c.fillStyle='#eef1f4'; rr(pctX,cy+5,112,7,3.5); c.fill();
+      c.fillStyle=barColor; rr(pctX,cy+5,112*barW/100,7,3.5); c.fill();
       text((dif>=0?'+':'')+fmtInt(dif),vsR,cy+4.5,12,800,dif>=0?'#2f9e44':'#e03131','right');
       text(fmtInt(r.tot)+'/'+fmtInt(Math.round(r.meta)),callR,cy+4,11,400,'#8a97a3','right','normal','"Courier New", monospace');
     });
     c.restore();
   });
-  text('¡Tu esfuerzo se nota!',W/2,colsY+colH+36,18,800,ORANGE,'center','italic');
+  if (XMAS){
+    teams.forEach((tm,ti)=> drawSnowCap(c, PAD + ti*(colW+GAP), colsY, colW));
+    drawXmasScene(c, W, H, opts.phase);
+    text('¡Tu esfuerzo se nota! 🎄',W/2,colsY+colH+40,20,800,'#ffd23f','center','italic');
+    text('Que esta Navidad cerremos con todas las metas cumplidas',W/2,colsY+colH+64,12.5,400,'#dbe6f7','center');
+  } else {
+    text('¡Tu esfuerzo se nota!',W/2,colsY+colH+36,18,800,ORANGE,'center','italic');
+  }
   return canvas;
 }
 function showRankingPreview(canvas, blob, fileName, sc){
@@ -4955,6 +5063,8 @@ $('#phoneConfirmAccept').addEventListener('click', async ()=>{
 $('#btnExport').addEventListener('click', exportCsv);
 { const _cr=document.getElementById('btnCopyRank'); if(_cr) _cr.addEventListener('click', copyGoalRankingByTeam); }
 { const _ir=document.getElementById('btnImgRank'); if(_ir) _ir.addEventListener('click', generateRankingImage); }
+{ const _rt=document.getElementById('rankTheme'); if(_rt){ try{ _rt.value = localStorage.getItem('rank_theme') || 'auto'; }catch(e){}
+    _rt.addEventListener('change', ()=>{ try{ localStorage.setItem('rank_theme', _rt.value); }catch(e){} }); } }
 $('#btnExportSummary').addEventListener('click', exportSummaryCsv);
 $('#btnSettings').addEventListener('click', openDrawer);
 $('#btnCloseDrawer').addEventListener('click', closeDrawer);
