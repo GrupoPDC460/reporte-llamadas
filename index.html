@@ -1423,6 +1423,15 @@ svg .draw-line{stroke-dasharray:1; animation:pdcDraw 1.3s cubic-bezier(.4,0,.2,1
   svg rect.week-bar, svg rect.gestor-bar, .rank-bar-fill, .lb-bar-fill, .wtc-fill, .prog-fill, .chan-seg, .dur-seg, svg .draw-line,
   #weeklySvg text, #gestorBarSvg text, #trendSvg circle, #defaseSvg circle{animation:none !important;}
 }
+.gs-btns{display:flex; gap:6px;}
+.gs-edit{border:1px solid var(--border); background:var(--surface); color:var(--accent); border-radius:7px; width:26px; height:26px; cursor:pointer; font-size:13px; line-height:1;}
+.gs-edit:hover{background:var(--accent-wash);}
+.gs-row.gs-editing{display:block; padding:12px; margin:6px 0; border-radius:14px; background:var(--accent-wash); border:1px solid var(--accent-line);}
+.gs-edit-grid{display:flex; flex-wrap:wrap; gap:10px;}
+.gs-edit-grid .sup-field{flex:1 1 130px;}
+.gse-opt{font-weight:500; color:var(--ink-mute);}
+.gs-edit-help{font-size:11.5px; color:var(--ink-soft); margin:8px 0; line-height:1.45;}
+.gs-edit-actions{display:flex; gap:8px;}
 </style>
 
 <div class="app-layout">
@@ -6518,6 +6527,13 @@ initDb();
     </div>`).join('');
   }
 
+  let gsEditing = null;   // índice del período que se está editando
+  // ¿Se cruza [from,to] con algún otro período? (el primero que contiene la fecha manda, así que no se permiten cruces)
+  function gsOverlap(from, to, skipIdx){
+    const sched = state.config.goalSchedule || [];
+    return sched.find((q,i)=> i!==skipIdx && q && (!q.to || !from || q.to>=from) && (!q.from || !to || q.from<=to)) || null;
+  }
+  const gsFmt = d => d ? dateFmtHumanFull.format(toUTC(d)) : '—';
   function renderGoalSched(){
     const el=$('#goalSchedList'); if(!el) return;
     const sched = Array.isArray(state.config.goalSchedule)?state.config.goalSchedule:[];
@@ -6529,9 +6545,21 @@ initDb();
     el.innerHTML = ordered.map(({p,idx})=>{
       const from=p.from?dateFmtHumanFull.format(toUTC(p.from)):'inicio';
       const to=p.to?dateFmtHumanFull.format(toUTC(p.to)):'sin fin';
-      return `<div class="gs-row"><div class="gs-range">${from} <span class="mono">→</span> ${to}</div><div class="gs-goal">${fmtInt(p.goal)}/día</div><button class="gs-del" data-i="${idx}" title="Eliminar período">×</button></div>`;
+      if (gsEditing === idx){
+        return `<div class="gs-row gs-editing" data-i="${idx}">
+          <div class="gs-edit-grid">
+            <div class="sup-field"><label>Desde</label><input type="date" class="gse-from" value="${p.from||''}"></div>
+            <div class="sup-field"><label>Hasta</label><input type="date" class="gse-to" value="${p.to||''}"></div>
+            <div class="sup-field" style="max-width:110px;"><label>Meta/día</label><input type="number" class="gse-goal" min="1" step="1" value="${p.goal}"></div>
+            <div class="sup-field"><label>Nueva meta aplica desde <span class="gse-opt">(opcional)</span></label><input type="date" class="gse-split" min="${p.from||''}" max="${p.to||''}" title="Si eliges una fecha, los días anteriores conservan la meta actual (${fmtInt(p.goal)}) y la nueva meta aplica de esa fecha en adelante"></div>
+          </div>
+          <div class="gs-edit-help">Sin fecha en "aplica desde", la meta cambia para <b>todo el período</b>. Con fecha, el período se divide: antes de esa fecha queda en ${fmtInt(p.goal)}/día y desde esa fecha usa la meta nueva.</div>
+          <div class="gs-edit-actions"><button class="btn primary gse-save" data-i="${idx}">Guardar cambios</button><button class="btn gse-cancel">Cancelar</button></div>
+        </div>`;
+      }
+      return `<div class="gs-row"><div class="gs-range">${from} <span class="mono">→</span> ${to}</div><div class="gs-goal">${fmtInt(p.goal)}/día</div><div class="gs-btns"><button class="gs-edit" data-i="${idx}" title="Editar período o meta">✎</button><button class="gs-del" data-i="${idx}" title="Eliminar período">×</button></div></div>`;
     }).join('');
-    $('#goalSchedHint').textContent='Aplica la meta del primer período que contenga la fecha. Fechas fuera de todo período usan la meta única.';
+    $('#goalSchedHint').textContent='Puedes ajustar un período cuando lo necesites con ✎: cambiar fechas, cambiar la meta de todo el período o aplicar una meta nueva a partir de una fecha (por ejemplo, desde la semana siguiente). El reporte se recalcula al guardar. Los días fuera de todo período no tienen meta.';
   }
 
   function fmtDerived(v, fmt){
@@ -6614,12 +6642,39 @@ initDb();
     const from=$('#gsFrom').value||''; const to=$('#gsTo').value||''; const goal=parseInt($('#gsGoal').value,10);
     if(!isFinite(goal)||goal<=0){ showToast('Escribe una meta válida (número mayor a 0).'); return; }
     if(from&&to&&from>to){ showToast('La fecha "Desde" no puede ser posterior a "Hasta".'); return; }
+    { const ov = gsOverlap(from||null, to||null, -1); if (ov){ showToast(`Se cruza con el período ${gsFmt(ov.from)} → ${gsFmt(ov.to)}. Ajusta las fechas o edita ese período.`); return; } }
     state.config.goalSchedule.push({from:from||null, to:to||null, goal});
     $('#gsFrom').value=''; $('#gsTo').value=''; $('#gsGoal').value='';
     renderAll(); showToast('Período de meta agregado.');
   });
   const gsList=$('#goalSchedList');
-  if(gsList) gsList.addEventListener('click', e=>{ const b=e.target.closest('.gs-del'); if(!b) return; state.config.goalSchedule.splice(+b.dataset.i,1); renderAll(); showToast('Período eliminado.'); });
+  if(gsList) gsList.addEventListener('click', e=>{
+    const ed = e.target.closest('.gs-edit');
+    if (ed){ gsEditing = +ed.dataset.i; renderGoalSched(); return; }
+    if (e.target.closest('.gse-cancel')){ gsEditing = null; renderGoalSched(); return; }
+    const sv = e.target.closest('.gse-save');
+    if (sv){
+      const i = +sv.dataset.i, row = sv.closest('.gs-editing'), sched = state.config.goalSchedule, old = sched[i];
+      const from = row.querySelector('.gse-from').value || null, to = row.querySelector('.gse-to').value || null;
+      const goal = parseInt(row.querySelector('.gse-goal').value, 10), split = row.querySelector('.gse-split').value || null;
+      if (!isFinite(goal) || goal<=0){ showToast('Escribe una meta válida (número mayor a 0).'); return; }
+      if (from && to && from>to){ showToast('La fecha "Desde" no puede ser posterior a "Hasta".'); return; }
+      const ov = gsOverlap(from, to, i); if (ov){ showToast(`Se cruza con el período ${gsFmt(ov.from)} → ${gsFmt(ov.to)}. Ajusta las fechas.`); return; }
+      if (split){
+        if ((from && split<=from) || (to && split>to)){ showToast('"Aplica desde" debe caer dentro del período y después de su primer día.'); return; }
+        const d = toUTC(split); d.setUTCDate(d.getUTCDate()-1); const prevEnd = dateFmtUTC.format(d);
+        sched.splice(i, 1, {from, to:prevEnd, goal:old.goal}, {from:split, to, goal});
+        showToast(`Período dividido: hasta ${gsFmt(prevEnd)} queda en ${fmtInt(old.goal)}/día y desde ${gsFmt(split)} en ${fmtInt(goal)}/día.`);
+      } else {
+        sched[i] = {...old, from, to, goal};
+        showToast(old.goal!==goal ? `Meta actualizada a ${fmtInt(goal)}/día para todo el período.` : 'Período actualizado.');
+      }
+      gsEditing = null; renderAll(); return;
+    }
+    const b = e.target.closest('.gs-del'); if(!b) return;
+    if (!confirm('¿Eliminar este período de meta? Sus días quedarán sin meta.')) return;
+    gsEditing = null; state.config.goalSchedule.splice(+b.dataset.i,1); renderAll(); showToast('Período eliminado.');
+  });
 
   // Eventos: KPIs derivados.
   const dkAdd=$('#dkAdd');
