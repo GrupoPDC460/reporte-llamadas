@@ -3341,7 +3341,8 @@ function goalRowsFor(dates){
     // TODO el equipo aparece: quien tiene todo el alcance justificado al 100% sale como "Justificado"
     // (sin %, con las llamadas que igual hizo) y no entra en los totales del equipo.
     const justified = (meta===0 && workDays>0 && excused===workDays);
-    return {ext, name:gName(ext), team:gTeam(ext), tot, meta, pct: meta ? tot/meta*100 : null, justified, excCalls};
+    let ef=0, tt=0; dates.forEach(dt=>{ const rr=getRec(ext+'_'+dt); if(rr){ ef+=rr.effective||0; tt+=rr.total||0; } });
+    return {ext, name:gName(ext), team:gTeam(ext), tot, meta, pct: meta ? tot/meta*100 : null, justified, excCalls, contact: tt ? ef/tt*100 : null};
   }).filter(r=>r.pct!==null || r.justified);
 }
 function byPctThenJustified(a,b){ if(a.justified!==b.justified) return a.justified?1:-1; if(a.justified) return a.name.localeCompare(b.name,'es'); return b.pct-a.pct; }
@@ -3375,7 +3376,7 @@ function copyGoalRankingByTeam(){
   const sc = rankScopeFromUI(); if(!sc) return;
   if(!sc.rows.length){ showToast('Sin datos para copiar en ese alcance.'); return; }
   const teamTag = t => t==='chevere' ? '🟢 Chevere' : t==='imparables' ? '🟠 Imparables' : '⚪ Sin equipo';
-  const line = (r,i)=>{ const dif=Math.round(r.tot-r.meta); const ds = dif>=0 ? `+${fmtInt(dif)} sobre la meta` : `faltan ${fmtInt(-dif)}`; if (r.justified) return `${i+1}. ${r.name} ${teamTag(r.team)} — Justificado${r.excCalls?` (hizo ${fmtInt(r.excCalls)} llamadas)`:''}`; return `${i+1}. ${r.name} ${teamTag(r.team)} — ${Math.round(r.pct)}% (${ds} · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))})`; };
+  const line = (r,i)=>{ const dif=Math.round(r.tot-r.meta); const ds = dif>=0 ? `+${fmtInt(dif)} sobre la meta` : `faltan ${fmtInt(-dif)}`; if (r.justified) return `${i+1}. ${r.name} ${teamTag(r.team)} — Justificado${r.excCalls?` (hizo ${fmtInt(r.excCalls)} llamadas)`:''}`; return `${i+1}. ${r.name} ${teamTag(r.team)} — ${Math.round(r.pct)}% (${ds} · ${fmtInt(r.tot)}/${fmtInt(Math.round(r.meta))})${r.contact!=null?` · contacto ${r.contact.toFixed(1)}%`:''}`; };
   const sorted = sc.rows.slice().sort(byPctThenJustified);   // ranking GENERAL (todos juntos), con el equipo visible por gestor
   const head = sc.isDay
     ? `📊 CUMPLIMIENTO DE META DEL DÍA\n${sc.dayTag}: ${sc.label}\n% de la meta diaria de ese día`
@@ -3764,7 +3765,7 @@ function rankThemeObj(key){
 function drawRankingCanvas(che, imp, range, opts){
   opts = opts || {};
   const NAVY='#00216f', ORANGE='#ff5100';
-  const SC=opts.scale||2, W=1000, PAD=26, GAP=18, ROW_H=46, HEAD_H=50, SUB_H=26;
+  const SC=opts.scale||2, W=1100, PAD=26, GAP=18, ROW_H=46, HEAD_H=50, SUB_H=26;
   const colW = (W - PAD*2 - GAP)/2;
   // Fuente del tema; si el navegador la entrega sin resolver (var(...)) se usa el valor de la variable o una de respaldo.
   let FONT = (document.body && getComputedStyle(document.body).fontFamily) || '';
@@ -3808,13 +3809,13 @@ function drawRankingCanvas(che, imp, range, opts){
   c.font=font(12,700); const chipW=c.measureText(chipTxt).width+28;
   c.fillStyle = DK ? 'rgba(255,255,255,.16)' : (TH ? 'rgba(255,255,255,.7)' : '#dce9f7'); rr(PAD,PAD+68,chipW,28,14); c.fill();
   text(chipTxt,PAD+14,PAD+87,12,700,HC);
-  const note = opts.day ? '🎯 % de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '🎯 % de meta diaria (variable por período) acumulada · sáb/dom suman sin meta';
+  const note = opts.day ? '🎯 % de la meta diaria · rojo = llamadas que faltan · verde = sobre la meta' : '🎯 % de meta diaria (variable por período) acumulada · sáb/dom suman sin meta · contacto = llamadas con contacto ÷ total de llamadas';
   text(note,PAD,PAD+114,11.5,400,DK ? '#c9d6ee' : (TH ? '#33415c' : '#8a97a3'));
   c.restore();
   // columnas por equipo
   const medals=['#e8b53a','#b9c3cb','#cd7f45'];
   const teams=[{title:'CHEVERE',emoji:'👑',c1:NAVY,c2:'#0a3a9c',list:che},{title:'IMPARABLES',emoji:'🔥',c1:ORANGE,c2:'#ff7a33',list:imp}];
-  const nameW = colW - 14*2 - 26 - 8 - 112 - 8 - 150;
+  const nameW = colW - 14*2 - 26 - 8 - 100 - 8 - 66 - 150;
   teams.forEach((tm,ti)=>{
     const x0 = PAD + ti*(colW+GAP), y0 = colsY;
     c.save(); c.shadowColor='rgba(0,0,0,.08)'; c.shadowBlur=10; c.shadowOffsetY=2; c.fillStyle='#fff'; rr(x0,y0,colW,colH,14); c.fill(); c.restore();
@@ -3823,9 +3824,9 @@ function drawRankingCanvas(che, imp, range, opts){
     c.fillStyle=g; c.fillRect(x0,y0,colW,HEAD_H);
     text(tm.emoji,x0+16,y0+33,22,400,'#fff'); text('TEAM '+tm.title,x0+50,y0+32,18,800,'#fff');
     c.fillStyle='#f6f8fa'; c.fillRect(x0,y0+HEAD_H,colW,SUB_H);
-    const hy=y0+HEAD_H+17, nameX=x0+14+26+8, pctX=nameX+nameW+8, callR=x0+colW-14, vsR=callR-94;
+    const hy=y0+HEAD_H+17, nameX=x0+14+26+8, pctX=nameX+nameW+8, contR=pctX+100+66, callR=x0+colW-14, vsR=callR-94;
     text('#',x0+14,hy,9,700,'#8a97a3'); text('NOMBRE',nameX,hy,9,700,'#8a97a3'); text('% DE META',pctX,hy,9,700,'#8a97a3');
-    text('VS META',vsR,hy,9,700,'#8a97a3','right'); text('LLAM/META',callR,hy,9,700,'#8a97a3','right');
+    text('CONTACTO',contR,hy,9,700,'#8a97a3','right'); text('VS META',vsR,hy,9,700,'#8a97a3','right'); text('LLAM/META',callR,hy,9,700,'#8a97a3','right');
     if(!tm.list.length) text('Sin datos en este período.',x0+colW/2,y0+HEAD_H+SUB_H+30,12,400,'#8a97a3','center');
     tm.list.forEach((r,i)=>{
       const ry=y0+HEAD_H+SUB_H+i*ROW_H, cy=ry+ROW_H/2;
@@ -3836,6 +3837,7 @@ function drawRankingCanvas(che, imp, range, opts){
       lines.forEach((ln,k)=>text(ln,nameX,top+k*14,12.5,800,NAVY));
       if (r.justified){
         text('Justificado',pctX,cy+4,13,700,'#5b6b7b');
+        text(r.contact!=null && r.excCalls ? r.contact.toFixed(1)+'%' : '\u2014',contR,cy+4.5,12,700,'#8a97a3','right');
         text('\u2014',vsR,cy+4.5,12,700,'#8a97a3','right');
         text(r.excCalls?fmtInt(r.excCalls)+' llam.':'\u2014',callR,cy+4,11,400,'#8a97a3','right','normal','"Courier New", monospace');
         return;
@@ -3844,8 +3846,9 @@ function drawRankingCanvas(che, imp, range, opts){
       const barW=Math.max(3,Math.min(pct,100));
       const barColor = pct>=100 ? '#3aa76d' : pct>=50 ? '#f3a938' : '#e03131';
       text(pct+'%',pctX,cy-2,15,800,NAVY);
-      c.fillStyle='#eef1f4'; rr(pctX,cy+5,112,7,3.5); c.fill();
-      c.fillStyle=barColor; rr(pctX,cy+5,112*barW/100,7,3.5); c.fill();
+      c.fillStyle='#eef1f4'; rr(pctX,cy+5,100,7,3.5); c.fill();
+      c.fillStyle=barColor; rr(pctX,cy+5,100*barW/100,7,3.5); c.fill();
+      text(r.contact!=null ? r.contact.toFixed(1)+'%' : '\u2014',contR,cy+4.5,12.5,700,'#0b5cad','right');
       text((dif>=0?'+':'')+fmtInt(dif),vsR,cy+4.5,12,800,dif>=0?'#2f9e44':'#e03131','right');
       text(fmtInt(r.tot)+'/'+fmtInt(Math.round(r.meta)),callR,cy+4,11,400,'#8a97a3','right','normal','"Courier New", monospace');
     });
