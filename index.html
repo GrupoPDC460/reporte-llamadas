@@ -1432,6 +1432,37 @@ svg .draw-line{stroke-dasharray:1; animation:pdcDraw 1.3s cubic-bezier(.4,0,.2,1
 .gse-opt{font-weight:500; color:var(--ink-mute);}
 .gs-edit-help{font-size:11.5px; color:var(--ink-soft); margin:8px 0; line-height:1.45;}
 .gs-edit-actions{display:flex; gap:8px;}
+
+/* Captura de lo que estoy viendo */
+body.capturing *, body.capturing *::before, body.capturing *::after{animation:none !important; transition:none !important;}
+body.capturing .cap-wrap .wk-scroll, body.capturing .cap-wrap .table-scroll, body.capturing .cap-wrap .pc-table{overflow:visible !important; max-height:none !important;}
+.cap-wrap{display:block; width:max-content; min-width:100%; max-width:none; padding:18px; box-sizing:border-box; background:var(--page);}
+.cap-head{margin:0 0 12px; padding:0 4px 10px; border-bottom:3px solid var(--orange);}
+.cap-brand{font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--orange);}
+.cap-title{font-family:var(--font-display); font-size:20px; font-weight:900; color:var(--heading); margin-top:2px;}
+.cap-ctx{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+.cap-modal{position:fixed; inset:0; z-index:300; background:rgba(0,16,60,.45); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:20px;}
+.cap-modal[hidden]{display:none;}
+.cap-box{width:min(1100px,100%); max-height:92vh; display:flex; flex-direction:column; background:var(--glass-sticky, var(--surface)); border:1px solid var(--glass-rim, var(--border)); border-radius:22px; box-shadow:0 30px 70px -20px rgba(0,0,0,.5); overflow:hidden;}
+.cap-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 16px; border-bottom:1px solid var(--border-soft);}
+.cap-sub{font-size:12.5px; color:var(--ink-soft);}
+.cap-actions{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;}
+.cap-actions a.btn{text-decoration:none;}
+.cap-img{overflow:auto; padding:14px; background:repeating-conic-gradient(var(--surface-2) 0 25%, transparent 0 50%) 0 0/18px 18px;}
+.cap-img img{display:block; max-width:100%; height:auto; margin:0 auto; border-radius:10px; box-shadow:0 6px 24px -8px rgba(0,0,0,.35);}
+.cap-foot{font-size:11.5px; color:var(--ink-soft); padding:10px 16px; border-top:1px solid var(--border-soft);}
+/* Inactivación por período */
+.inact-toggle{border:1px solid var(--border); background:var(--surface); color:var(--accent); border-radius:7px; width:28px; height:28px; cursor:pointer;}
+.inact-toggle:hover{background:var(--accent-wash);}
+.inact-list, .inact-form{grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-top:6px;}
+.inact-form[hidden]{display:none;}
+.gestor-row .inact-list, .gestor-row .inact-form{flex-basis:100%;}
+.inact-form label{display:flex; flex-direction:column; gap:3px; font-size:11px; font-weight:700; color:var(--ink-soft);}
+.inact-form small{font-weight:500; color:var(--ink-mute);}
+.inact-form .if-note-l{flex:1 1 200px;}
+.inact-form input{font:inherit; font-size:12.5px; padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--ink);}
+.inact-chip{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--warn); background:var(--warn-wash); border-radius:999px; padding:3px 4px 3px 10px;}
+.inact-del{border:0; background:transparent; color:var(--warn); cursor:pointer; font-size:14px; line-height:1; padding:0 4px;}
 </style>
 
 <div class="app-layout">
@@ -1469,9 +1500,9 @@ svg .draw-line{stroke-dasharray:1; animation:pdcDraw 1.3s cubic-bezier(.4,0,.2,1
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg>
       Modo TV
     </button>
-  <button class="btn ghost" id="btnCaptureView" title="Vista fija de todos los gestores, lista para capturar en una sola imagen">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-      Vista para capturar
+  <button class="btn ghost" id="btnCaptureView" title="Toma una imagen de la tabla o gráfica que estás viendo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2"/></svg>
+      Capturar lo que veo
     </button>
   <button class="btn ghost" id="btnThemeToggle" title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIconSun" hidden><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -2224,6 +2255,7 @@ function dayScore(ext, ds){
   const r = getRec(ext+'_'+ds); const calls = r ? (r.total||0) : 0;
   const today = todayLocalStr();
   if (ds > today) return {calls:0, meta:0, kind:'future'};
+  if (isInactiveOn(ext, ds)) return {calls, meta:0, kind:'inact'};      // gestor inactivo ese día: fuera de meta
   if (isWeekend(ds)) return {calls, meta:0, kind:'weekend'};
   if (isDayExcusedFull(ext, ds)) return {calls, meta:0, kind:'exc'};
   if (!isStrategyDay(ds)) return {calls, meta:0, kind:'nostrat'};
@@ -2317,7 +2349,17 @@ const gTeam = ext => (state.gestores[ext] && state.gestores[ext].team) || '';
 // Un gestor con activo:false YA NO OPERA como gestor (p. ej. pasó a un cargo administrativo): no aparece en
 // rankings, filtros, alertas ni listas del dashboard / Modo TV. Su historial se conserva intacto.
 const isActiveGestor = ext => !(state.gestores[ext] && state.gestores[ext].activo === false);
-const visibleExts = () => Object.keys(state.gestores).filter(ext => isActiveGestor(ext) && (!state.filterTeam || gTeam(ext)===state.filterTeam));
+// Inactivo POR PERÍODO (p. ej. todo noviembre sin llamadas): esos días no tienen meta ni cuentan como "sin registro",
+// no afectan al equipo, y si el período que estás viendo cae completo dentro, el gestor no aparece en listas.
+function inactivePeriodsOf(ext){ const g = state.gestores[ext]; return (g && Array.isArray(g.inactivo)) ? g.inactivo : []; }
+function isInactiveOn(ext, ds){ return inactivePeriodsOf(ext).some(p=> p && p.from && ds>=p.from && (!p.to || ds<=p.to)); }
+function inactiveWholeScope(ext){
+  const per = inactivePeriodsOf(ext); if (!per.length) return false;
+  if (state.filterDay) return isInactiveOn(ext, state.filterDay);
+  const [a,b] = currentRangeBounds(); if (!a) return false;
+  return per.some(p=> p && p.from && p.from<=a && (!p.to || p.to>=b));
+}
+const visibleExts = () => Object.keys(state.gestores).filter(ext => isActiveGestor(ext) && !inactiveWholeScope(ext) && (!state.filterTeam || gTeam(ext)===state.filterTeam));
 // Alterna el filtro de gestor: si ya está seleccionado ese mismo, lo quita (vuelve a la lista completa).
 function setGestorFilter(ext){
   state.filterGestor = (state.filterGestor === ext) ? '' : ext;
@@ -3908,6 +3950,7 @@ function renderWeeklyCompliance(){
       if(ds < wk) return {l:DL[i], st:'pend', ds, prevMonth:true};            // pertenece al mes anterior
       if(ds < min || ds > hi) return {l:DL[i], st:'pend', ds};               // fuera de rango o día futuro
       const d = dayScore(ext, ds);
+      if(d.kind==='inact') return {l:DL[i], st:'exc', ds, inact:true};
       if(d.kind==='exc') return d.calls>0 ? {l:DL[i], st:'excx', ds, calls:d.calls} : {l:DL[i], st:'exc', ds};
       if(d.kind==='today' || d.kind==='future') return {l:DL[i], st:'pend', ds};
       if(d.kind==='off') return {l:DL[i], st:'none', ds};
@@ -3929,7 +3972,7 @@ function renderWeeklyCompliance(){
     if(d.prevMonth) return `${d.ds}: pertenece al mes anterior (no se mide aquí)`;
     if(d.st==='ok') return `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2713 cumpli\u00f3 el d\u00eda`;
     if(d.st==='bad') return d.gap ? `${d.ds}: sin registro \u2014 cuenta 0/${fmtInt(Math.round(d.md))}` : `${d.ds}: ${fmtInt(d.calls)}/${fmtInt(Math.round(d.md))} \u2717 por debajo`;
-    if(d.st==='exc') return `${d.ds}: justificado (no cuenta)`;
+    if(d.st==='exc') return d.inact ? `${d.ds}: gestor inactivo (no cuenta)` : `${d.ds}: justificado (no cuenta)`;
     if(d.st==='excx') return `${d.ds}: justificado al 100%, pero hizo ${fmtInt(d.calls)} llamadas (suman a la semana)`;
     if(d.st==='none') return d.nostrat ? `${d.ds}: fuera de los per\u00edodos de estrategia (sin meta)${d.calls?` \u00b7 +${fmtInt(d.calls)} suman`:''}` : `${d.ds}: sin reporte cargado`;
     return `${d.ds}: pendiente / en curso`;
@@ -4737,8 +4780,37 @@ function renderGestorList(){
       <input class="name-in" value="${escapeHtml(g.name)}">
       <select class="team-in">${teamOptionsHtml(g.team)}</select>
       <label class="act-lbl" title="Desmárcalo cuando alguien deje de operar como gestor: deja de aparecer en rankings, filtros y alertas (su historial se conserva)"><input type="checkbox" class="act-in" ${g.activo===false?'':'checked'}> opera</label>
+      <button class="inact-toggle" data-ext="${ext}" title="Inactivar por un período (p. ej. un mes sin llamadas)">⏸</button>
       <button data-del="${ext}" title="Eliminar">×</button>
+      ${(Array.isArray(g.inactivo) && g.inactivo.length) ? `<div class="inact-list">${g.inactivo.map((p,i)=>`<span class="inact-chip">⏸ Inactivo ${dateFmtHuman.format(toUTC(p.from))} → ${p.to?dateFmtHumanFull.format(toUTC(p.to)):'sin fecha de regreso'}${p.nota?` · ${escapeHtml(p.nota)}`:''}<button class="inact-del" data-ext="${ext}" data-i="${i}" title="Quitar inactivación (vuelve a contar esos días)">×</button></span>`).join('')}</div>` : ''}
+      <div class="inact-form" data-ext="${ext}" hidden>
+        <label>Inactivo desde <input type="date" class="if-from"></label>
+        <label>hasta <input type="date" class="if-to"><small>vacío = sin fecha de regreso</small></label>
+        <label class="if-note-l">Nota <input type="text" class="if-note" placeholder="Ej. no realizará llamadas en noviembre"></label>
+        <button class="btn primary if-save" data-ext="${ext}">Guardar</button>
+      </div>
     </div>`).join('');
+  el.querySelectorAll('.inact-toggle').forEach(b=> b.addEventListener('click', ()=>{
+    const f = el.querySelector(`.inact-form[data-ext="${CSS.escape(b.dataset.ext)}"]`); if (!f) return;
+    f.hidden = !f.hidden;
+    if (!f.hidden && !f.querySelector('.if-from').value){ const t = localDateStr(new Date()); f.querySelector('.if-from').value = t.slice(0,8)+'01'; }
+  }));
+  el.querySelectorAll('.if-save').forEach(b=> b.addEventListener('click', ()=>{
+    const ext = b.dataset.ext, g = state.gestores[ext], f = b.closest('.inact-form');
+    const from = f.querySelector('.if-from').value, to = f.querySelector('.if-to').value || null, nota = f.querySelector('.if-note').value.trim();
+    if (!from){ showToast('Elige desde qué fecha queda inactivo.'); return; }
+    if (to && to < from){ showToast('"Hasta" no puede ser antes de "Desde".'); return; }
+    g.inactivo = (Array.isArray(g.inactivo) ? g.inactivo : []).concat([{from, to, ...(nota?{nota}:{})}]);
+    if (state.filterGestor === ext && inactiveWholeScope(ext)) state.filterGestor = '';
+    renderGestorList(); renderAll();
+    showToast(`${g.name} queda inactivo del ${dateFmtHuman.format(toUTC(from))} ${to?'al '+dateFmtHumanFull.format(toUTC(to)):'en adelante'}: esos días no cuentan para él ni para su equipo.`);
+  }));
+  el.querySelectorAll('.inact-del').forEach(b=> b.addEventListener('click', ()=>{
+    const g = state.gestores[b.dataset.ext]; if (!g || !Array.isArray(g.inactivo)) return;
+    if (!confirm('¿Quitar esta inactivación? Esos días volverán a contar con meta.')) return;
+    g.inactivo.splice(+b.dataset.i, 1); if (!g.inactivo.length) delete g.inactivo;
+    renderGestorList(); renderAll(); showToast(`${g.name}: inactivación quitada.`);
+  }));
   el.querySelectorAll('.ext-in').forEach(inp=>{
     inp.addEventListener('change', async ()=>{
       const oldExt = inp.closest('.gestor-row').dataset.ext;
@@ -5834,7 +5906,103 @@ function stopCaptureMode(){
   if (view) view.hidden = true;
 }
 const btnCaptureView = $('#btnCaptureView');
-if (btnCaptureView) btnCaptureView.addEventListener('click', startCaptureMode);
+// ---------- Capturar lo que estoy viendo ----------
+// Toma la tabla/tarjeta que ocupa más espacio en pantalla (en la página actual), la expande completa
+// (sin barras de desplazamiento), le agrega un encabezado con el contexto de filtros y genera un PNG.
+let _h2iPromise = null;
+function loadHtmlToImage(){
+  if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
+  if (!_h2iPromise) _h2iPromise = new Promise((res, rej)=>{
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js';
+    sc.onload = ()=> res(window.htmlToImage); sc.onerror = ()=>{ _h2iPromise = null; rej(new Error('No se pudo cargar la herramienta de captura')); };
+    document.head.appendChild(sc);
+  });
+  return _h2iPromise;
+}
+function captureTarget(){
+  const vh = window.innerHeight, vw = window.innerWidth;
+  const cands = Array.from(document.querySelectorAll('#modZone > .dash-mod .card, #modZone > .dash-mod > .table-scroll, #modZone > .dash-mod > .kpis, #modZone > .dash-mod > .grid-2, #modZone > .dash-mod > .grid-3'))
+    .filter(el=> el.offsetParent !== null && !el.closest('.mod-hidden'));
+  let best = null, bestArea = 0;
+  cands.forEach(el=>{
+    const r = el.getBoundingClientRect();
+    const w = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+    const h = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 64));
+    const area = w*h;
+    if (area > bestArea + 1){ best = el; bestArea = area; }
+  });
+  return best;
+}
+function captureTitleFor(el){
+  const mod = el.closest('.dash-mod');
+  const own = el.querySelector('.card-head h2, h2');
+  const sec = mod && mod.querySelector('.section-title h2');
+  const t = (own && own.textContent.trim()) || (sec && sec.textContent.trim()) || 'Reporte de llamadas';
+  return (sec && own && sec !== own && !t.includes(sec.textContent.trim())) ? `${sec.textContent.trim()} · ${t}` : t;
+}
+function captureContext(){
+  const parts = [];
+  const cal = document.querySelector('#calBtn .cal-txt'); if (cal) parts.push(cal.textContent.trim());
+  parts.push(state.filterGestor ? gName(state.filterGestor) : (state.filterTeam ? (state.filterTeam==='chevere'?'Team Chevere':'Team Imparables') : 'Todo el equipo'));
+  if (state.filterCountry) parts.push(state.filterCountry);
+  return parts.join(' · ');
+}
+async function captureCurrentView(){
+  const target = captureTarget();
+  if (!target){ showToast('No encontré una tabla o gráfica en pantalla para capturar.'); return; }
+  const btn = $('#btnCaptureView'); if (btn) btn.disabled = true;
+  showToast('Generando la captura…');
+  let lib;
+  try { lib = await loadHtmlToImage(); } catch(e){ showToast(e.message); if (btn) btn.disabled = false; return; }
+  const head = document.createElement('div');
+  head.className = 'cap-head';
+  head.innerHTML = `<div class="cap-brand">Grupo PDC · Reporte de llamadas</div><div class="cap-title">${escapeHtml(captureTitleFor(target))}</div><div class="cap-ctx">${escapeHtml(captureContext())} · generado ${escapeHtml(dateFmtHumanFull.format(toUTC(localDateStr(new Date()))))}</div>`;
+  const wrap = document.createElement('div'); wrap.className = 'cap-wrap';
+  target.parentNode.insertBefore(wrap, target); wrap.appendChild(head); wrap.appendChild(target);
+  document.body.classList.add('capturing');
+  await new Promise(r=> requestAnimationFrame(()=> requestAnimationFrame(r)));
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--page').trim() || '#F5F7FA';
+  const opts = { pixelRatio: Math.min(2, (window.devicePixelRatio||1)*1.5), backgroundColor: bg, cacheBust: true,
+                 width: wrap.scrollWidth, height: wrap.scrollHeight,
+                 filter: n => !(n.classList && (n.classList.contains('mod-toolbar') || n.classList.contains('toast'))) };
+  let url = null;
+  try { url = await lib.toPng(wrap, opts); }
+  catch(e){ try { url = await lib.toPng(wrap, {...opts, skipFonts:true}); } catch(e2){ console.error(e2); } }
+  finally {
+    wrap.parentNode.insertBefore(target, wrap); wrap.remove();
+    document.body.classList.remove('capturing');
+    if (btn) btn.disabled = false;
+  }
+  if (!url){ showToast('No se pudo generar la captura. Intenta de nuevo.'); return; }
+  openCapturePreview(url, captureTitleFor(target));
+}
+function openCapturePreview(url, title){
+  let m = document.getElementById('capPreview');
+  if (!m){ m = document.createElement('div'); m.id = 'capPreview'; m.className = 'cap-modal'; document.body.appendChild(m); }
+  const file = ('captura-' + title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50) || 'reporte') + '.png';
+  m.innerHTML = `<div class="cap-box" role="dialog" aria-label="Captura">
+      <div class="cap-bar"><b>Captura lista</b><span class="cap-sub">${escapeHtml(title)}</span>
+        <div class="cap-actions">
+          <button class="btn primary" id="capCopy">Copiar imagen</button>
+          <a class="btn" id="capDl" href="${url}" download="${file}">Descargar PNG</a>
+          <button class="btn" id="capClose">Cerrar</button>
+        </div></div>
+      <div class="cap-img"><img src="${url}" alt="Captura"></div>
+      <div class="cap-foot">Se capturó la sección que más ocupaba tu pantalla. Para otra, desplázate hasta ella y vuelve a pulsar <b>Capturar lo que veo</b>. · <a href="#" id="capOld">Abrir la vista resumen de todos los gestores</a></div>
+    </div>`;
+  m.hidden = false;
+  const close = ()=>{ m.hidden = true; };
+  m.onclick = e=>{ if (e.target === m) close(); };
+  m.querySelector('#capClose').onclick = close;
+  m.querySelector('#capOld').onclick = e=>{ e.preventDefault(); close(); startCaptureMode(); };
+  m.querySelector('#capCopy').onclick = async ()=>{
+    try { const blob = await (await fetch(url)).blob(); await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]); showToast('Imagen copiada: pégala en WhatsApp, correo o Teams.'); }
+    catch(e){ showToast('Tu navegador no permite copiar imágenes; usa Descargar PNG.'); }
+  };
+}
+document.addEventListener('keydown', e=>{ const m = document.getElementById('capPreview'); if (e.key==='Escape' && m && !m.hidden) m.hidden = true; });
+if (btnCaptureView) btnCaptureView.addEventListener('click', captureCurrentView);
 const captureExitBtn = $('#captureExit');
 if (captureExitBtn) captureExitBtn.addEventListener('click', stopCaptureMode);
 window.addEventListener('resize', ()=>{ if (state.captureMode) fitCaptureView(); });
@@ -5970,7 +6138,8 @@ initDb();
   function seedGestoresNow(){
     return Object.keys(state.gestores).sort().map(ext => ({
       ext, name: state.gestores[ext].name || '', team: state.gestores[ext].team || '',
-      ...(state.gestores[ext].activo === false ? {activo:false} : {})
+      ...(state.gestores[ext].activo === false ? {activo:false} : {}),
+      ...(Array.isArray(state.gestores[ext].inactivo) && state.gestores[ext].inactivo.length ? {inactivo:state.gestores[ext].inactivo} : {})
     }));
   }
   function seedDailyNow(){
