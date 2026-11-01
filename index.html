@@ -3304,12 +3304,15 @@ function drawXmasBackground(c, W, H, phase){
   c.fillStyle = g; c.fillRect(0,0,W,H);
   const glow = c.createRadialGradient(W*.8, 80, 10, W*.8, 80, 420); glow.addColorStop(0,'rgba(125,191,230,.28)'); glow.addColorStop(1,'rgba(125,191,230,0)');
   c.fillStyle = glow; c.fillRect(0,0,W,H);
-  const rnd = xmasRand(7);
-  for (let i=0;i<170;i++){
-    const x = rnd()*W, y0 = rnd()*H, r = .7 + rnd()*2.2, a = .3 + rnd()*.6, sp = .4 + rnd();
-    const y = (y0 + (phase||0)*H*sp*.35) % H;
-    const sway = Math.sin(((phase||0)*6.283*sp) + i) * 6 * sp;
-    c.fillStyle = `rgba(255,255,255,${a})`; c.beginPath(); c.arc(x+sway, y, r, 0, Math.PI*2); c.fill();
+  // La nieve se repite en franjas de alto P y avanza 1 o 2 franjas por vuelta: así la animación cierra sin saltos.
+  const rnd = xmasRand(7), P = Math.ceil(H/3), ph = phase || 0;
+  for (let i=0;i<60;i++){
+    const x = rnd()*W, y0 = rnd()*P, r = .7 + rnd()*2.2, a = .3 + rnd()*.6, sp = rnd() < .7 ? 1 : 2;
+    const sway = Math.sin(ph*6.283*sp + i) * 5;
+    for (let j=-1;j<3;j++){
+      const y = ((y0 + ph*P*sp) % P) + j*P; if (y < -4 || y > H+4) continue;
+      c.fillStyle = `rgba(255,255,255,${a})`; c.beginPath(); c.arc(x+sway, y, r, 0, Math.PI*2); c.fill();
+    }
   }
 }
 // Guirnalda de luces arriba
@@ -3382,7 +3385,7 @@ function drawXmasScene(c, W, H, phase){
 function drawRankingCanvas(che, imp, range, opts){
   opts = opts || {};
   const NAVY='#00216f', ORANGE='#ff5100';
-  const SC=2, W=1000, PAD=26, GAP=18, ROW_H=46, HEAD_H=50, SUB_H=26;
+  const SC=opts.scale||2, W=1000, PAD=26, GAP=18, ROW_H=46, HEAD_H=50, SUB_H=26;
   const colW = (W - PAD*2 - GAP)/2;
   // Fuente del tema; si el navegador la entrega sin resolver (var(...)) se usa el valor de la variable o una de respaldo.
   let FONT = (document.body && getComputedStyle(document.body).fontFamily) || '';
@@ -3479,7 +3482,36 @@ function drawRankingCanvas(che, imp, range, opts){
   }
   return canvas;
 }
-function showRankingPreview(canvas, blob, fileName, sc){
+
+// ---------- GIF animado del ranking navideño (para Teams: se reproduce solo y en bucle en el chat) ----------
+let _gifencP = null;
+function loadGifenc(){
+  if (!_gifencP) _gifencP = import('https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js').catch(e=>{ _gifencP = null; throw e; });
+  return _gifencP;
+}
+async function buildRankingGif(che, imp, sc, onProgress){
+  const { GIFEncoder, quantize, applyPalette } = await loadGifenc();
+  const N = 24, DELAY = 110;                                   // 24 cuadros ≈ 2.6 s por vuelta
+  const base = {day:sc.isDay, dayTag:sc.dayTag, theme:'navidad', scale:1};
+  const first = drawRankingCanvas(che, imp, sc.label, {...base, phase:0});
+  const w = first.width, h = first.height;
+  const pal = quantize(first.getContext('2d').getImageData(0,0,w,h).data, 255, {format:'rgb565'});
+  const T = pal.length; const palette = pal.concat([[0,0,0]]);  // último índice = transparente (pixel sin cambio)
+  const gif = GIFEncoder(); let prev = null;
+  for (let f=0; f<N; f++){
+    const cv = f===0 ? first : drawRankingCanvas(che, imp, sc.label, {...base, phase:f/N});
+    const idx = applyPalette(cv.getContext('2d').getImageData(0,0,w,h).data, pal, 'rgb565');
+    let out = idx;
+    if (prev){ out = new Uint8Array(idx); for (let i=0;i<idx.length;i++) if (idx[i]===prev[i]) out[i] = T; }
+    gif.writeFrame(out, w, h, {palette, delay:DELAY, repeat:0, dispose:1, transparent:!!prev, transparentIndex:T});
+    prev = idx;
+    if (onProgress) onProgress((f+1)/N);
+    await new Promise(r=>setTimeout(r,0));                     // deja respirar a la página mientras se arma
+  }
+  gif.finish();
+  return new Blob([gif.bytes()], {type:'image/gif'});
+}
+function showRankingPreview(canvas, blob, fileName, sc, lists){
   const old = document.getElementById('rankImgModal'); if (old) old.remove();
   const url = URL.createObjectURL(blob);
   const m = document.createElement('div'); m.id='rankImgModal';
@@ -3488,6 +3520,7 @@ function showRankingPreview(canvas, blob, fileName, sc){
   m.innerHTML = `<div style="background:var(--surface,#fff);border-radius:16px;max-width:min(1100px,96vw);max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4);">
     <div style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-soft,#e3e8ee);flex-wrap:wrap;">
       <div style="flex:1;min-width:160px;"><b style="color:var(--ink,#111);">Imagen del ranking</b>${scopeTxt?`<div style="font-size:12px;color:var(--ink-mute,#667);">${escapeHtml(scopeTxt)}</div>`:''}</div>
+      ${lists && lists.xmas ? `<button class="btn" id="rimgGif" title="GIF con nieve y luces en movimiento: descárgalo y arrástralo al chat de Teams">🎞️ GIF animado</button>` : ''}
       <button class="btn primary" id="rimgCopy">Copiar imagen</button>
       <button class="btn" id="rimgDl">Descargar</button>
       <button class="btn" id="rimgClose">Cerrar</button>
@@ -3503,6 +3536,19 @@ function showRankingPreview(canvas, blob, fileName, sc){
     catch(e){ if(!silent) showToast('Tu navegador no permite copiar la imagen automáticamente; usa Descargar.'); return false; }
   };
   m.querySelector('#rimgCopy').addEventListener('click',()=>copyImg(false));
+  const gifBtn = m.querySelector('#rimgGif');
+  if (gifBtn) gifBtn.addEventListener('click', async ()=>{
+    if (gifBtn.dataset.url){ const a=document.createElement('a'); a.href=gifBtn.dataset.url; a.download=fileName.replace(/\.png$/,'.gif'); document.body.appendChild(a); a.click(); a.remove(); showToast('GIF descargado: arrástralo al chat de Teams y se reproducirá en bucle.'); return; }
+    gifBtn.disabled = true;
+    try{
+      const gb = await buildRankingGif(lists.che, lists.imp, sc, p=>{ gifBtn.textContent = `🎞️ Armando GIF… ${Math.round(p*100)}%`; });
+      const gurl = URL.createObjectURL(gb);
+      gifBtn.dataset.url = gurl; gifBtn.textContent = `⬇️ Descargar GIF (${(gb.size/1048576).toFixed(1)} MB)`; gifBtn.classList.add('primary');
+      const img = m.querySelector('img'); if (img) img.src = gurl;
+      showToast('GIF listo. Descárgalo y arrástralo al chat de Teams: se reproduce solo y en bucle.');
+    }catch(err){ console.error('GIF del ranking:', err); gifBtn.textContent = '🎞️ GIF animado'; showToast('No se pudo armar el GIF (revisa tu conexión) e intenta de nuevo.'); }
+    finally{ gifBtn.disabled = false; }
+  });
   copyImg(true);   // intenta copiar al abrir; si el navegador lo bloquea, queda el botón Copiar
 }
 async function generateRankingImage(){
@@ -3517,7 +3563,7 @@ async function generateRankingImage(){
   canvas.toBlob(blob=>{
     if(!blob){ showToast('No se pudo generar el archivo de la imagen.'); return; }
     // No se descarga sola: se muestra para copiarla; el botón Descargar la baja si la necesitas.
-    showRankingPreview(canvas, blob, fileName, sc);
+    showRankingPreview(canvas, blob, fileName, sc, {che, imp, xmas: rankThemeNow()==='navidad'});
   }, 'image/png');
 }
 
