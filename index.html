@@ -2064,6 +2064,21 @@ function scoreRange(ext, dates){
   return o;
 }
 function datesBetween(a, b){ const out=[]; if(!a||!b) return out; let d=toUTC(a); const e=toUTC(b); while(d<=e){ out.push(dateFmtUTC.format(d)); d.setUTCDate(d.getUTCDate()+1); } return out; }
+// Fin de MEDICIÓN de un período: su último día más el sábado/domingo que le sigue (llamadas de compensación),
+// sin pasarse del mes ni entrar en otro período. Ej.: 19-oct→30-oct (vie) se mide hasta el sáb 31-oct.
+// Así el período coincide con sus semanas (lun–dom) de la tabla por semana.
+function periodMeasureEnd(p){
+  if (!p || !p.to) return p ? p.to : null;
+  const sched = (state.config && Array.isArray(state.config.goalSchedule)) ? state.config.goalSchedule : [];
+  let end = p.to, d = toUTC(p.to);
+  for (let i=0; i<2; i++){
+    d.setUTCDate(d.getUTCDate()+1); const ds = dateFmtUTC.format(d);
+    if (!isWeekend(ds) || ds.slice(0,7) !== p.to.slice(0,7)) break;
+    if (sched.some(q=> q!==p && q.from && q.from<=ds && (!q.to || ds<=q.to))) break;
+    end = ds;
+  }
+  return end;
+}
 // Semana DENTRO del mes: la semana que cruza de un mes a otro se corta en el día 1 (no mezcla meses).
 function monthWeekStart(ds){ const w = weekStartStr(ds), m = ds.slice(0,8)+'01'; return w < m ? m : w; }
 // ======================================================================
@@ -2932,7 +2947,7 @@ function renderPeriodCompliance(){
   const fmtRange = p => `${dateFmtHuman.format(toUTC(p.from))}–${dateFmtHuman.format(toUTC(p.to))}`;
 
   function periodStats(ext, p){                      // REGLA ÚNICA
-    const sc = scoreRange(ext, datesBetween(p.from, p.to));
+    const sc = scoreRange(ext, datesBetween(p.from, periodMeasureEnd(p)));   // incluye sáb/dom de compensación
     return {actual:sc.actual, dias:sc.worked + sc.gaps.length, meta:sc.meta, pct:sc.pct, gaps:sc.gaps};
   }
 
@@ -2943,7 +2958,7 @@ function renderPeriodCompliance(){
   if(!data.length){ el.innerHTML=''; return; }
 
   const head = `<div class="pc-row pc-head"><span class="pc-name">Gestor</span>`+
-    periods.map(p=>`<span class="pc-cell">${fmtRange(p)}<small>meta ${p.goal}/día</small></span>`).join('')+`</div>`;
+    periods.map(p=>{ const e=periodMeasureEnd(p); return `<span class="pc-cell">${fmtRange(p)}<small>meta ${p.goal}/día${e!==p.to?` · + sáb/dom hasta ${dateFmtHuman.format(toUTC(e))}`:''}</small></span>`; }).join('')+`</div>`;
   const body = data.map(r=>`<div class="pc-row"><span class="pc-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>`+
     r.cells.map(c=>`<span class="pc-cell"><span class="pc-pct ${sev(c.pct)}">${c.pct===null?'–':Math.round(c.pct)+'%'}</span><small>${fmtInt(c.actual)}/${fmtInt(Math.round(c.meta))}</small>${c.meta?(()=>{ const f=Math.round(c.meta)-Math.round(c.actual); return `<span class="pc-gap ${f>0?'falta':'sobra'}">${f>0?`faltan ${fmtInt(f)}`:(f<0?`+${fmtInt(-f)} sobre meta`:'meta exacta')}</span>`; })():''}${gapBadge(c.gaps)}</span>`).join('')+
     `</div>`).join('');
@@ -6109,7 +6124,7 @@ initDb();
   function compAgg(){
     const s=supScope(); if(!s) return null;
     const sched = Array.isArray(state.config.goalSchedule)?state.config.goalSchedule:[];
-    const periods = sched.map(p=>({from:p.from,to:p.to,goal:p.goal,total:0,meta:0}));
+    const periods = sched.map(p=>({from:p.from,to:p.to,end:periodMeasureEnd(p),goal:p.goal,total:0,meta:0}));
     const uncovered={total:0,meta:0,has:false};
     let totalCalls=0, meta=0;
     const [smin,smax] = currentRangeBounds();
@@ -6117,7 +6132,7 @@ initDb();
       let dayTotal=0, dayMeta=0;
       s.exts.forEach(ext=>{ const sc=dayScore(ext,dt); dayTotal+=sc.calls; dayMeta+=sc.meta; });   // REGLA ÚNICA
       totalCalls+=dayTotal; meta+=dayMeta;
-      const p = periods.find(pp=> (!pp.from||dt>=pp.from)&&(!pp.to||dt<=pp.to));
+      const p = periods.find(pp=> (!pp.from||dt>=pp.from)&&(!pp.end||dt<=pp.end));   // incluye sáb/dom de compensación
       if(p){ p.total+=dayTotal; p.meta+=dayMeta; }
       else if(dayTotal>0||dayMeta>0){ uncovered.total+=dayTotal; uncovered.meta+=dayMeta; uncovered.has=true; }
     });
