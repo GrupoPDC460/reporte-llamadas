@@ -1722,7 +1722,7 @@ body.role-lector .gs-edit, body.role-lector .gs-del, body.role-lector .inact-tog
         <div class="sup-field" style="max-width:150px;"><label>Permiso</label><select id="usrNewRol"><option value="editor">Editor</option><option value="lector">Solo lectura</option><option value="admin">Administrador</option></select></div>
         <button class="btn primary" id="usrAdd" style="align-self:flex-end;">Agregar</button>
       </div>
-      <div class="field-hint" style="margin-top:8px;"><b>Solo lectura</b>: ve todo, no cambia nada · <b>Editor</b>: carga archivos, metas, justificaciones y gestores · <b>Administrador</b>: además usuarios, contraseña y cierre de mes. Un correo nuevo que entra por primera vez queda en solo lectura. <b>Inhabilitar</b> le quita el acceso al momento, sin borrar su historial.</div>
+      <div class="field-hint" style="margin-top:8px;"><b>Solo lectura</b>: ve todo, no cambia nada · <b>Editor</b>: carga archivos, metas, justificaciones y gestores · <b>Administrador</b>: además usuarios, contraseña y cierre de mes. Todo correo que entra con la contraseña queda como <b>Editor</b> automáticamente. <b>Inhabilitar</b> le quita el acceso al momento, sin borrar su historial.</div>
       <div class="sup-form" style="margin-top:14px;">
         <div class="sup-field"><label>Nueva contraseña para todos</label><input type="password" id="pwNew" placeholder="Mínimo 8 caracteres"></div>
         <button class="btn" id="pwSave" style="align-self:flex-end;">Cambiar contraseña</button>
@@ -7516,7 +7516,7 @@ function renderExecSummary(){
 (function(){
   const $id = id => document.getElementById(id);
   const ROL = {admin:'Administrador', editor:'Editor', lector:'Solo lectura'};
-  const ACC = { login:'Entró', login_fallido:'Contraseña incorrecta', login_bloqueado:'Intento con correo inhabilitado', usuario_nuevo:'Correo nuevo (solo lectura)',
+  const ACC = { login:'Entró', login_fallido:'Contraseña incorrecta', login_bloqueado:'Intento con correo inhabilitado', usuario_nuevo:'Correo nuevo (Editor)',
     usuario_agregado:'Agregó un correo', usuario_modificado:'Cambió un usuario', usuario_inhabilitado:'Inhabilitó un correo', usuario_habilitado:'Habilitó un correo', clave_cambiada:'Cambió la contraseña',
     meta_periodo_agregada:'Agregó/ajustó meta de período', meta_periodo_quitada:'Quitó/ajustó meta de período', justificacion_agregada:'Agregó justificación', justificacion_modificada:'Modificó justificación',
     justificacion_eliminada:'Eliminó justificación', gestor_agregado:'Agregó gestor', gestor_modificado:'Modificó gestor', gestor_inactivacion:'Cambió inactivación de gestor', gestor_eliminado:'Eliminó gestor',
