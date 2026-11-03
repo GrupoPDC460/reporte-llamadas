@@ -7851,6 +7851,12 @@ function renderExecSummary(){
   }
   async function poll(){
     if (!booted || document.hidden) return;
+    // Si el administrador cambió el permiso de este usuario, se aplica sin tener que recargar la página
+    if (token && user && user.rol !== 'visitante'){
+      try{ const u = await rpc('rl_sesion', {p_token: token});
+        if (u && u.rol !== user.rol){ const antes = user.rol; user = u; applyUser(); setBadge(canEdit()?'vivo':'ro');
+          showToast(`Tu permiso cambió a ${({admin:'Administrador', editor:'Editor', lector:'Solo lectura'})[u.rol]||u.rol}${canEdit()?': ya puedes cargar y editar.':'.'}`, 7000); if (antes==='lector' && window.renderAll) window.renderAll(); } }catch(e){}
+    }
     try{ const v = await version(); if (v.rev !== baseRev && !String(v.updated_by||'').startsWith(clientId)) await fetchAndApply(); }catch(e){}
   }
 
