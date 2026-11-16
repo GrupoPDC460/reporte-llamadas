@@ -7520,7 +7520,8 @@ function renderExecSummary(){
     usuario_agregado:'Agregó un correo', usuario_modificado:'Cambió un usuario', usuario_inhabilitado:'Inhabilitó un correo', usuario_habilitado:'Habilitó un correo', clave_cambiada:'Cambió la contraseña',
     meta_periodo_agregada:'Agregó/ajustó meta de período', meta_periodo_quitada:'Quitó/ajustó meta de período', justificacion_agregada:'Agregó justificación', justificacion_modificada:'Modificó justificación',
     justificacion_eliminada:'Eliminó justificación', gestor_agregado:'Agregó gestor', gestor_modificado:'Modificó gestor', gestor_inactivacion:'Cambió inactivación de gestor', gestor_eliminado:'Eliminó gestor',
-    datos_llamadas:'Cambió datos de llamadas', carga_archivo:'Subió archivo', carga_eliminada:'Quitó una carga', configuracion:'Cambió configuración', mes_cerrado:'Cerró el mes', mes_reabierto:'Reabrió el mes', guardado:'Guardó cambios' };
+    datos_llamadas:'Cambió datos de llamadas', carga_archivo:'Subió archivo', carga_eliminada:'Quitó una carga', configuracion:'Cambió configuración', mes_cerrado:'Cerró el mes', mes_reabierto:'Reabrió el mes', guardado:'Guardó cambios',
+    cq_evaluacion_guardada:'Calidad · nueva evaluación', cq_evaluacion_modificada:'Calidad · modificó/firmó evaluación', cq_evaluacion_eliminada:'Calidad · eliminó evaluación', cq_configuracion:'Calidad · cambió equipos/logos' };
   const fmtTs = ts => { const d = new Date(ts); return d.toLocaleString('es-GT', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}); };
   function detTxt(a){
     const d = a.detalle || {};
@@ -7537,6 +7538,8 @@ function renderExecSummary(){
       case 'configuracion': return `${d.clave}: ${JSON.stringify(d.antes)} → ${JSON.stringify(d.despues)}`.slice(0,160);
       case 'mes_cerrado': return `${d.mes}${d.resumen&&d.resumen.equipo?` · equipo ${Math.round(d.resumen.equipo.pct)}% (${fmtInt(d.resumen.equipo.a)}/${fmtInt(Math.round(d.resumen.equipo.m))})`:''}`;
       case 'mes_reabierto': return d.mes;
+      case 'cq_evaluacion_guardada': case 'cq_evaluacion_modificada': case 'cq_evaluacion_eliminada': return `${d.gestor||''} · nota ${d.nota!=null?Math.round(d.nota*10)/10:'—'} · evaluó ${d.evaluador||''}${d.fecha?' · llamada '+d.fecha:''}${d.contacto?' · '+d.contacto:''}`;
+      case 'cq_configuracion': return [d.equipos_cambiaron&&'equipos', d.evaluadores_cambiaron&&'evaluadores', d.logos_cambiaron&&'logos'].filter(Boolean).join(', ') || ('meta '+(d.meta||''));
       case 'usuario_agregado': case 'usuario_modificado': case 'usuario_inhabilitado': case 'usuario_habilitado': return `${d.correo} · ${ROL[d.rol]||d.rol}${d.rol_antes&&d.rol_antes!==d.rol?' (antes '+(ROL[d.rol_antes]||d.rol_antes)+')':''}`;
       default: return '';
     }
